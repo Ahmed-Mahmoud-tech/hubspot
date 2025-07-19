@@ -6,7 +6,8 @@ import useRequest from '@/app/axios/useRequest';
 
 // Import components with absolute paths for better module resolution
 import DuplicatesList from '@/app/hubspot-integration/duplicates/components/DuplicatesList';
-import MergeModal from '@/app/hubspot-integration/duplicates/components/MergeModal';
+import ContactPairModal from '@/app/hubspot-integration/duplicates/components/ContactPairModal';
+import TwoContactMergeModal from '@/app/hubspot-integration/duplicates/components/TwoContactMergeModal';
 import ProcessStatus from '@/app/hubspot-integration/duplicates/components/ProcessStatus';
 import { useRouter } from 'next/navigation';
 
@@ -27,6 +28,17 @@ interface DuplicateGroup {
     group: Contact[];
 }
 
+interface ProcessProgress {
+    currentStep: string;
+    progress: number;
+    totalGroups: number;
+    processedGroups: number;
+    currentBatch: number;
+    totalBatches: number;
+    isComplete: boolean;
+    error?: string;
+}
+
 interface ProcessStatusData {
     id: number;
     name: string;
@@ -39,7 +51,7 @@ interface ProcessStatusData {
 function DuplicatesPageContent() {
     const searchParams = useSearchParams();
     const apiKey = searchParams.get('apiKey') || '';
-    const { getDuplicates, submitMerge, resetMerge, finishProcess, getActions, isAuthenticated } = useRequest();
+    const { getDuplicates, submitMerge, finishProcess, getActions, isAuthenticated, removeContact, mergeContacts, batchMergeContacts, resetMergeByGroup, getProcessProgress } = useRequest();
     const router = useRouter();
 
     const [duplicates, setDuplicates] = useState<DuplicateGroup[]>([]);
@@ -48,7 +60,25 @@ function DuplicatesPageContent() {
     const [isLoading, setIsLoading] = useState(true);
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
-    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isPairModalOpen, setIsPairModalOpen] = useState(false);
+    const [isMergeModalOpen, setIsMergeModalOpen] = useState(false);
+    const [contactsToMerge, setContactsToMerge] = useState<{ contact1: Contact | null; contact2: Contact | null }>({
+        contact1: null,
+        contact2: null,
+    });
+    const [selectedContactForTwoGroup, setSelectedContactForTwoGroup] = useState<{ [groupId: number]: number | null }>({});
+
+    // Progress tracking state
+    const [isProcessing, setIsProcessing] = useState(false);
+    const [processingProgress, setProcessingProgress] = useState<ProcessProgress>({
+        currentStep: '',
+        progress: 0,
+        totalGroups: 0,
+        processedGroups: 0,
+        currentBatch: 0,
+        totalBatches: 0,
+        isComplete: false,
+    });
 
     // Store interval ID to clear it when needed
     const intervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -172,7 +202,101 @@ function DuplicatesPageContent() {
 
     const handleMergeClick = (group: DuplicateGroup) => {
         setSelectedGroup(group);
-        setIsModalOpen(true);
+        if (group.group.length === 2) {
+            // Check if a contact is selected for this 2-contact group
+            const selectedContactId = selectedContactForTwoGroup[group.id];
+            if (selectedContactId) {
+                // Proceed with direct merge
+                const selectedContact = group.group.find(c => c.id === selectedContactId);
+                const otherContact = group.group.find(c => c.id !== selectedContactId);
+                if (selectedContact && otherContact) {
+                    handleDirectMerge(group, selectedContact, otherContact);
+                }
+            } else {
+                // Show modal to select which contact to keep
+                setContactsToMerge({
+                    contact1: group.group[0],
+                    contact2: group.group[1],
+                });
+                setIsMergeModalOpen(true);
+            }
+        } else {
+            // If more than 2 contacts, show pair selection modal
+            setIsPairModalOpen(true);
+        }
+    };
+
+    const handleContactSelect = (groupId: number, contactId: number) => {
+        setSelectedContactForTwoGroup(prev => ({
+            ...prev,
+            [groupId]: prev[groupId] === contactId ? null : contactId // Toggle selection
+        }));
+    };
+
+    const handleDirectMerge = async (group: DuplicateGroup, selectedContact: Contact, removedContact: Contact) => {
+        try {
+            // Use the new merge endpoint
+            const mergeData = {
+                groupId: group.id,
+                primaryAccountId: selectedContact.hubspotId,
+                secondaryAccountId: removedContact.hubspotId,
+                apiKey,
+            };
+
+            const result = await mergeContacts(mergeData) as { message: string; details?: any };
+            alert(`✅ ${result.message}`);
+
+            // Clear selection for this group
+            setSelectedContactForTwoGroup(prev => ({
+                ...prev,
+                [group.id]: null
+            }));
+
+            // Refresh duplicates list
+            await fetchDuplicates(currentPage);
+        } catch (error) {
+            console.error('Error during direct merge:', error);
+            alert('❌ Error merging contacts. Please try again.\n\nError details: ' + (error as Error).message);
+        }
+    };
+
+    const handleContactPairSelection = (contact1: Contact, contact2: Contact) => {
+        setContactsToMerge({ contact1, contact2 });
+        setIsPairModalOpen(false);
+        setIsMergeModalOpen(true);
+    };
+
+    const handleContactRemoval = async (contact: Contact) => {
+        if (!selectedGroup) return;
+
+        try {
+            const result = await removeContact({
+                contactId: contact.id,
+                groupId: selectedGroup.id,
+                apiKey,
+            }) as { message: string };
+
+            alert(`✅ ${result.message}`);
+
+            // Refresh duplicates list
+            await fetchDuplicates(currentPage);
+
+            // If the group was deleted, close the modal
+            const updatedGroup = selectedGroup.group.filter(c => c.id !== contact.id);
+            if (updatedGroup.length < 2) {
+                setIsPairModalOpen(false);
+                setSelectedGroup(null);
+            } else {
+                // Update the selected group with remaining contacts
+                setSelectedGroup({
+                    ...selectedGroup,
+                    group: updatedGroup,
+                });
+            }
+        } catch (error) {
+            console.error('Error removing contact:', error);
+            alert('❌ Error removing contact. Please try again.\n\nError details: ' + (error as Error).message);
+        }
     };
 
     const handleMergeSubmit = async (mergeData: {
@@ -186,6 +310,97 @@ function DuplicatesPageContent() {
         try {
             console.log('Submitting merge with enhanced data:', mergeData);
 
+            // If there's only one contact being removed, use the new merge endpoint
+            if (mergeData.removedIds.length === 1) {
+                const removedContact = mergeData.allContactsData.find(c =>
+                    mergeData.removedIds.includes(c.id)
+                );
+
+                if (removedContact) {
+                    const newMergeData = {
+                        groupId: mergeData.groupId,
+                        primaryAccountId: mergeData.selectedContactHubspotId,
+                        secondaryAccountId: removedContact.hubspotId,
+                        apiKey,
+                    };
+
+                    const result = await mergeContacts(newMergeData) as {
+                        success: boolean;
+                        message: string;
+                        mergeId?: number;
+                        details?: any;
+                    };
+                    console.log('Merge submitted successfully:', result);
+
+                    // Refresh duplicates list
+                    await fetchDuplicates(currentPage);
+                    setIsMergeModalOpen(false);
+                    setIsPairModalOpen(false);
+                    setSelectedGroup(null);
+                    setContactsToMerge({ contact1: null, contact2: null });
+
+                    // Show success message
+                    const successMessage = `
+✅ Contact merged successfully!
+
+📋 Details:
+• Primary Contact: ${mergeData.selectedContactHubspotId}
+• Merged Contact: ${removedContact.hubspotId}
+• Merge ID: ${result.mergeId || 'N/A'}
+
+${result.details ? `⏰ Merge completed at: ${new Date().toLocaleString()}` : ''}
+                    `.trim();
+
+                    alert(successMessage);
+                    return;
+                }
+            }
+
+            // For multiple contacts, use batch merge endpoint
+            if (mergeData.removedIds.length > 1) {
+                const removedContacts = mergeData.allContactsData.filter(c =>
+                    mergeData.removedIds.includes(c.id)
+                );
+
+                const batchMergeData = {
+                    groupId: mergeData.groupId,
+                    primaryAccountId: mergeData.selectedContactHubspotId,
+                    secondaryAccountIds: removedContacts.map(c => c.hubspotId),
+                    apiKey,
+                };
+
+                const result = await batchMergeContacts(batchMergeData) as {
+                    success: boolean;
+                    message: string;
+                    results?: any[];
+                    errors?: any[];
+                };
+                console.log('Batch merge submitted successfully:', result);
+
+                // Refresh duplicates list
+                await fetchDuplicates(currentPage);
+                setIsMergeModalOpen(false);
+                setIsPairModalOpen(false);
+                setSelectedGroup(null);
+                setContactsToMerge({ contact1: null, contact2: null });
+
+                // Show success message
+                const successMessage = `
+✅ Batch merge completed!
+
+📋 Details:
+• Primary Contact: ${mergeData.selectedContactHubspotId}
+• Merged ${result.results?.length || 0} contacts successfully
+${result.errors?.length ? `• ${result.errors.length} contacts failed to merge` : ''}
+
+⏰ Merge completed at: ${new Date().toLocaleString()}
+                `.trim();
+
+                alert(successMessage);
+                return;
+            }
+
+            // For multiple contacts or fallback, use the old endpoint
             const result = await submitMerge({
                 ...mergeData,
                 apiKey,
@@ -195,8 +410,10 @@ function DuplicatesPageContent() {
 
             // Refresh duplicates list
             await fetchDuplicates(currentPage);
-            setIsModalOpen(false);
+            setIsMergeModalOpen(false);
+            setIsPairModalOpen(false);
             setSelectedGroup(null);
+            setContactsToMerge({ contact1: null, contact2: null });
 
             // Show detailed success message
             const removedContactsInfo = mergeData.allContactsData
@@ -214,7 +431,7 @@ function DuplicatesPageContent() {
   ${Object.entries(mergeData.updatedData)
                     .filter(([key]) => !['recordId', 'hubspotId'].includes(key))
                     .map(([field, value]) => `  - ${field}: ${value}`)
-                    .join('\n  ')}
+                    .join('\n  ')}}
 
 ${result.details ? `⏰ Merge completed at: ${new Date(result.details.mergeTimestamp).toLocaleString()}` : ''}
             `.trim();
@@ -229,20 +446,61 @@ ${result.details ? `⏰ Merge completed at: ${new Date(result.details.mergeTimes
 
     const handleFinishProcess = async () => {
         try {
-            const result = await finishProcess({ apiKey }) as any;
-            alert(`Process completed! Excel file: ${result.excelUrl}`);
-            // Redirect or refresh
+            // Show loading message with enhanced functionality description
+            const confirmation = confirm(
+                '🔄 This will:\n' +
+                '• Automatically merge all remaining duplicate groups (oldest contacts as primary)\n' +
+                '• Update modified contacts in HubSpot\n' +
+                '• Remove marked contacts from HubSpot\n' +
+                '• Generate Excel report\n' +
+                '• Clean up temporary data\n\n' +
+                'This process may take several minutes for large datasets. Continue?'
+            );
+
+            if (!confirmation) return;
+
+            // Start processing and progress tracking
+            setIsProcessing(true);
+
+            // Start the finish process (non-blocking)
+            const finishPromise = finishProcess({ apiKey });
+
+            // Start polling for progress
+            const progressInterval = setInterval(async () => {
+                try {
+                    const progress = await getProcessProgress(apiKey) as ProcessProgress;
+                    setProcessingProgress(progress);
+
+                    if (progress.isComplete) {
+                        clearInterval(progressInterval);
+                        setIsProcessing(false);
+                    }
+                } catch (error) {
+                    console.error('Error fetching progress:', error);
+                }
+            }, 2000); // Poll every 2 seconds
+
+            // Wait for the process to complete
+            const result = await finishPromise as { message: string; excelUrl: string };
+
+            // Clean up
+            clearInterval(progressInterval);
+            setIsProcessing(false);
+
+            alert(`✅ Process completed successfully!\n\n📊 Excel file: ${result.excelUrl}\n\nAll duplicates have been merged, modified contacts updated, and removed contacts processed.`);
+
+            // Redirect to dashboard
             router.push('/hubspot-integration');
         } catch (error) {
+            setIsProcessing(false);
             console.error('Error finishing process:', error);
+            alert('❌ Error finishing process. Please try again.\n\nError details: ' + (error as Error).message);
         }
-    };
-
-    const handleResetClick = async (group: DuplicateGroup) => {
+    }; const handleResetClick = async (group: DuplicateGroup) => {
         try {
             console.log('Resetting merged group:', group.id);
 
-            const result = await resetMerge({
+            const result = await resetMergeByGroup({
                 groupId: group.id,
                 apiKey,
             }) as { message: string };
@@ -284,6 +542,53 @@ ${result.details ? `⏰ Merge completed at: ${new Date(result.details.mergeTimes
                     onFinish={handleFinishProcess}
                 />
 
+                {/* Progress Bar for Finish Process */}
+                {isProcessing && (
+                    <div className="mb-8 bg-white rounded-lg shadow p-6">
+                        <h2 className="text-lg font-semibold text-gray-900 mb-4">Processing...</h2>
+
+                        {/* Current Step */}
+                        <div className="mb-2">
+                            <p className="text-sm text-gray-600">{processingProgress.currentStep}</p>
+                        </div>
+
+                        {/* Progress Bar */}
+                        <div className="mb-4">
+                            <div className="flex justify-between text-xs text-gray-500 mb-1">
+                                <span>Progress</span>
+                                <span>{processingProgress.progress.toFixed(1)}%</span>
+                            </div>
+                            <div className="w-full bg-gray-200 rounded-full h-2">
+                                <div
+                                    className="bg-blue-500 h-2 rounded-full transition-all duration-300 ease-out"
+                                    style={{ width: `${processingProgress.progress}%` }}
+                                ></div>
+                            </div>
+                        </div>
+
+                        {/* Detailed Progress Info */}
+                        {processingProgress.totalGroups > 0 && (
+                            <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
+                                <div>
+                                    <span className="font-medium">Groups:</span> {processingProgress.processedGroups} / {processingProgress.totalGroups}
+                                </div>
+                                {processingProgress.totalBatches > 0 && (
+                                    <div>
+                                        <span className="font-medium">Batch:</span> {processingProgress.currentBatch} / {processingProgress.totalBatches}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Error Display */}
+                        {processingProgress.error && (
+                            <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md">
+                                <p className="text-sm text-red-600">{processingProgress.error}</p>
+                            </div>
+                        )}
+                    </div>
+                )}
+
                 {/* Duplicates List */}
                 {processStatus?.process_name === 'manually merge' && (
                     <>
@@ -291,18 +596,38 @@ ${result.details ? `⏰ Merge completed at: ${new Date(result.details.mergeTimes
                             duplicates={duplicates}
                             currentPage={currentPage}
                             totalPages={totalPages}
-                            onPageChange={setCurrentPage}
+                            onPageChange={(page) => {
+                                setCurrentPage(page);
+                                fetchDuplicates(page);
+                            }}
                             onMergeClick={handleMergeClick}
                             onResetClick={handleResetClick}
                             onRefresh={() => fetchDuplicates(currentPage)}
+                            selectedContactForTwoGroup={selectedContactForTwoGroup}
+                            onContactSelect={handleContactSelect}
                         />
 
-                        {/* Merge Modal */}
-                        <MergeModal
-                            isOpen={isModalOpen}
+                        {/* Contact Pair Selection Modal */}
+                        <ContactPairModal
+                            isOpen={isPairModalOpen}
                             group={selectedGroup}
                             onClose={() => {
-                                setIsModalOpen(false);
+                                setIsPairModalOpen(false);
+                                setSelectedGroup(null);
+                            }}
+                            onMergePair={handleContactPairSelection}
+                            onRemoveContact={handleContactRemoval}
+                        />
+
+                        {/* Two Contact Merge Modal */}
+                        <TwoContactMergeModal
+                            isOpen={isMergeModalOpen}
+                            contact1={contactsToMerge.contact1}
+                            contact2={contactsToMerge.contact2}
+                            groupId={selectedGroup?.id || 0}
+                            onClose={() => {
+                                setIsMergeModalOpen(false);
+                                setContactsToMerge({ contact1: null, contact2: null });
                                 setSelectedGroup(null);
                             }}
                             onSubmit={handleMergeSubmit}

@@ -7,6 +7,7 @@ import {
   Get,
   Param,
   Query,
+  Put,
 } from '@nestjs/common';
 import { HubSpotService } from '../services/hubspot.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -16,6 +17,10 @@ import {
   SubmitMergeDto,
   FinishProcessDto,
   ResetMergeDto,
+  RemoveContactDto,
+  MergeContactsDto,
+  BatchMergeContactsDto,
+  ResetMergeByGroupDto,
 } from '../dto/hubspot.dto';
 
 @Controller('hubspot')
@@ -206,5 +211,78 @@ export class HubSpotController {
       resetMergeDto.groupId,
       resetMergeDto.apiKey,
     );
+  }
+
+  @Post('remove-contact')
+  @UseGuards(JwtAuthGuard)
+  async removeContact(
+    @Request() req: any,
+    @Body() removeContactDto: RemoveContactDto,
+  ) {
+    const userId = req.user.id as number;
+    return this.hubspotService.removeContact(userId, removeContactDto);
+  }
+
+  @Post('merge-contacts')
+  @UseGuards(JwtAuthGuard)
+  async mergeContacts(
+    @Request() req: any,
+    @Body() mergeContactsDto: MergeContactsDto,
+  ) {
+    const userId = req.user.id as number;
+    return this.hubspotService.mergeContacts(userId, mergeContactsDto);
+  }
+
+  @Post('batch-merge-contacts')
+  @UseGuards(JwtAuthGuard)
+  async batchMergeContacts(
+    @Request() req: any,
+    @Body() batchMergeContactsDto: BatchMergeContactsDto,
+  ) {
+    const userId = req.user.id as number;
+    return this.hubspotService.batchMergeContacts(
+      userId,
+      batchMergeContactsDto,
+    );
+  }
+
+  @Post('reset-merge-group')
+  @UseGuards(JwtAuthGuard)
+  async resetMergeByGroup(
+    @Request() req: any,
+    @Body() resetMergeByGroupDto: ResetMergeByGroupDto,
+  ) {
+    const userId = req.user.id as number;
+    return this.hubspotService.resetMergeByGroup(userId, resetMergeByGroupDto);
+  }
+
+  @Post('mark-for-removal')
+  @UseGuards(JwtAuthGuard)
+  async markContactForRemoval(
+    @Request() req: any,
+    @Body()
+    markForRemovalDto: {
+      contactId: number;
+      groupId: number;
+      apiKey: string;
+    },
+  ) {
+    const userId = req.user.id as number;
+    return this.hubspotService.markContactForRemoval(
+      userId,
+      markForRemovalDto.contactId.toString(),
+      markForRemovalDto.groupId.toString(),
+      markForRemovalDto.apiKey,
+    );
+  }
+
+  @Get('process-progress')
+  @UseGuards(JwtAuthGuard)
+  async getProcessProgress(
+    @Request() req: any,
+    @Query('apiKey') apiKey: string,
+  ) {
+    const userId = req.user.id as number;
+    return this.hubspotService.getProcessProgress(userId, apiKey);
   }
 }

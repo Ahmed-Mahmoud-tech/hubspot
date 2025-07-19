@@ -161,6 +161,63 @@ const useRequest = () => {
     return response.data;
   };
 
+  const removeContact = async (data: {
+    contactId: number;
+    groupId: number;
+    apiKey: string;
+  }) => {
+    // The /hubspot/remove-contact endpoint already handles tracking in remove table
+    const response = await Request.post("/hubspot/remove-contact", data);
+    return response.data;
+  };
+  const mergeContacts = async (data: {
+    groupId: number;
+    primaryAccountId: string;
+    secondaryAccountId: string;
+    apiKey: string;
+  }) => {
+    const response = await Request.post("/hubspot/merge-contacts", data);
+    return response.data;
+  };
+
+  const batchMergeContacts = async (data: {
+    groupId: number;
+    primaryAccountId: string;
+    secondaryAccountIds: string[];
+    apiKey: string;
+  }) => {
+    const response = await Request.post("/hubspot/batch-merge-contacts", data);
+    return response.data;
+  };
+
+  const resetMergeByGroup = async (data: {
+    groupId: number;
+    apiKey: string;
+  }) => {
+    const response = await Request.put("/hubspot/reset-merge-group", data);
+    return response.data;
+  };
+
+  const getRemovalHistory = async (params?: {
+    groupId?: number;
+    apiKey?: string;
+  }) => {
+    const response = await Request.get("/removal/history", { params });
+    return response.data;
+  };
+
+  const undoRemoval = async (removalId: number) => {
+    const response = await Request.post(`/removal/undo/${removalId}`);
+    return response.data;
+  };
+
+  const getProcessProgress = async (apiKey: string) => {
+    const response = await Request.get("/hubspot/process-progress", {
+      params: { apiKey },
+    });
+    return response.data;
+  };
+
   return {
     // Store methods
     updateStore,
@@ -178,8 +235,19 @@ const useRequest = () => {
     getDuplicates,
     submitMerge,
     resetMerge,
+    removeContact,
+    mergeContacts,
+    batchMergeContacts,
+    resetMergeByGroup,
     finishProcess,
     getActions,
+
+    // Removal tracking methods
+    getRemovalHistory,
+    undoRemoval,
+
+    // Process progress tracking
+    getProcessProgress,
 
     // Auth utility methods
     isAuthenticated,

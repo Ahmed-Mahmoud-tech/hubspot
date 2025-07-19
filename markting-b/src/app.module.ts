@@ -6,12 +6,15 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './modules/auth.module';
 import { HubSpotModule } from './modules/hubspot.module';
+import { MergingModule } from './modules/merging.module';
+import { RemovalModule } from './modules/removal.module';
 import { User } from './entities/user.entity';
 import { Action } from './entities/action.entity';
 import { Contact } from './entities/contact.entity';
 import { Matching } from './entities/matching.entity';
 import { Modified } from './entities/modified.entity';
 import { Remove } from './entities/remove.entity';
+import { Merging } from './entities/merging.entity';
 import { CorsMiddleware } from './middleware/cors.middleware';
 
 @Module({
@@ -30,7 +33,7 @@ import { CorsMiddleware } from './middleware/cors.middleware';
         username: configService.get('DATABASE_USERNAME'),
         password: configService.get('DATABASE_PASSWORD'),
         database: configService.get('DATABASE_NAME'),
-        entities: [User, Action, Contact, Matching, Modified, Remove],
+        entities: [User, Action, Contact, Matching, Modified, Remove, Merging],
         synchronize: process.env.NODE_ENV === 'development',
         logging: process.env.NODE_ENV === 'development',
       }),
@@ -38,6 +41,8 @@ import { CorsMiddleware } from './middleware/cors.middleware';
     }),
     AuthModule,
     HubSpotModule,
+    MergingModule,
+    RemovalModule,
   ],
   controllers: [AppController],
   providers: [AppService],

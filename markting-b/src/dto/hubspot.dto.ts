@@ -93,3 +93,58 @@ export class ResetMergeDto {
   @IsNotEmpty()
   apiKey: string;
 }
+
+export class RemoveContactDto {
+  @IsInt()
+  contactId: number;
+
+  @IsInt()
+  groupId: number;
+
+  @IsString()
+  @IsNotEmpty()
+  apiKey: string;
+}
+
+export class MergeContactsDto {
+  @IsInt()
+  groupId: number;
+
+  @IsString()
+  @IsNotEmpty()
+  primaryAccountId: string;
+
+  @IsString()
+  @IsNotEmpty()
+  secondaryAccountId: string;
+
+  @IsString()
+  @IsNotEmpty()
+  apiKey: string;
+}
+
+export class BatchMergeContactsDto {
+  @IsInt()
+  groupId: number;
+
+  @IsString()
+  @IsNotEmpty()
+  primaryAccountId: string;
+
+  @IsArray()
+  @IsString({ each: true })
+  secondaryAccountIds: string[];
+
+  @IsString()
+  @IsNotEmpty()
+  apiKey: string;
+}
+
+export class ResetMergeByGroupDto {
+  @IsInt()
+  groupId: number;
+
+  @IsString()
+  @IsNotEmpty()
+  apiKey: string;
+}
