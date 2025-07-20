@@ -2,6 +2,12 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { HubSpotController } from '../controllers/hubspot.controller';
 import { HubSpotService } from '../services/hubspot.service';
+import { HubSpotApiService } from '../services/hubspot-api.service';
+import { ContactService } from '../services/contact.service';
+import { DuplicateDetectionService } from '../services/duplicate-detection.service';
+import { ProgressService } from '../services/progress.service';
+import { FileGenerationService } from '../services/file-generation.service';
+import { MatchingService } from '../services/matching.service';
 import { Contact } from '../entities/contact.entity';
 import { Action } from '../entities/action.entity';
 import { User } from '../entities/user.entity';
@@ -27,7 +33,23 @@ import { RemovalModule } from './removal.module';
     RemovalModule,
   ],
   controllers: [HubSpotController],
-  providers: [HubSpotService],
-  exports: [HubSpotService],
+  providers: [
+    HubSpotService,
+    HubSpotApiService,
+    ContactService,
+    DuplicateDetectionService,
+    ProgressService,
+    FileGenerationService,
+    MatchingService,
+  ],
+  exports: [
+    HubSpotService,
+    HubSpotApiService,
+    ContactService,
+    DuplicateDetectionService,
+    ProgressService,
+    FileGenerationService,
+    MatchingService,
+  ],
 })
 export class HubSpotModule {}

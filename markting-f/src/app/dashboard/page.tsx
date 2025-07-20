@@ -1,43 +1,209 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { getCookie, deleteCookie } from 'cookies-next';
 import { toast } from 'react-toastify';
 import useRequest, { type User } from '@/app/axios/useRequest';
-import { LogOut, User as UserIcon, Settings, BarChart3 } from 'lucide-react';
+import { LogOut, User as UserIcon, BarChart3, Plus, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
+
+interface Action {
+    id: number;
+    name: string;
+    process_name: string;
+    status: string;
+    count: number;
+    api_key: string;
+    excel_link?: string;
+    created_at: string;
+}
+
+interface ActionsResponse {
+    data: Action[];
+    pagination?: {
+        page: number;
+        limit: number;
+        total: number;
+        totalPages: number;
+    };
+}
 
 export default function DashboardPage() {
     const router = useRouter();
     const [user, setUser] = useState<User | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [actions, setActions] = useState<Action[]>([]);
+    const [actionsLoading, setActionsLoading] = useState(true);
+    const [showForm, setShowForm] = useState(false);
 
-    const { getProfile } = useRequest();
+    // Pagination state
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const [totalActions, setTotalActions] = useState(0);
+    const itemsPerPage = 10;
+
+    // Form state
+    const [formData, setFormData] = useState({
+        name: '',
+        apiKey: '',
+    });
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [removingActionId, setRemovingActionId] = useState<number | null>(null);
+
+    const { getProfile, getActions, startHubSpotFetch, deleteActionById } = useRequest();
+
+    const checkAuth = useCallback(async () => {
+        try {
+            const token = getCookie('auth_token');
+            if (!token) {
+                router.push('/login');
+                return;
+            }
+
+            const userProfile = await getProfile();
+            setUser(userProfile);
+        } catch (error) {
+            console.error('Failed to get user profile:', error);
+            // Clear cookies and redirect to login
+            deleteCookie('auth_token');
+            deleteCookie('user');
+            router.push('/login');
+        } finally {
+            setIsLoading(false);
+        }
+    }, [getProfile, router]);
 
     useEffect(() => {
-        const checkAuth = async () => {
-            try {
-                const token = getCookie('auth_token');
-                if (!token) {
-                    router.push('/login');
-                    return;
-                }
-
-                const userProfile = await getProfile();
-                setUser(userProfile);
-            } catch (error) {
-                console.error('Failed to get user profile:', error);
-                // Clear cookies and redirect to login
-                deleteCookie('auth_token');
-                deleteCookie('user');
-                router.push('/login');
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
         checkAuth();
-    }, [router]);
+    }, []);
+
+    const fetchActions = useCallback(async (page: number = 1) => {
+        try {
+            setActionsLoading(true);
+            const response = await getActions({ page, limit: itemsPerPage }) as ActionsResponse;
+
+            if (response && typeof response === 'object') {
+                // Check if response has pagination structure
+                if (response.data && Array.isArray(response.data)) {
+                    setActions(response.data);
+                    if (response.pagination) {
+                        setCurrentPage(response.pagination.page);
+                        setTotalPages(response.pagination.totalPages);
+                        setTotalActions(response.pagination.total);
+                    } else {
+                        setCurrentPage(1);
+                        setTotalPages(1);
+                        setTotalActions(response.data.length);
+                    }
+                } else if (Array.isArray(response)) {
+                    // Fallback for non-paginated response
+                    setActions(response);
+                    setCurrentPage(1);
+                    setTotalPages(1);
+                    setTotalActions(response.length);
+                } else {
+                    setActions([]);
+                    setCurrentPage(1);
+                    setTotalPages(1);
+                    setTotalActions(0);
+                }
+            } else {
+                setActions([]);
+                setCurrentPage(1);
+                setTotalPages(1);
+                setTotalActions(0);
+            }
+        } catch (error) {
+            console.error('Error fetching actions:', error);
+            setActions([]);
+            setCurrentPage(1);
+            setTotalPages(1);
+            setTotalActions(0);
+        } finally {
+            setActionsLoading(false);
+        }
+    }, [getActions]);
+
+    useEffect(() => {
+        if (user) {
+            fetchActions(1);
+        }
+    }, [user]);
+
+    const handlePageChange = (page: number) => {
+        if (page >= 1 && page <= totalPages) {
+            fetchActions(page);
+        }
+    };
+
+    const handleFormSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsSubmitting(true);
+
+        try {
+            const result = await startHubSpotFetch(formData);
+            toast.success(result.message);
+            setShowForm(false);
+            setFormData({ name: '', apiKey: '' });
+            // Refresh actions list
+            fetchActions(currentPage);
+            // Navigate to duplicates page
+            router.push(`/duplicates?apiKey=${encodeURIComponent(formData.apiKey)}`);
+        } catch (error: any) {
+            console.error('Error starting HubSpot integration:', error);
+            toast.error(error?.response?.data?.message || 'Failed to start HubSpot integration');
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const getStatusColor = (status: string) => {
+        switch (status.toLowerCase()) {
+            case 'finished':
+                return 'bg-green-100 text-green-800';
+            case 'manually merge':
+                return 'bg-yellow-100 text-yellow-800';
+            case 'fetching':
+            case 'filtering':
+            case 'update hubspot':
+                return 'bg-blue-100 text-blue-800';
+            case 'error':
+                return 'bg-red-100 text-red-800';
+            default:
+                return 'bg-gray-100 text-gray-800';
+        }
+    };
+
+    const handleRemoveAction = async (actionId: number, apiKey: string) => {
+        const confirmed = window.confirm(
+            'Are you sure you want to remove this action?\n\n' +
+            'This will permanently delete the action record.\n\n' +
+            'This action cannot be undone.'
+        );
+
+        if (!confirmed) return;
+
+        setRemovingActionId(actionId);
+        try {
+            await deleteActionById(actionId, apiKey);
+            toast.success('Action has been successfully removed');
+            // Refresh the actions list
+            await fetchActions(currentPage);
+        } catch (error: any) {
+            console.error('Error removing action:', error);
+
+            // Handle specific 404 error for missing endpoint
+            if (error?.response?.status === 404) {
+                toast.error('Remove functionality is not yet implemented on the backend. Please contact your administrator.');
+            } else if (error?.response?.data?.message) {
+                toast.error(`Failed to remove action: ${error.response.data.message}`);
+            } else {
+                toast.error('Failed to remove action. Please try again later.');
+            }
+        } finally {
+            setRemovingActionId(null);
+        }
+    };
 
     const handleLogout = () => {
         deleteCookie('auth_token');
@@ -118,83 +284,206 @@ export default function DashboardPage() {
                     </div>
                 </div>
 
-                {/* Feature Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    <div className="bg-white overflow-hidden shadow rounded-lg">
-                        <div className="p-6">
-                            <div className="flex items-center">
-                                <div className="flex-shrink-0">
-                                    <Settings className="h-8 w-8 text-indigo-600" />
-                                </div>
-                                <div className="ml-4">
-                                    <h3 className="text-lg font-medium text-gray-900">
-                                        HubSpot Integration
-                                    </h3>
-                                    <p className="text-sm text-gray-500">
-                                        Connect your HubSpot account to start managing duplicates
-                                    </p>
-                                </div>
-                            </div>
-                            <div className="mt-4">
-                                <button
-                                    onClick={() => router.push('/hubspot-integration')}
-                                    className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded-md transition-colors"
-                                >
-                                    Connect HubSpot
-                                </button>
-                            </div>
+                {/* HubSpot Integrations Section */}
+                <div className="bg-white shadow rounded-lg mb-8">
+                    <div className="px-6 py-4 border-b border-gray-200">
+                        <div className="flex justify-between items-center">
+                            <h3 className="text-lg font-medium text-gray-900">HubSpot Integrations</h3>
+                            <button
+                                onClick={() => setShowForm(!showForm)}
+                                className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                            >
+                                <Plus className="h-4 w-4 mr-1" />
+                                New Integration
+                            </button>
                         </div>
                     </div>
 
-                    <div className="bg-white overflow-hidden shadow rounded-lg">
-                        <div className="p-6">
-                            <div className="flex items-center">
-                                <div className="flex-shrink-0">
-                                    <BarChart3 className="h-8 w-8 text-green-600" />
+                    {/* Integration Form */}
+                    {showForm && (
+                        <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+                            <form onSubmit={handleFormSubmit} className="space-y-4">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Integration Name
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={formData.name}
+                                            onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                                            required
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                            placeholder="Enter integration name"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            HubSpot API Key
+                                        </label>
+                                        <input
+                                            type="password"
+                                            value={formData.apiKey}
+                                            onChange={(e) => setFormData(prev => ({ ...prev, apiKey: e.target.value }))}
+                                            required
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                            placeholder="Enter your HubSpot API key"
+                                        />
+                                    </div>
                                 </div>
-                                <div className="ml-4">
-                                    <h3 className="text-lg font-medium text-gray-900">
-                                        Duplicate Detection
-                                    </h3>
-                                    <p className="text-sm text-gray-500">
-                                        Automatically identify duplicate contacts in your CRM
-                                    </p>
+                                <div className="flex justify-end space-x-3">
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowForm(false)}
+                                        className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        disabled={isSubmitting}
+                                        className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 disabled:opacity-50"
+                                    >
+                                        {isSubmitting ? 'Starting...' : 'Start Integration'}
+                                    </button>
                                 </div>
-                            </div>
-                            <div className="mt-4">
-                                <button className="w-full bg-gray-300 text-gray-500 font-medium py-2 px-4 rounded-md cursor-not-allowed">
-                                    Coming Soon
-                                </button>
-                            </div>
+                            </form>
                         </div>
-                    </div>
+                    )}
 
-                    <div className="bg-white overflow-hidden shadow rounded-lg">
-                        <div className="p-6">
-                            <div className="flex items-center">
-                                <div className="flex-shrink-0">
-                                    <UserIcon className="h-8 w-8 text-purple-600" />
-                                </div>
-                                <div className="ml-4">
-                                    <h3 className="text-lg font-medium text-gray-900">
-                                        Merge Management
-                                    </h3>
-                                    <p className="text-sm text-gray-500">
-                                        Manually review and merge duplicate contacts
-                                    </p>
-                                </div>
+                    {/* Actions List */}
+                    <div className="px-6 py-4">
+                        {actionsLoading ? (
+                            <div className="flex justify-center py-8">
+                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
                             </div>
-                            <div className="mt-4">
-                                <button className="w-full bg-gray-300 text-gray-500 font-medium py-2 px-4 rounded-md cursor-not-allowed">
-                                    Coming Soon
-                                </button>
+                        ) : actions.length === 0 ? (
+                            <div className="text-center py-12">
+                                <h3 className="mt-2 text-sm font-medium text-gray-900">No integrations found</h3>
+                                <p className="mt-1 text-sm text-gray-500">
+                                    Get started by creating a new HubSpot integration.
+                                </p>
                             </div>
-                        </div>
+                        ) : (
+                            <div className="space-y-4">
+                                <div className="divide-y divide-gray-200">
+                                    {actions.map((action) => (
+                                        <div key={action.id} className="py-4">
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex-1">
+                                                    <div className="flex items-center space-x-4">
+                                                        <div>
+                                                            <h3 className="text-sm font-medium text-gray-900">{action.name}</h3>
+                                                            <p className="text-sm text-gray-500">
+                                                                Created: {new Date(action.created_at).toLocaleDateString()}
+                                                            </p>
+                                                        </div>
+                                                        <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(action.process_name)}`}>
+                                                            {action.process_name}
+                                                        </div>
+                                                        {action.count > 0 && (
+                                                            <div className="text-sm text-gray-600">
+                                                                {action.count} contacts
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                <div className="flex items-center space-x-3">
+                                                    {action.process_name === 'manually merge' && (
+                                                        <>
+                                                            <button
+                                                                onClick={() => router.push(`/duplicates?apiKey=${encodeURIComponent(action.api_key)}`)}
+                                                                className="text-sm bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700"
+                                                            >
+                                                                Review Duplicates
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleRemoveAction(action.id, action.api_key)}
+                                                                disabled={removingActionId === action.id}
+                                                                className="text-sm bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+                                                            >
+                                                                <Trash2 className="h-3 w-3 mr-1" />
+                                                                {removingActionId === action.id ? 'Removing...' : 'Remove'}
+                                                            </button>
+                                                        </>
+                                                    )}
+                                                    {void console.log(action, "0000")}
+
+
+                                                    {['fetching', 'filtering', 'update hubspot'].includes(action.process_name) && (
+                                                        <div className="text-sm text-gray-500">
+                                                            Processing...
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {/* Pagination */}
+                                {totalPages > 1 && (
+                                    <div className="flex items-center justify-between border-t border-gray-200 pt-4">
+                                        <div className="flex items-center text-sm text-gray-500">
+                                            Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, totalActions)} of {totalActions} integrations
+                                        </div>
+                                        <div className="flex items-center space-x-2">
+                                            <button
+                                                onClick={() => handlePageChange(currentPage - 1)}
+                                                disabled={currentPage === 1}
+                                                className="inline-flex items-center px-2 py-1 border border-gray-300 text-sm font-medium rounded-md text-gray-500 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                            >
+                                                <ChevronLeft className="h-4 w-4" />
+                                                Previous
+                                            </button>
+
+                                            <div className="flex items-center space-x-1">
+                                                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                                                    let pageNum;
+                                                    if (totalPages <= 5) {
+                                                        pageNum = i + 1;
+                                                    } else if (currentPage <= 3) {
+                                                        pageNum = i + 1;
+                                                    } else if (currentPage >= totalPages - 2) {
+                                                        pageNum = totalPages - 4 + i;
+                                                    } else {
+                                                        pageNum = currentPage - 2 + i;
+                                                    }
+
+                                                    return (
+                                                        <button
+                                                            key={pageNum}
+                                                            onClick={() => handlePageChange(pageNum)}
+                                                            className={`px-3 py-1 text-sm font-medium rounded-md ${pageNum === currentPage
+                                                                ? 'bg-indigo-600 text-white'
+                                                                : 'text-gray-500 bg-white border border-gray-300 hover:bg-gray-50'
+                                                                }`}
+                                                        >
+                                                            {pageNum}
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+
+                                            <button
+                                                onClick={() => handlePageChange(currentPage + 1)}
+                                                disabled={currentPage === totalPages}
+                                                className="inline-flex items-center px-2 py-1 border border-gray-300 text-sm font-medium rounded-md text-gray-500 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                            >
+                                                Next
+                                                <ChevronRight className="h-4 w-4" />
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
                 </div>
 
                 {/* Account Info */}
-                <div className="mt-8 bg-white overflow-hidden shadow rounded-lg">
+                <div className="bg-white overflow-hidden shadow rounded-lg">
                     <div className="px-6 py-4 border-b border-gray-200">
                         <h3 className="text-lg font-medium text-gray-900">Account Information</h3>
                     </div>

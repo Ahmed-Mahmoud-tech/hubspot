@@ -8,6 +8,7 @@ import {
   Param,
   Query,
   Put,
+  Delete,
 } from '@nestjs/common';
 import { HubSpotService } from '../services/hubspot.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -21,6 +22,7 @@ import {
   MergeContactsDto,
   BatchMergeContactsDto,
   ResetMergeByGroupDto,
+  DeleteActionDto,
 } from '../dto/hubspot.dto';
 
 @Controller('hubspot')
@@ -129,6 +131,8 @@ export class HubSpotController {
     @Query() getDuplicatesDto: GetDuplicatesDto,
   ) {
     const userId = req.user.id as number;
+    // Note: includeMerged parameter can be used to filter out processed duplicates
+    // Set includeMerged=false to only get unprocessed duplicates
     return this.hubspotService.getDuplicatesWithPagination(
       userId,
       getDuplicatesDto,
@@ -161,11 +165,8 @@ export class HubSpotController {
     const userId = req.user.id as number;
 
     try {
-      // Run the duplicate detection process
-      await this.hubspotService.findAndSaveDuplicates(apiKey, userId);
-
-      // Get the results
-      const matchingGroups = await this.hubspotService.getMatchingGroups(
+      // Use the debug method instead, which internally calls duplicate detection
+      const result = await this.hubspotService.debugDuplicateDetection(
         userId,
         apiKey,
       );
@@ -173,13 +174,7 @@ export class HubSpotController {
       return {
         success: true,
         message: 'Duplicate detection completed successfully',
-        totalGroups: matchingGroups.length,
-        groups: matchingGroups.map((group) => ({
-          id: group.id,
-          groupSize: group.group.length,
-          contactIds: group.group,
-          createdAt: group.createdAt,
-        })),
+        ...result,
       };
     } catch (error) {
       return {
@@ -202,6 +197,23 @@ export class HubSpotController {
     return this.hubspotService.finishProcess(userId, finishProcessDto);
   }
 
+  @Get('debug/pending-merges/:apiKey')
+  @UseGuards(JwtAuthGuard)
+  async getPendingMerges(@Request() req: any, @Param('apiKey') apiKey: string) {
+    const userId = req.user.id as number;
+    return this.hubspotService.getPendingMergeRecords(userId, apiKey);
+  }
+
+  @Post('debug/test-merge-processing')
+  @UseGuards(JwtAuthGuard)
+  async testMergeProcessing(
+    @Request() req: any,
+    @Body() body: { apiKey: string },
+  ) {
+    const userId = req.user.id as number;
+    return this.hubspotService.testMergeProcessing(userId, body.apiKey);
+  }
+
   @Post('reset-merge')
   @UseGuards(JwtAuthGuard)
   async resetMerge(@Request() req: any, @Body() resetMergeDto: ResetMergeDto) {
@@ -210,6 +222,40 @@ export class HubSpotController {
       userId,
       resetMergeDto.groupId,
       resetMergeDto.apiKey,
+    );
+  }
+
+  @Post('reset-all-merged')
+  @UseGuards(JwtAuthGuard)
+  async resetAllMerged(
+    @Request() req: any,
+    @Body() resetAllDto: { apiKey: string },
+  ) {
+    const userId = req.user.id as number;
+    return this.hubspotService.resetAllMergedGroups(userId, resetAllDto.apiKey);
+  }
+
+  @Post('reset-merge-before-finish')
+  @UseGuards(JwtAuthGuard)
+  async resetMergeBeforeFinish(
+    @Request() req: any,
+    @Body() resetDto: { apiKey: string },
+  ) {
+    const userId = req.user.id as number;
+    return this.hubspotService.resetMergeBeforeFinish(userId, resetDto.apiKey);
+  }
+
+  @Post('reset-specific-merge')
+  @UseGuards(JwtAuthGuard)
+  async resetSpecificMerge(
+    @Request() req: any,
+    @Body() resetDto: { groupId: number; apiKey: string },
+  ) {
+    const userId = req.user.id as number;
+    return this.hubspotService.resetSpecificMerge(
+      userId,
+      resetDto.groupId,
+      resetDto.apiKey,
     );
   }
 
@@ -246,7 +292,7 @@ export class HubSpotController {
     );
   }
 
-  @Post('reset-merge-group')
+  @Put('reset-merge-group')
   @UseGuards(JwtAuthGuard)
   async resetMergeByGroup(
     @Request() req: any,
@@ -284,5 +330,28 @@ export class HubSpotController {
   ) {
     const userId = req.user.id as number;
     return this.hubspotService.getProcessProgress(userId, apiKey);
+  }
+
+  @Delete('delete-action')
+  @UseGuards(JwtAuthGuard)
+  async deleteAction(
+    @Request() req: any,
+    @Body() deleteActionDto: DeleteActionDto,
+  ) {
+    const userId = req.user.id as number;
+    const { actionId, apiKey } = deleteActionDto;
+
+    try {
+      await this.hubspotService.deleteActionById(userId, actionId, apiKey);
+      return {
+        success: true,
+        message: 'Action has been successfully deleted',
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message || 'Failed to delete action',
+      };
+    }
   }
 }

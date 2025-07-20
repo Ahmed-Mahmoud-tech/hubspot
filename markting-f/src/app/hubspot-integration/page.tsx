@@ -45,7 +45,7 @@ export default function HubSpotIntegrationPage() {
             toast.success(result.message);
             reset();
             // Redirect to dashboard
-            router.push('/hubspot-integration/dashboard');
+            router.push('/dashboard');
         } catch (error: any) {
             const errorMessage = error.response?.data?.message || 'Failed to start HubSpot integration';
             toast.error(errorMessage);
@@ -82,7 +82,7 @@ export default function HubSpotIntegrationPage() {
                             <div className="space-y-2">
                                 <button
                                     type="button"
-                                    onClick={() => router.push('/hubspot-integration/dashboard')}
+                                    onClick={() => router.push('/dashboard')}
                                     className="w-full text-left px-3 py-2 text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-md transition-colors"
                                 >
                                     → View Dashboard

@@ -143,7 +143,7 @@ export default function HubSpotDashboard() {
                 )}
 
                 {/* Test Duplicate Detection Section */}
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 mb-8">
+                {/* <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 mb-8">
                     <div className="flex items-center justify-between mb-4">
                         <div>
                             <h3 className="text-lg font-medium text-yellow-800">Test Duplicate Detection</h3>
@@ -152,7 +152,6 @@ export default function HubSpotDashboard() {
                     </div>
 
                     <div className="space-y-4">
-                        {/* API Key input and test button */}
                         <div className="flex items-end space-x-4">
                             <div className="flex-1">
                                 <label htmlFor="test-api-key" className="block text-sm font-medium text-gray-700 mb-1">
@@ -179,7 +178,6 @@ export default function HubSpotDashboard() {
                             </button>
                         </div>
 
-                        {/* Test Result Display */}
                         {testResult && (
                             <div className={`p-4 rounded-md ${testResult.success ? 'bg-green-100 border border-green-200' : 'bg-red-100 border border-red-200'}`}>
                                 <div className="flex items-center">
@@ -231,7 +229,7 @@ export default function HubSpotDashboard() {
                             </div>
                         )}
                     </div>
-                </div>
+                </div> */}
 
                 {/* Actions List */}
                 <div className="bg-white rounded-lg shadow">
@@ -272,14 +270,14 @@ export default function HubSpotDashboard() {
 
                                         <div className="flex items-center space-x-3">
                                             {/* Test Button for all actions */}
-                                            <button
+                                            {/* <button
                                                 onClick={() => testDuplicateDetection(action.api_key)}
                                                 disabled={testLoading}
                                                 className="text-sm bg-yellow-600 text-white px-3 py-1 rounded hover:bg-yellow-700 disabled:opacity-50"
                                                 title="Test duplicate detection"
                                             >
                                                 {testLoading ? 'Testing...' : 'Test'}
-                                            </button>
+                                            </button> */}
 
                                             {action.process_name === 'manually merge' && (
                                                 <button
@@ -288,7 +286,8 @@ export default function HubSpotDashboard() {
                                                 >
                                                     Review Duplicates
                                                 </button>
-                                            )}                            {action.process_name === 'finished' && action.excel_link && (
+                                            )}
+                                            {/* {action.process_name === 'finished' && action.excel_link && (
                                                 <a
                                                     href={`${baseURL}${action.excel_link}`}
                                                     download
@@ -296,7 +295,7 @@ export default function HubSpotDashboard() {
                                                 >
                                                     Download CSV
                                                 </a>
-                                            )}
+                                            )} */}
 
                                             {['fetching', 'filtering', 'update hubspot'].includes(action.process_name) && (
                                                 <div className="text-sm text-gray-500">

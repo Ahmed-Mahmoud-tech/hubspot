@@ -49,6 +49,15 @@ export class GetDuplicatesDto {
   @Min(1)
   @Max(100)
   limit?: number = 10;
+
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (value === 'true') return true;
+    if (value === 'false') return false;
+    return value;
+  })
+  @IsBoolean()
+  includeMerged?: boolean = true;
 }
 
 export class SubmitMergeDto {
@@ -143,6 +152,15 @@ export class BatchMergeContactsDto {
 export class ResetMergeByGroupDto {
   @IsInt()
   groupId: number;
+
+  @IsString()
+  @IsNotEmpty()
+  apiKey: string;
+}
+
+export class DeleteActionDto {
+  @IsInt()
+  actionId: number;
 
   @IsString()
   @IsNotEmpty()

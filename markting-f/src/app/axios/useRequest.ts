@@ -151,8 +151,17 @@ const useRequest = () => {
     return response.data;
   };
 
-  const getActions = async () => {
-    const response = await Request.get("/hubspot/actions");
+  const getActions = async (params?: { page?: number; limit?: number }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append("page", params.page.toString());
+    if (params?.limit) queryParams.append("limit", params.limit.toString());
+
+    const url =
+      params && (params.page || params.limit)
+        ? `/hubspot/actions?${queryParams.toString()}`
+        : "/hubspot/actions";
+
+    const response = await Request.get(url);
     return response.data;
   };
 
@@ -198,6 +207,14 @@ const useRequest = () => {
     return response.data;
   };
 
+  const resetAllPendingMerges = async (data: { apiKey: string }) => {
+    const response = await Request.post(
+      "/hubspot/reset-merge-before-finish",
+      data
+    );
+    return response.data;
+  };
+
   const getRemovalHistory = async (params?: {
     groupId?: number;
     apiKey?: string;
@@ -216,6 +233,29 @@ const useRequest = () => {
       params: { apiKey },
     });
     return response.data;
+  };
+
+  const deleteActionById = async (actionId: number, apiKey: string) => {
+    try {
+      const response = await Request({
+        method: "DELETE",
+        url: "/hubspot/delete-action",
+        data: { actionId, apiKey },
+      });
+      return response.data;
+    } catch (error: any) {
+      // Check if it's a 404 error and enhance the error message
+      if (error.response?.status === 404) {
+        const enhancedError = {
+          ...error,
+          message: "Delete endpoint not implemented",
+          response: error.response,
+        };
+        throw enhancedError;
+      }
+      // Re-throw other errors as-is
+      throw error;
+    }
   };
 
   return {
@@ -239,6 +279,7 @@ const useRequest = () => {
     mergeContacts,
     batchMergeContacts,
     resetMergeByGroup,
+    resetAllPendingMerges,
     finishProcess,
     getActions,
 
@@ -248,6 +289,9 @@ const useRequest = () => {
 
     // Process progress tracking
     getProcessProgress,
+
+    // Contact management
+    deleteActionById,
 
     // Auth utility methods
     isAuthenticated,

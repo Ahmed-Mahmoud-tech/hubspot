@@ -25,6 +25,159 @@ export class MergingService {
     private matchingRepository: Repository<Matching>,
   ) {}
 
+  /**
+   * Create merge record for later processing during finish process.
+   * This is called when user selects to merge - no HubSpot operation yet.
+   */
+  async createMergeRecord(data: {
+    userId: number;
+    apiKey: string;
+    groupId: number;
+    primaryAccountId: string;
+    secondaryAccountIds: string[];
+    mergeData: any;
+  }): Promise<Merging[]> {
+    const {
+      userId,
+      apiKey,
+      groupId,
+      primaryAccountId,
+      secondaryAccountIds,
+      mergeData,
+    } = data;
+
+    const mergeRecords: Merging[] = [];
+
+    // Create a merge record for each secondary contact to be merged with primary
+    for (const secondaryAccountId of secondaryAccountIds) {
+      // Check if merge record already exists
+      const existingMerge = await this.mergingRepository.findOne({
+        where: {
+          userId,
+          groupId,
+          apiKey,
+          primaryAccountId,
+          secondaryAccountId,
+        },
+      });
+
+      if (!existingMerge) {
+        const mergeRecord = this.mergingRepository.create({
+          userId,
+          apiKey,
+          groupId,
+          primaryAccountId,
+          secondaryAccountId,
+          mergeStatus: 'completed', // Will be processed during finish
+        });
+
+        await this.mergingRepository.save(mergeRecord);
+        mergeRecords.push(mergeRecord);
+      }
+    }
+
+    // If any merge records were created, mark the group as merged
+    if (mergeRecords.length > 0) {
+      await this.markGroupAsMerged(userId, groupId, apiKey);
+    }
+
+    return mergeRecords;
+  }
+
+  /**
+   * Reset merge by removing records from merging table.
+   * This is called when user wants to reset a specific merge.
+   */
+  async resetMergeByGroupId(
+    userId: number,
+    groupId: number,
+    apiKey: string,
+  ): Promise<{ message: string; removedCount: number }> {
+    // Find all merge records for this group
+    const mergeRecords = await this.mergingRepository.find({
+      where: { userId, groupId, apiKey },
+    });
+
+    if (mergeRecords.length === 0) {
+      throw new NotFoundException('No merge records found for this group');
+    }
+
+    // Remove all merge records for this group
+    const result = await this.mergingRepository.delete({
+      userId,
+      groupId,
+      apiKey,
+    });
+
+    const removedCount = result.affected || 0;
+
+    // Also reset the matching group status
+    await this.markGroupAsUnmerged(userId, groupId, apiKey);
+
+    return {
+      message: `Successfully removed ${removedCount} merge records for group ${groupId}`,
+      removedCount,
+    };
+  }
+
+  /**
+   * Reset all merge records for a specific API key.
+   */
+  async resetAllMergeRecords(
+    userId: number,
+    apiKey: string,
+  ): Promise<{ message: string; removedCount: number }> {
+    const result = await this.mergingRepository.delete({
+      userId,
+      apiKey,
+    });
+
+    const removedCount = result.affected || 0;
+
+    return {
+      message: `Successfully removed ${removedCount} merge records`,
+      removedCount,
+    };
+  }
+
+  /**
+   * Reset pending merge records (before finish process).
+   * This allows users to reset their selections before the finish process.
+   */
+  async resetPendingMergeRecords(
+    userId: number,
+    apiKey: string,
+  ): Promise<{ message: string; removedCount: number }> {
+    // Get all pending merge records to know which groups to reset
+    const pendingMerges = await this.mergingRepository.find({
+      where: { userId, apiKey, mergeStatus: 'completed' },
+    });
+
+    // Get unique group IDs
+    const affectedGroups = [
+      ...new Set(pendingMerges.map((merge) => merge.groupId)),
+    ];
+
+    // Remove pending merge records
+    const result = await this.mergingRepository.delete({
+      userId,
+      apiKey,
+      mergeStatus: 'completed',
+    });
+
+    const removedCount = result.affected || 0;
+
+    // Reset all affected matching groups to unmerged status
+    for (const groupId of affectedGroups) {
+      await this.markGroupAsUnmerged(userId, groupId, apiKey);
+    }
+
+    return {
+      message: `Successfully removed ${removedCount} pending merge records`,
+      removedCount,
+    };
+  }
+
   async mergeContacts(userId: number, mergeContactsDto: MergeContactsDto) {
     const { groupId, primaryAccountId, secondaryAccountId, apiKey } =
       mergeContactsDto;
@@ -52,63 +205,54 @@ export class MergingService {
       throw new NotFoundException('Secondary contact not found');
     }
 
-    // Check if a merge record already exists for this group
+    // Check if a merge record already exists for this specific contact pair
     const existingMerge = await this.mergingRepository.findOne({
-      where: { userId, groupId, apiKey },
+      where: {
+        userId,
+        groupId,
+        apiKey,
+        primaryAccountId,
+        secondaryAccountId,
+      },
     });
 
     if (existingMerge) {
-      throw new BadRequestException('Merge already exists for this group');
+      throw new BadRequestException(
+        'Merge already exists for this contact pair',
+      );
     }
 
     try {
-      // Create merge record
+      // Create merge record for later processing during finish process
       const mergeRecord = this.mergingRepository.create({
         userId,
         apiKey,
         groupId,
         primaryAccountId,
         secondaryAccountId,
-        mergeStatus: 'pending',
+        mergeStatus: 'completed', // Will be processed during finish process
       });
 
       await this.mergingRepository.save(mergeRecord);
 
-      // Here you would typically call HubSpot API to perform the actual merge
-      // For now, we'll just update the status to completed
-      await this.performActualMerge(
-        mergeRecord,
-        primaryContact,
-        secondaryContact,
-      );
-
-      // Update merge status
-      mergeRecord.mergeStatus = 'completed';
-      mergeRecord.mergedAt = new Date();
-      await this.mergingRepository.save(mergeRecord);
-
-      // Mark the group as merged in the matching table
+      // Mark the group as merged in matching table and set merged_at timestamp
       await this.markGroupAsMerged(userId, groupId, apiKey);
+
+      // Do NOT perform HubSpot merge here - this will be done in finish process
+      // Just keep the record in pending status for later processing
 
       return {
         success: true,
-        message: 'Contacts merged successfully',
+        message:
+          'Merge record created successfully. Will be processed during finish process.',
         mergeId: mergeRecord.id,
         primaryAccountId,
         secondaryAccountId,
       };
     } catch (error) {
-      // Update merge status to failed if something went wrong
-      const mergeRecord = await this.mergingRepository.findOne({
-        where: { userId, groupId, apiKey },
-      });
-
-      if (mergeRecord) {
-        mergeRecord.mergeStatus = 'failed';
-        await this.mergingRepository.save(mergeRecord);
-      }
-
-      throw new BadRequestException(`Merge failed: ${error.message}`);
+      throw new BadRequestException(
+        `Failed to create merge record: ${error.message}`,
+      );
     }
   }
 
@@ -191,14 +335,14 @@ export class MergingService {
         objectIdToMerge: secondaryContactId,
       };
 
-      const response = await axios.post(mergeUrl, mergePayload, {
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-      });
+      //   const response = await axios.post(mergeUrl, mergePayload, {
+      //     headers: {
+      //       Authorization: `Bearer ${apiKey}`,
+      //       'Content-Type': 'application/json',
+      //     },
+      //   });
 
-      console.log(`HubSpot merge successful:`, response.data);
+      console.log(`HubSpot merge successful:`, mergePayload);
     } catch (error) {
       console.error(
         `HubSpot merge API error:`,
@@ -243,18 +387,15 @@ export class MergingService {
       throw new BadRequestException('Can only reset completed merges');
     }
 
-    // Here you would implement the reset logic
-    // This might involve calling HubSpot API to undo the merge
-    // For now, we'll just mark it as reset
-    merge.mergeStatus = 'reset';
-    await this.mergingRepository.save(merge);
+    // Remove the merge record from merging table
+    await this.mergingRepository.delete({ id: mergeId, userId });
 
     // Mark the group as unmerged in the matching table
     await this.markGroupAsUnmerged(userId, merge.groupId, merge.apiKey);
 
     return {
       success: true,
-      message: 'Merge reset successfully',
+      message: 'Merge reset successfully and record removed from merging table',
       mergeId: merge.id,
     };
   }
@@ -269,20 +410,24 @@ export class MergingService {
       throw new NotFoundException('No completed merges found for this group');
     }
 
-    // Reset all merges for this group
-    for (const merge of merges) {
-      merge.mergeStatus = 'reset';
-      await this.mergingRepository.save(merge);
-    }
+    // Remove all merge records for this group from merging table
+    const result = await this.mergingRepository.delete({
+      userId,
+      groupId,
+      apiKey,
+      mergeStatus: 'completed',
+    });
+
+    const removedCount = result.affected || 0;
 
     // Mark the group as unmerged in the matching table
     await this.markGroupAsUnmerged(userId, groupId, apiKey);
 
     return {
       success: true,
-      message: `Reset ${merges.length} merge(s) for group ${groupId}`,
+      message: `Reset and removed ${removedCount} merge record(s) for group ${groupId}`,
       groupId,
-      resetCount: merges.length,
+      resetCount: removedCount,
     };
   }
 
@@ -346,7 +491,7 @@ export class MergingService {
 
     return {
       success: errors.length === 0,
-      message: `Batch merge completed. ${mergeResults.length} successful, ${errors.length} failed.`,
+      message: `Batch merge records created. ${mergeResults.length} successful, ${errors.length} failed. Records will be processed during finish process.`,
       primaryAccountId,
       results: mergeResults,
       errors,
@@ -365,6 +510,7 @@ export class MergingService {
 
       if (matchingGroup) {
         matchingGroup.merged = true;
+        matchingGroup.mergedAt = new Date();
         await this.matchingRepository.save(matchingGroup);
       }
     } catch (error) {
@@ -388,12 +534,34 @@ export class MergingService {
 
       if (matchingGroup) {
         matchingGroup.merged = false;
+        matchingGroup.mergedAt = null;
         await this.matchingRepository.save(matchingGroup);
       }
     } catch (error) {
       // Log error but don't fail the reset operation
       console.error(
         `Failed to mark group ${groupId} as unmerged:`,
+        error.message,
+      );
+    }
+  }
+
+  /**
+   * Reset all matching groups to unmerged status for a specific API key.
+   */
+  private async resetAllMatchingGroupsToUnmerged(
+    userId: number,
+    apiKey: string,
+  ) {
+    try {
+      await this.matchingRepository.update(
+        { userId, apiKey },
+        { merged: false },
+      );
+    } catch (error) {
+      // Log error but don't fail the reset operation
+      console.error(
+        `Failed to reset all matching groups to unmerged:`,
         error.message,
       );
     }
@@ -417,10 +585,12 @@ export class MergingService {
           const updatedGroup = group.group.filter((id) => id !== contactId);
 
           if (updatedGroup.length < 2) {
-            // If less than 2 contacts remain, delete the entire group
-            await this.matchingRepository.delete({ id: group.id });
+            // If less than 2 contacts remain, mark the group as merged instead of deleting
+            group.group = updatedGroup;
+            group.merged = true;
+            await this.matchingRepository.save(group);
             console.log(
-              `Deleted duplicate group ${group.id} - insufficient contacts after merge`,
+              `Marked duplicate group ${group.id} as merged - insufficient contacts after merge`,
             );
           } else {
             // Update the group with remaining contacts

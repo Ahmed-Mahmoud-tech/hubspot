@@ -7,7 +7,6 @@ import { User } from '../entities/user.entity';
 import { Merging } from '../entities/merging.entity';
 import { Modified } from '../entities/modified.entity';
 import { Remove } from '../entities/remove.entity';
-import { Matching } from '../entities/matching.entity';
 import { MergingService } from './merging.service';
 import { RemovalService } from './removal.service';
 import { HubSpotApiService } from './hubspot-api.service';
@@ -43,8 +42,6 @@ export class HubSpotService {
     private modifiedRepository: Repository<Modified>,
     @InjectRepository(Remove)
     private removeRepository: Repository<Remove>,
-    @InjectRepository(Matching)
-    private matchingRepository: Repository<Matching>,
     private mergingService: MergingService,
     private removalService: RemovalService,
     private hubspotApiService: HubSpotApiService,
@@ -53,10 +50,7 @@ export class HubSpotService {
     private progressService: ProgressService,
     private fileGenerationService: FileGenerationService,
     private matchingService: MatchingService,
-  ) {
-    // Set up circular dependency
-    this.matchingService.setMergingService(this.mergingService);
-  }
+  ) {}
 
   getProcessProgress(userId: number, apiKey: string): ProcessProgress {
     return this.progressService.getProcessProgress(userId, apiKey);
@@ -305,7 +299,7 @@ export class HubSpotService {
     finishProcessDto: FinishProcessDto,
   ): Promise<{ message: string; excelUrl?: string }> {
     const { apiKey } = finishProcessDto;
-    console.log(userId, 'finishProcess started for:', apiKey);
+    console.log(userId, 'mmmmmmmmmmmm1', apiKey);
 
     // Initialize progress tracking
     this.progressService.updateProgress(userId, apiKey, {
@@ -332,31 +326,31 @@ export class HubSpotService {
     await this.updateActionProcessName(action.id, 'update hubspot');
 
     try {
-      // Step 1: Process merged duplicates from merging table
+      // Step 1: Process existing merges in the merging table only
       this.progressService.updateProgress(userId, apiKey, {
-        currentStep: 'Processing merge records from merging table...',
+        currentStep: 'Processing merges from merging table...',
         progress: 5,
       });
-      await this.processMergedDuplicates(userId, apiKey);
+      await this.processExistingMerges(userId, apiKey);
 
       // Step 2: Clear the merging table after processing
       this.progressService.updateProgress(userId, apiKey, {
-        currentStep: 'Clearing processed merge records...',
-        progress: 25,
+        currentStep: 'Clearing merging table...',
+        progress: 30,
       });
       await this.clearMergingTable(userId, apiKey);
 
       // Step 3: Update contacts in HubSpot
       this.progressService.updateProgress(userId, apiKey, {
         currentStep: 'Updating modified contacts in HubSpot...',
-        progress: 45,
+        progress: 50,
       });
       await this.updateContactsInHubSpot(userId, apiKey);
 
       // Step 4: Remove contacts from HubSpot
       this.progressService.updateProgress(userId, apiKey, {
         currentStep: 'Removing marked contacts from HubSpot...',
-        progress: 65,
+        progress: 70,
       });
       await this.removeContactsFromHubSpot(userId, apiKey);
 
@@ -411,203 +405,6 @@ export class HubSpotService {
       });
 
       throw error;
-    }
-  }
-
-  /**
-   * Process merged duplicates from the merging table during finish process.
-   * This method handles the HubSpot operations for all merge records
-   * that were created during the duplicate selection phase.
-   */
-  private async processMergedDuplicates(
-    userId: number,
-    apiKey: string,
-  ): Promise<void> {
-    const MAX_BATCH_SIZE = 25; // Reduced batch size for better API rate limiting
-    const DELAY_BETWEEN_BATCHES = 3000; // Increased delay to 3 seconds
-    const DELAY_BETWEEN_REQUESTS = 500; // Add delay between individual requests
-
-    this.logger.log('Starting to process merging table records...');
-
-    // Get all pending merge records for this user and API key
-    const mergeRecords = await this.mergingRepository.find({
-      where: { userId, apiKey },
-      order: { createdAt: 'ASC' },
-    });
-
-    if (mergeRecords.length === 0) {
-      this.logger.log('No pending merge records to process');
-      return;
-    }
-
-    this.logger.log(
-      `Found ${mergeRecords.length} pending merge records to process`,
-    );
-
-    // For large datasets, add extra warnings and batching
-    if (mergeRecords.length > 500) {
-      this.logger.warn(
-        `Large dataset detected: ${mergeRecords.length} merge records. Processing with enhanced rate limiting.`,
-      );
-    }
-
-    let processedCount = 0;
-    const errors: Array<{ mergeId: number; error: string }> = [];
-
-    // Process records in batches
-    for (let i = 0; i < mergeRecords.length; i += MAX_BATCH_SIZE) {
-      const batch = mergeRecords.slice(i, i + MAX_BATCH_SIZE);
-
-      this.logger.log(
-        `Processing batch ${Math.floor(i / MAX_BATCH_SIZE) + 1}/${Math.ceil(mergeRecords.length / MAX_BATCH_SIZE)} (${batch.length} merge records)`,
-      );
-
-      for (const mergeRecord of batch) {
-        try {
-          await this.processSingleMergeRecord(mergeRecord);
-          processedCount++;
-
-          // Add small delay between individual requests to prevent rate limiting
-          if (mergeRecords.length > 100) {
-            await new Promise((resolve) =>
-              setTimeout(resolve, DELAY_BETWEEN_REQUESTS),
-            );
-          }
-        } catch (error) {
-          this.logger.error(
-            `Failed to process merge record ${mergeRecord.id}:`,
-            error,
-          );
-          errors.push({
-            mergeId: mergeRecord.id,
-            error: error.message,
-          });
-
-          // Mark the record as failed in database
-          try {
-            mergeRecord.mergeStatus = 'failed';
-            await this.mergingRepository.save(mergeRecord);
-          } catch (saveError) {
-            this.logger.error(
-              `Failed to update merge record ${mergeRecord.id} status to failed:`,
-              saveError,
-            );
-          }
-        }
-      }
-
-      // Add delay between batches to avoid rate limiting
-      if (i + MAX_BATCH_SIZE < mergeRecords.length) {
-        this.logger.log(
-          `Waiting ${DELAY_BETWEEN_BATCHES}ms before next batch...`,
-        );
-        await new Promise((resolve) =>
-          setTimeout(resolve, DELAY_BETWEEN_BATCHES),
-        );
-      }
-    }
-
-    this.logger.log(
-      `Completed processing merge records: ${processedCount} successful, ${errors.length} failed`,
-    );
-
-    if (errors.length > 0) {
-      this.logger.warn('Errors during processing:', errors);
-    }
-  }
-
-  /**
-   * Process a single merge record - perform the actual HubSpot merge operation
-   */
-  private async processSingleMergeRecord(mergeRecord: any): Promise<void> {
-    this.logger.log(
-      `Processing merge record ${mergeRecord.id}: ${mergeRecord.primaryAccountId} <- ${mergeRecord.secondaryAccountId}`,
-    );
-
-    try {
-      // Call HubSpot API to merge contacts
-      this.logger.log(
-        `Calling HubSpot API to merge contacts: ${mergeRecord.primaryAccountId} <- ${mergeRecord.secondaryAccountId}`,
-      );
-
-      const mergeResult = await this.hubspotApiService.mergeHubSpotContacts(
-        mergeRecord.primaryAccountId,
-        mergeRecord.secondaryAccountId,
-        mergeRecord.apiKey,
-      );
-
-      this.logger.log(
-        `HubSpot merge API result for ${mergeRecord.id}: success=${mergeResult.success}`,
-      );
-
-      if (mergeResult.success) {
-        // Update merge status to completed
-        mergeRecord.mergeStatus = 'completed';
-        mergeRecord.mergedAt = new Date();
-        await this.mergingRepository.save(mergeRecord);
-
-        this.logger.log(
-          `Updated merge record ${mergeRecord.id} status to completed`,
-        );
-
-        // Mark the group as merged in matching table
-        await this.markMatchingGroupAsMerged(
-          mergeRecord.userId,
-          mergeRecord.groupId,
-          mergeRecord.apiKey,
-        );
-
-        this.logger.log(
-          `Successfully merged contacts in HubSpot: ${mergeRecord.primaryAccountId} <- ${mergeRecord.secondaryAccountId}`,
-        );
-      } else {
-        throw new Error(mergeResult.error || 'HubSpot merge failed');
-      }
-    } catch (error) {
-      this.logger.error(
-        `Error processing merge record ${mergeRecord.id}:`,
-        error.message,
-      );
-
-      // Update merge status to failed
-      mergeRecord.mergeStatus = 'failed';
-      await this.mergingRepository.save(mergeRecord);
-
-      this.logger.log(
-        `Updated merge record ${mergeRecord.id} status to failed`,
-      );
-
-      throw error;
-    }
-  }
-
-  /**
-   * Mark a matching group as merged after successful HubSpot operation
-   */
-  private async markMatchingGroupAsMerged(
-    userId: number,
-    groupId: number,
-    apiKey: string,
-  ): Promise<void> {
-    try {
-      const matchingGroup = await this.matchingRepository.findOne({
-        where: { id: groupId, userId, apiKey },
-      });
-
-      if (matchingGroup && !matchingGroup.merged) {
-        matchingGroup.merged = true;
-        matchingGroup.mergedAt = new Date();
-        await this.matchingRepository.save(matchingGroup);
-
-        this.logger.log(
-          `Successfully marked matching group ${groupId} as merged with timestamp`,
-        );
-      }
-    } catch (error) {
-      this.logger.error(
-        `Failed to mark matching group ${groupId} as merged:`,
-        error,
-      );
     }
   }
 
@@ -941,82 +738,6 @@ export class HubSpotService {
     return this.matchingService.resetMergedGroup(userId, groupId, apiKey);
   }
 
-  async resetAllMergedGroups(
-    userId: number,
-    apiKey: string,
-  ): Promise<{ message: string; resetCount: number }> {
-    return this.matchingService.resetAllMergedGroups(userId, apiKey);
-  }
-
-  /**
-   * Reset all merge data before finish process.
-   * This allows users to restart the merge process if needed.
-   */
-  async resetMergeBeforeFinish(
-    userId: number,
-    apiKey: string,
-  ): Promise<{ message: string; details: any }> {
-    this.logger.log(
-      `Resetting all merge data for user ${userId}, apiKey: ${apiKey}`,
-    );
-
-    try {
-      // Reset all merged groups in matching table
-      const matchingReset = await this.matchingService.resetAllMergedGroups(
-        userId,
-        apiKey,
-      );
-
-      // Clear pending merge records from merging table (before finish process)
-      const mergingReset = await this.mergingService.resetPendingMergeRecords(
-        userId,
-        apiKey,
-      );
-
-      // Clear all modified records
-      const modifiedResult = await this.modifiedRepository.delete({
-        userId,
-        apiKey,
-      });
-
-      // Clear all remove records
-      const removeResult = await this.removeRepository.delete({
-        userId,
-        apiKey,
-      });
-
-      const details = {
-        matchingGroupsReset: matchingReset.resetCount,
-        pendingMergeRecordsRemoved: mergingReset.removedCount,
-        modifiedRecordsDeleted: modifiedResult.affected || 0,
-        removeRecordsDeleted: removeResult.affected || 0,
-      };
-
-      this.logger.log('Reset completed:', details);
-
-      return {
-        message:
-          'All pending merge data has been reset successfully. You can now restart the merge process.',
-        details,
-      };
-    } catch (error) {
-      this.logger.error('Error during reset:', error);
-      throw new Error(`Failed to reset merge data: ${error.message}`);
-    }
-  }
-
-  /**
-   * Reset a specific merge by removing it from the merging table.
-   * This allows users to undo a specific merge selection.
-   */
-  async resetSpecificMerge(
-    userId: number,
-    groupId: number,
-    apiKey: string,
-  ): Promise<{ message: string; removedCount: number }> {
-    return this.mergingService.resetMergeByGroupId(userId, groupId, apiKey);
-  }
-
   async mergeContacts(userId: number, mergeContactsDto: MergeContactsDto) {
     return this.mergingService.mergeContacts(userId, mergeContactsDto);
   }
@@ -1029,47 +750,6 @@ export class HubSpotService {
       userId,
       batchMergeContactsDto,
     );
-  }
-
-  /**
-   * Debug method: Get all pending merge records for troubleshooting
-   */
-  async getPendingMergeRecords(userId: number, apiKey: string) {
-    const pendingRecords = await this.mergingRepository.find({
-      where: { userId, apiKey, mergeStatus: 'pending' },
-      order: { createdAt: 'DESC' },
-    });
-
-    this.logger.log(
-      `Found ${pendingRecords.length} pending merge records for user ${userId}`,
-    );
-
-    return {
-      count: pendingRecords.length,
-      records: pendingRecords,
-    };
-  }
-
-  /**
-   * Debug method: Manually trigger merge processing for testing
-   */
-  async testMergeProcessing(userId: number, apiKey: string) {
-    this.logger.log('Starting test merge processing...');
-
-    try {
-      await this.processMergedDuplicates(userId, apiKey);
-      return {
-        success: true,
-        message: 'Test merge processing completed',
-      };
-    } catch (error) {
-      this.logger.error('Test merge processing failed:', error);
-      return {
-        success: false,
-        message: `Test merge processing failed: ${error.message}`,
-        error: error.message,
-      };
-    }
   }
 
   async resetMergeByGroup(
@@ -1262,18 +942,17 @@ export class HubSpotService {
     userId: number,
     apiKey: string,
   ): Promise<void> {
-    this.logger.log(`Clearing processed merge records for user ${userId}`);
+    this.logger.log(`Clearing merging table for user ${userId}`);
 
     try {
-      // Remove only completed and failed merging entries (keep pending ones)
+      // Remove all merging entries for this user and API key
       const result = await this.mergingRepository.delete({
         userId,
         apiKey,
-        mergeStatus: In(['completed', 'failed']),
       });
 
       this.logger.log(
-        `Cleared ${result.affected || 0} processed entries from merging table`,
+        `Cleared ${result.affected || 0} entries from merging table`,
       );
     } catch (error) {
       this.logger.error('Error clearing merging table:', error);

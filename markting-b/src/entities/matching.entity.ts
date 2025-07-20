@@ -31,6 +31,9 @@ export class Matching {
   @Column({ name: 'merged', default: false })
   merged: boolean;
 
+  @Column({ name: 'merged_at', type: 'timestamp', nullable: true })
+  mergedAt: Date | null;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 

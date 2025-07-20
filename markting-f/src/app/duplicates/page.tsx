@@ -4,11 +4,11 @@ import { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import useRequest from '@/app/axios/useRequest';
 
-// Import components with absolute paths for better module resolution
-import DuplicatesList from '@/app/hubspot-integration/duplicates/components/DuplicatesList';
-import ContactPairModal from '@/app/hubspot-integration/duplicates/components/ContactPairModal';
-import TwoContactMergeModal from '@/app/hubspot-integration/duplicates/components/TwoContactMergeModal';
-import ProcessStatus from '@/app/hubspot-integration/duplicates/components/ProcessStatus';
+// Import components with updated paths
+import DuplicatesList from '@/app/duplicates/components/DuplicatesList';
+import ContactPairModal from '@/app/duplicates/components/ContactPairModal';
+import TwoContactMergeModal from '@/app/duplicates/components/TwoContactMergeModal';
+import ProcessStatus from '@/app/duplicates/components/ProcessStatus';
 import { useRouter } from 'next/navigation';
 
 interface Contact {
@@ -51,7 +51,7 @@ interface ProcessStatusData {
 function DuplicatesPageContent() {
     const searchParams = useSearchParams();
     const apiKey = searchParams.get('apiKey') || '';
-    const { getDuplicates, submitMerge, finishProcess, getActions, isAuthenticated, removeContact, mergeContacts, batchMergeContacts, resetMergeByGroup, resetAllPendingMerges, getProcessProgress } = useRequest();
+    const { getDuplicates, submitMerge, finishProcess, getActions, isAuthenticated, removeContact, mergeContacts, batchMergeContacts, resetMergeByGroup, getProcessProgress } = useRequest();
     const router = useRouter();
 
     const [duplicates, setDuplicates] = useState<DuplicateGroup[]>([]);
@@ -330,7 +330,7 @@ function DuplicatesPageContent() {
                         mergeId?: number;
                         details?: any;
                     };
-                    console.log('Merge record created successfully:', result);
+                    console.log('Merge submitted successfully:', result);
 
                     // Refresh duplicates list
                     await fetchDuplicates(currentPage);
@@ -376,7 +376,7 @@ Remember to click "Finish Process" to complete all merges in HubSpot.
                     results?: any[];
                     errors?: any[];
                 };
-                console.log('Batch merge records created successfully:', result);
+                console.log('Batch merge submitted successfully:', result);
 
                 // Refresh duplicates list
                 await fetchDuplicates(currentPage);
@@ -423,11 +423,11 @@ Remember to click "Finish Process" to complete all merges in HubSpot.
                 .map(contact => contact.hubspotId);
 
             const successMessage = `
-✅ Contact merged successfully!
+✅ Merge operation submitted successfully!
 
 📋 Details:
 • Selected Contact: ${mergeData.selectedContactHubspotId}
-• Removed ${mergeData.removedIds.length} duplicate contact(s):
+• Processed ${mergeData.removedIds.length} contact(s):
   ${removedContactsInfo.map(id => `  - ${id}`).join('\n  ')}
 • Updated ${Object.keys(mergeData.updatedData).filter(key => !['recordId', 'hubspotId'].includes(key)).length} field(s):
   ${Object.entries(mergeData.updatedData)
@@ -435,7 +435,7 @@ Remember to click "Finish Process" to complete all merges in HubSpot.
                     .map(([field, value]) => `  - ${field}: ${value}`)
                     .join('\n  ')}}
 
-${result.details ? `⏰ Merge completed at: ${new Date(result.details.mergeTimestamp).toLocaleString()}` : ''}
+⚠️ Remember to click "Finish Process" to complete all operations in HubSpot.
             `.trim();
 
             alert(successMessage);
@@ -451,8 +451,7 @@ ${result.details ? `⏰ Merge completed at: ${new Date(result.details.mergeTimes
             // Show loading message with enhanced functionality description
             const confirmation = confirm(
                 '🔄 This will:\n' +
-                '• Process all PENDING merge records created during selection\n' +
-                '• Perform actual HubSpot contact merges\n' +
+                '• Automatically merge all remaining duplicate groups (oldest contacts as primary)\n' +
                 '• Update modified contacts in HubSpot\n' +
                 '• Remove marked contacts from HubSpot\n' +
                 '• Generate Excel report\n' +
@@ -493,13 +492,15 @@ ${result.details ? `⏰ Merge completed at: ${new Date(result.details.mergeTimes
             alert(`✅ Process completed successfully!\n\n📊 Excel file: ${result.excelUrl}\n\nAll duplicates have been merged, modified contacts updated, and removed contacts processed.`);
 
             // Redirect to dashboard
-            router.push('/hubspot-integration');
+            router.push('/dashboard');
         } catch (error) {
             setIsProcessing(false);
             console.error('Error finishing process:', error);
             alert('❌ Error finishing process. Please try again.\n\nError details: ' + (error as Error).message);
         }
-    }; const handleResetClick = async (group: DuplicateGroup) => {
+    };
+
+    const handleResetClick = async (group: DuplicateGroup) => {
         try {
             console.log('Resetting merged group:', group.id);
 
@@ -517,30 +518,6 @@ ${result.details ? `⏰ Merge completed at: ${new Date(result.details.mergeTimes
         } catch (error) {
             console.error('Error resetting group:', error);
             alert('❌ Error resetting group. Please try again.\n\nError details: ' + (error as Error).message);
-        }
-    };
-
-    const handleResetAllPendingMerges = async () => {
-        try {
-            const confirmation = confirm(
-                '⚠️ This will reset ALL pending merge records!\n\n' +
-                'This means:\n' +
-                '• All merge selections will be cleared\n' +
-                '• You can restart the merge selection process\n' +
-                '• No HubSpot operations will be performed\n\n' +
-                'Continue?'
-            );
-
-            if (!confirmation) return;
-
-            const result = await resetAllPendingMerges({ apiKey }) as { message: string };
-            alert(`✅ ${result.message}`);
-
-            // Refresh duplicates list
-            await fetchDuplicates(currentPage);
-        } catch (error) {
-            console.error('Error resetting all pending merges:', error);
-            alert('❌ Error resetting pending merges. Please try again.\n\nError details: ' + (error as Error).message);
         }
     };
 
@@ -568,19 +545,6 @@ ${result.details ? `⏰ Merge completed at: ${new Date(result.details.mergeTimes
                     status={processStatus}
                     onFinish={handleFinishProcess}
                 />
-
-                {/* Reset Pending Merges Button */}
-                <div className="mb-6">
-                    <button
-                        onClick={handleResetAllPendingMerges}
-                        className="inline-flex items-center px-4 py-2 border border-red-300 text-sm font-medium rounded-md text-red-700 bg-red-50 hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-                    >
-                        🔄 Reset All Pending Merges
-                    </button>
-                    <p className="mt-1 text-xs text-gray-500">
-                        Clear all pending merge selections to start over
-                    </p>
-                </div>
 
                 {/* Progress Bar for Finish Process */}
                 {isProcessing && (
