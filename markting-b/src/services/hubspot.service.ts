@@ -1036,7 +1036,7 @@ export class HubSpotService {
    */
   async getPendingMergeRecords(userId: number, apiKey: string) {
     const pendingRecords = await this.mergingRepository.find({
-      where: { userId, apiKey, mergeStatus: 'pending' },
+      where: { userId, apiKey },
       order: { createdAt: 'DESC' },
     });
 
@@ -1181,7 +1181,7 @@ export class HubSpotService {
     try {
       // Find all pending merges that haven't been processed yet
       const pendingMerges = await this.mergingRepository.find({
-        where: { userId, apiKey, mergeStatus: 'pending' },
+        where: { userId, apiKey },
         order: { createdAt: 'ASC' },
       });
 

@@ -278,13 +278,13 @@ export class HubSpotApiService {
         `Failed to merge HubSpot contacts ${primaryContactId} <- ${secondaryContactId}:`,
         error.response?.data || error.message,
       );
-      
+
       // Log more details about the error
       if (error.response) {
         this.logger.error(`HTTP Status: ${error.response.status}`);
         this.logger.error(`Error Data: ${JSON.stringify(error.response.data)}`);
       }
-      
+
       return {
         success: false,
         error: error.response?.data?.message || error.message,
