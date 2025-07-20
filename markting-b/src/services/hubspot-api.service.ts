@@ -112,6 +112,7 @@ export class HubSpotApiService {
       'email',
       'phone',
       'company',
+      'hs_additional_emails',
     ].join(',');
 
     const url = `https://api.hubapi.com/crm/v3/objects/contacts?limit=100&properties=${properties}`;
@@ -135,7 +136,18 @@ export class HubSpotApiService {
     }
 
     const response = await this.makeHubSpotAPIRequest(url, apiKey, params);
-    return response.data as HubSpotListResponse;
+    const data = response.data as HubSpotListResponse;
+    // Set hs_additional_emails property for each contact if present
+    if (data.results) {
+      data.results = data.results.map((contact) => {
+        if (contact.properties && contact.properties.hs_additional_emails) {
+          contact.hs_additional_emails =
+            contact.properties.hs_additional_emails;
+        }
+        return contact;
+      });
+    }
+    return data;
   }
 
   async updateHubSpotContact(

@@ -15,6 +15,8 @@ import { User } from './user.entity';
 @Index(['phone'])
 @Index(['hubspotId'])
 export class Contact {
+  @Column({ name: 'hs_additional_emails', type: 'text', nullable: true })
+  hs_additional_emails?: string;
   @PrimaryGeneratedColumn()
   id: number;
 

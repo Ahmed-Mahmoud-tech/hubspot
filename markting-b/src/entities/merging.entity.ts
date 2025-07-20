@@ -31,7 +31,7 @@ export class Merging {
   @Column({ name: 'secondary_account_id' })
   secondaryAccountId: string;
 
-  @Column({ name: 'merge_status', default: 'pending' })
+  @Column({ name: 'merge_status', default: 'completed' })
   mergeStatus: string; // pending, completed, failed
 
   @Column({ name: 'merged_at', type: 'timestamp', nullable: true })

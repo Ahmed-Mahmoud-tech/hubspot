@@ -39,6 +39,8 @@ export class ContactService {
       lastName: hsContact.properties.lastname || undefined,
       phone: hsContact.properties.phone || undefined,
       company: hsContact.properties.company || undefined,
+      hs_additional_emails:
+        hsContact.properties.hs_additional_emails || undefined,
       createDate: hsContact.properties.createdate
         ? new Date(hsContact.properties.createdate)
         : undefined,
@@ -72,6 +74,7 @@ export class ContactService {
         'company',
         'createDate',
         'lastModifiedDate',
+        'hs_additional_emails',
       ],
     });
   }
@@ -88,6 +91,7 @@ export class ContactService {
         'company',
         'hubspotId',
         'lastModifiedDate',
+        'hs_additional_emails',
       ],
     });
   }
@@ -109,7 +113,15 @@ export class ContactService {
   ): Promise<Contact[]> {
     return this.contactRepository.find({
       where: { apiKey, user: { id: userId } },
-      select: ['id', 'email', 'phone', 'firstName', 'lastName', 'company'],
+      select: [
+        'id',
+        'email',
+        'phone',
+        'firstName',
+        'lastName',
+        'company',
+        'hs_additional_emails',
+      ],
     });
   }
 }

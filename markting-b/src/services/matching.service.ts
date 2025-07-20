@@ -116,7 +116,7 @@ export class MatchingService {
     const offset = (page - 1) * limit;
     const matchingRecords = await this.matchingRepository.find({
       where: whereCondition,
-      order: { createdAt: 'DESC' },
+      order: { id: 'DESC' },
       skip: offset,
       take: limit,
     });
@@ -141,6 +141,7 @@ export class MatchingService {
             hubspotId: contact.hubspotId,
             lastModifiedDate: contact.lastModifiedDate,
             email: contact.email,
+            hs_additional_emails: contact.hs_additional_emails,
             firstName: contact.firstName,
             lastName: contact.lastName,
             phone: contact.phone,
@@ -375,7 +376,7 @@ export class MatchingService {
   ): Promise<{ message: string }> {
     // Find the merged group
     const matchingRecord = await this.matchingRepository.findOne({
-      where: { id: groupId, userId, apiKey, merged: true },
+      where: { id: groupId, userId, apiKey },
     });
 
     if (!matchingRecord) {
@@ -417,7 +418,7 @@ export class MatchingService {
     apiKey: string,
   ): Promise<{ message: string; resetCount: number }> {
     const result = await this.matchingRepository.update(
-      { userId, apiKey, merged: true },
+      { userId, apiKey },
       { merged: false },
     );
 

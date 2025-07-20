@@ -20,6 +20,7 @@ interface Contact {
     lastName?: string;
     phone?: string;
     company?: string;
+    hs_additional_emails?: string;
 }
 
 interface DuplicateGroup {
@@ -594,6 +595,7 @@ Remember to click "Finish Process" to complete all merges in HubSpot.
                 )}
 
                 {/* Duplicates List */}
+                {void console.log(duplicates, "5555555555555")}
                 {processStatus?.process_name === 'manually merge' && (
                     <>
                         <DuplicatesList
@@ -610,6 +612,21 @@ Remember to click "Finish Process" to complete all merges in HubSpot.
                             selectedContactForTwoGroup={selectedContactForTwoGroup}
                             onContactSelect={handleContactSelect}
                         />
+
+                        {/* Show additional emails for each contact in the group if present */}
+                        <div className="mt-4">
+                            {duplicates.map((group) => (
+                                <div key={group.id} className="mb-2">
+                                    {group.group.map((contact) => (
+                                        contact.hs_additional_emails ? (
+                                            <div key={contact.id} className="text-xs text-gray-500 pl-4">
+                                                Additional Emails: {contact.hs_additional_emails}
+                                            </div>
+                                        ) : null
+                                    ))}
+                                </div>
+                            ))}
+                        </div>
 
                         {/* Contact Pair Selection Modal */}
                         <ContactPairModal

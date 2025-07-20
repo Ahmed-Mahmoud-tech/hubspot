@@ -9,6 +9,7 @@ interface Contact {
     lastName?: string;
     phone?: string;
     company?: string;
+    hs_additional_emails?: string;
 }
 
 interface DuplicateGroup {
@@ -192,6 +193,26 @@ export default function DuplicatesList({
                                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
                                                                 </svg>
                                                                 <p className="text-sm text-gray-600">{contact.email}</p>
+                                                            </div>
+                                                        )}
+                                                        {contact.hs_additional_emails && (
+                                                            <div className="flex items-center space-x-2 pl-6 flex-wrap">
+
+                                                                <div className="flex flex-wrap gap-1">
+                                                                    {contact.hs_additional_emails.split(';').map((email, idx) => (
+                                                                        <span
+                                                                            key={idx}
+                                                                            className="inline-flex items-center px-2.5 py-1 rounded-full bg-gradient-to-r from-gray-200 to-gray-200 text-gray-900 text-xs font-semibold border border-gray-300 shadow-sm mr-1 mb-1 hover:bg-gray-300 transition-colors duration-150"
+                                                                            title={email.trim()}
+                                                                        >
+                                                                            <svg className="w-4 h-4 mr-1 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" fill="#e0e7ff" />
+                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
+                                                                            </svg>
+                                                                            <span className="truncate max-w-[120px]" style={{ display: 'inline-block', verticalAlign: 'middle' }}>{email.trim()}</span>
+                                                                        </span>
+                                                                    ))}
+                                                                </div>
                                                             </div>
                                                         )}
                                                         {contact.phone && (
