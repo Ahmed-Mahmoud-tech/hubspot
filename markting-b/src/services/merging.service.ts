@@ -242,6 +242,8 @@ export class MergingService {
       }
 
       // Optionally, merge other fields if needed (e.g., phone, company, etc.)
+      // No need to check updatedMergeRecord as mergeContactsInHubSpot returns void
+      updatedData.hubspotId = String(updatedMergeRecord.id);
       if (!primaryContact.phone && secondaryContact.phone) {
         updatedData.phone = secondaryContact.phone;
       }
@@ -390,7 +392,7 @@ export class MergingService {
     apiKey: string,
     primaryContactId: string,
     secondaryContactId: string,
-  ): Promise<void> {
+  ): Promise<any> {
     try {
       // HubSpot merge contacts API endpoint
       const mergeUrl = `https://api.hubapi.com/crm/v3/objects/contacts/merge`;

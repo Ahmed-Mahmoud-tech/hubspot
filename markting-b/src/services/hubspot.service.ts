@@ -219,6 +219,31 @@ export class HubSpotService {
         `Completed fetching ${totalFetched} contacts for action ${actionId}`,
       );
 
+      // Generate Excel file after fetching all contacts
+      try {
+        const contacts = await this.contactService.getAllContacts(
+          userId,
+          apiKey,
+        );
+        const excelUrl = await this.fileGenerationService.generateExcelFile(
+          userId,
+          actionId,
+          contacts,
+        );
+        // Update action with Excel URL
+        await this.actionRepository.update(actionId, {
+          excel_link: excelUrl,
+        });
+        this.logger.log(
+          `Excel file generated and action updated with link for action ${actionId}`,
+        );
+      } catch (excelError) {
+        this.logger.error(
+          `Failed to generate Excel file for action ${actionId}:`,
+          excelError,
+        );
+      }
+
       // Start duplicate detection process (async, non-blocking)
       await this.updateActionProcessName(actionId, 'filtering');
 
@@ -360,17 +385,7 @@ export class HubSpotService {
       });
       await this.removeContactsFromHubSpot(userId, apiKey);
 
-      // Step 5: Generate Excel file
-      this.progressService.updateProgress(userId, apiKey, {
-        currentStep: 'Generating Excel report...',
-        progress: 85,
-      });
-      const contacts = await this.contactService.getAllContacts(userId, apiKey);
-      const excelUrl = await this.fileGenerationService.generateExcelFile(
-        userId,
-        action.id,
-        contacts,
-      );
+      // Step 5: Generate Excel file (moved to fetchAllContacts)
 
       // Step 6: Clean up data
       this.progressService.updateProgress(userId, apiKey, {
@@ -383,11 +398,6 @@ export class HubSpotService {
       // Update process name to 'finished'
       await this.updateActionProcessName(action.id, 'finished');
 
-      // Update action with Excel URL
-      await this.actionRepository.update(action.id, {
-        excel_link: excelUrl,
-      });
-
       // Mark process as complete
       this.progressService.updateProgress(userId, apiKey, {
         currentStep: 'Process completed successfully!',
@@ -397,7 +407,6 @@ export class HubSpotService {
 
       return {
         message: 'Process completed successfully',
-        excelUrl,
       };
     } catch (error) {
       this.logger.error('Error finishing process:', error);
@@ -406,7 +415,7 @@ export class HubSpotService {
       // Update progress to show error
       this.progressService.updateProgress(userId, apiKey, {
         currentStep: 'Error occurred during processing',
-        error: (error as Error).message,
+        error: error instanceof Error ? error.message : String(error),
         isComplete: true,
       });
 
@@ -488,19 +497,10 @@ export class HubSpotService {
             mergeRecord.mergeStatus = 'failed';
             await this.mergingRepository.save(mergeRecord);
           } catch (saveError) {
-            this.logger.error(
-              `Failed to update merge record ${mergeRecord.id} status to failed:`,
-              saveError,
-            );
+            this.logger.error('Error saving failed merge record:', saveError);
+            // Do not reference action here, just log the error
           }
         }
-      }
-
-      // Add delay between batches to avoid rate limiting
-      if (i + MAX_BATCH_SIZE < mergeRecords.length) {
-        this.logger.log(
-          `Waiting ${DELAY_BETWEEN_BATCHES}ms before next batch...`,
-        );
         await new Promise((resolve) =>
           setTimeout(resolve, DELAY_BETWEEN_BATCHES),
         );
