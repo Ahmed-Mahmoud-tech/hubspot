@@ -28,6 +28,7 @@ interface DuplicatesListProps {
     onRefresh: () => void;
     selectedContactForTwoGroup: { [groupId: number]: number | null };
     onContactSelect: (groupId: number, contactId: number) => void;
+    limit?: number; // Optional limit prop to control items per page
 }
 
 export default function DuplicatesList({
@@ -39,7 +40,8 @@ export default function DuplicatesList({
     onResetClick,
     onRefresh,
     selectedContactForTwoGroup,
-    onContactSelect
+    onContactSelect,
+    limit
 }: DuplicatesListProps) {
     // Helper function to format date
     const formatDate = (date: Date | string | undefined) => {
@@ -134,21 +136,21 @@ export default function DuplicatesList({
                                 <div className="flex items-center mb-6">
                                     <div className="flex items-center">
                                         <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-sm mr-3">
-                                            {currentPage > 1 ? (currentPage - 1) * 10 + index + 1 : index + 1}
+                                            {currentPage > 1 ? (currentPage - 1) * (limit ?? 10) + index + 1 : index + 1}
                                         </div>
                                         <h3 className="text-lg font-semibold text-gray-900">
                                             Duplicate Group
                                             <span className="ml-2 text-sm font-normal text-gray-500">({duplicateGroup.group.length} contacts)</span>
                                         </h3>
                                     </div>
-                                    {duplicateGroup.merged && (
+                                    {/* {duplicateGroup.merged && (
                                         <span className="ml-4 inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800 border border-green-200">
                                             <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
                                                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                                             </svg>
                                             MERGED
                                         </span>
-                                    )}
+                                    )} */}
                                 </div>
 
                                 <div className="grid grid-cols-1 gap-6 sm:grid-cols-2  ">
@@ -252,7 +254,7 @@ export default function DuplicatesList({
                             <div className="ml-8 flex-shrink-0">
                                 {duplicateGroup.merged ? (
                                     <div className="space-y-3">
-                                        <button
+                                        {/* <button
                                             onClick={() => onResetClick(duplicateGroup)}
                                             className="cursor-pointer inline-flex items-center px-6 py-3 border border-transparent text-sm font-medium rounded-lg shadow-lg text-white bg-gradient-to-r from-yellow-500 to-orange-600 hover:from-yellow-600 hover:to-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 transition-all duration-200 transform hover:scale-105"
                                         >
@@ -263,7 +265,13 @@ export default function DuplicatesList({
                                         </button>
                                         <p className="text-xs text-orange-600 text-center font-medium">
                                             ⚠️ This will undo the merge
-                                        </p>
+                                        </p> */}
+                                        <span className="ml-4 inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800 border border-green-200">
+                                            <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                            </svg>
+                                            MERGED
+                                        </span>
                                     </div>
                                 ) : (
                                     <div className="space-y-3">

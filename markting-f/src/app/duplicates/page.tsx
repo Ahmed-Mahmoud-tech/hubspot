@@ -81,6 +81,8 @@ function DuplicatesPageContent() {
         isComplete: false,
     });
 
+    const limit = 10;
+
     // Store interval ID to clear it when needed
     const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -98,7 +100,7 @@ function DuplicatesPageContent() {
             const data = await getDuplicates({
                 apiKey,
                 page,
-                limit: 10,
+                limit,
             }) as any;
             console.log('Duplicates response:', data);
             setDuplicates(data.data);
@@ -118,7 +120,7 @@ function DuplicatesPageContent() {
         const checkStatus = async () => {
             try {
                 const actions = await getActions() as any;
-                const latestAction = actions.find((action: ProcessStatusData) => action.api_key === apiKey);
+                const latestAction = actions.data.find((action: ProcessStatusData) => action.api_key === apiKey);
                 setProcessStatus(latestAction || null);
             } catch (error) {
                 console.error('Error checking process status:', error);
@@ -146,7 +148,7 @@ function DuplicatesPageContent() {
                 console.log('Checking process status for apiKey:', apiKey);
                 const actions = await getActions() as any;
                 console.log('All actions:', actions);
-                const latestAction = actions.find((action: ProcessStatusData) => action.api_key === apiKey);
+                const latestAction = actions.data.find((action: ProcessStatusData) => action.api_key === apiKey);
                 console.log('Latest action for this API key:', latestAction);
                 setProcessStatus(latestAction || null);
             } catch (error) {
@@ -160,7 +162,7 @@ function DuplicatesPageContent() {
                 const data = await getDuplicates({
                     apiKey,
                     page: 1,
-                    limit: 10,
+                    limit,
                 }) as any;
                 setDuplicates(data.data);
                 setTotalPages(data.totalPages);
@@ -175,6 +177,13 @@ function DuplicatesPageContent() {
     }, [apiKey]);
 
     // Handle status change to manually merge - only fetch once when status changes
+
+
+
+
+
+
+
     useEffect(() => {
         if (processStatus?.process_name === 'manually merge') {
             // Clear the polling interval since we don't need to poll anymore
@@ -200,6 +209,13 @@ function DuplicatesPageContent() {
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [processStatus?.process_name]);
+
+
+
+
+
+
+
 
     const handleMergeClick = (group: DuplicateGroup) => {
         setSelectedGroup(group);
@@ -611,10 +627,11 @@ Remember to click "Finish Process" to complete all merges in HubSpot.
                             onRefresh={() => fetchDuplicates(currentPage)}
                             selectedContactForTwoGroup={selectedContactForTwoGroup}
                             onContactSelect={handleContactSelect}
+                            limit={limit} // Pass limit to control items per page
                         />
 
                         {/* Show additional emails for each contact in the group if present */}
-                        <div className="mt-4">
+                        {/* <div className="mt-4">
                             {duplicates.map((group) => (
                                 <div key={group.id} className="mb-2">
                                     {group.group.map((contact) => (
@@ -626,7 +643,7 @@ Remember to click "Finish Process" to complete all merges in HubSpot.
                                     ))}
                                 </div>
                             ))}
-                        </div>
+                        </div> */}
 
                         {/* Contact Pair Selection Modal */}
                         <ContactPairModal

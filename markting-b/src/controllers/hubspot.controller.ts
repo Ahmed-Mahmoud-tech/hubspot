@@ -52,7 +52,7 @@ export class HubSpotController {
   async getActionStatus(@Param('actionId') actionId: number) {
     const action = await this.hubspotService.getActionStatus(actionId);
 
-    if (!action) {
+    if (!action || String(action.status) === 'removed') {
       return { error: 'Action not found' };
     }
 
@@ -91,18 +91,31 @@ export class HubSpotController {
   @Get('actions')
   async getUserActions(@Request() req: any) {
     const userId = req.user.id as number;
-    const actions = await this.hubspotService.getUserActions(userId);
+    // Get page and limit from query params, default to 1 and 5
+    const page = req.query.page ? parseInt(req.query.page, 10) : 1;
+    const limit = req.query.limit ? parseInt(req.query.limit, 10) : 5;
 
-    return actions.map((action) => ({
-      id: action.id,
-      name: action.name,
-      process_name: action.process_name,
-      status: action.status,
-      count: action.count,
-      api_key: action.api_key,
-      excel_link: action.excel_link,
-      created_at: action.created_at,
-    }));
+    const { actions, total } =
+      await this.hubspotService.getUserActionsPaginated(userId, page, limit);
+
+    return {
+      data: actions.map((action) => ({
+        id: action.id,
+        name: action.name,
+        process_name: action.process_name,
+        status: action.status,
+        count: action.count,
+        api_key: action.api_key,
+        excel_link: action.excel_link,
+        created_at: action.created_at,
+      })),
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 
   @Get('matching')
@@ -332,7 +345,8 @@ export class HubSpotController {
     return this.hubspotService.getProcessProgress(userId, apiKey);
   }
 
-  @Delete('delete-action')
+  // @Delete('delete-action')
+  @Put('delete-action')
   @UseGuards(JwtAuthGuard)
   async deleteAction(
     @Request() req: any,

@@ -40,7 +40,7 @@ export default function DashboardPage() {
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [totalActions, setTotalActions] = useState(0);
-    const itemsPerPage = 10;
+    const itemsPerPage = 5;
 
     // Form state
     const [formData, setFormData] = useState({
@@ -175,13 +175,13 @@ export default function DashboardPage() {
     };
 
     const handleRemoveAction = async (actionId: number, apiKey: string) => {
-        const confirmed = window.confirm(
-            'Are you sure you want to remove this action?\n\n' +
-            'This will permanently delete the action record.\n\n' +
-            'This action cannot be undone.'
-        );
+        // const confirmed = window.confirm(
+        //     'Are you sure you want to remove this action?\n\n' +
+        //     'This will permanently delete the action record.\n\n' +
+        //     'This action cannot be undone.'
+        // );
 
-        if (!confirmed) return;
+        // if (!confirmed) return;
 
         setRemovingActionId(actionId);
         try {
@@ -283,9 +283,41 @@ export default function DashboardPage() {
                         </div>
                     </div>
                 </div>
-
+                {/* Account Info */}
+                <div className="bg-white overflow-hidden shadow rounded-lg mb-8">
+                    <div className="px-6 py-4 border-b border-gray-200">
+                        <h3 className="text-lg font-medium text-gray-900">Account Information</h3>
+                    </div>
+                    <div className="px-6 py-4">
+                        <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <dt className="text-sm font-medium text-gray-500">Name</dt>
+                                <dd className="text-sm text-gray-900">{user.first_name} {user.last_name}</dd>
+                            </div>
+                            <div>
+                                <dt className="text-sm font-medium text-gray-500">Email</dt>
+                                <dd className="text-sm text-gray-900">{user.email}</dd>
+                            </div>
+                            <div>
+                                <dt className="text-sm font-medium text-gray-500">Phone</dt>
+                                <dd className="text-sm text-gray-900">{user.phone || 'Not provided'}</dd>
+                            </div>
+                            <div>
+                                <dt className="text-sm font-medium text-gray-500">Account Status</dt>
+                                <dd className="text-sm">
+                                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${user.verified
+                                        ? 'bg-green-100 text-green-800'
+                                        : 'bg-yellow-100 text-yellow-800'
+                                        }`}>
+                                        {user.verified ? 'Verified' : 'Pending Verification'}
+                                    </span>
+                                </dd>
+                            </div>
+                        </dl>
+                    </div>
+                </div>
                 {/* HubSpot Integrations Section */}
-                <div className="bg-white shadow rounded-lg mb-8">
+                <div className="bg-white shadow rounded-lg">
                     <div className="px-6 py-4 border-b border-gray-200">
                         <div className="flex justify-between items-center">
                             <h3 className="text-lg font-medium text-gray-900">HubSpot Integrations</h3>
@@ -390,14 +422,31 @@ export default function DashboardPage() {
                                                 </div>
 
                                                 <div className="flex items-center space-x-3">
+                                                    {/* Show Review Duplicates for manually merge */}
                                                     {action.process_name === 'manually merge' && (
-                                                        <>
-                                                            <button
-                                                                onClick={() => router.push(`/duplicates?apiKey=${encodeURIComponent(action.api_key)}`)}
-                                                                className="text-sm bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700"
-                                                            >
-                                                                Review Duplicates
-                                                            </button>
+                                                        <button
+                                                            onClick={() => router.push(`/duplicates?apiKey=${encodeURIComponent(action.api_key)}`)}
+                                                            className="text-sm bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700"
+                                                        >
+                                                            Review Duplicates
+                                                        </button>
+                                                    )}
+                                                    {/* Show Remove button if status is 'processing' or Review Duplicates button is shown */}
+                                                    {(action.status === 'processing' || action.process_name === 'manually merge') && (
+                                                        <button
+                                                            onClick={() => handleRemoveAction(action.id, action.api_key)}
+                                                            disabled={removingActionId === action.id}
+                                                            className="text-sm bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+                                                        >
+                                                            <Trash2 className="h-3 w-3 mr-1" />
+                                                            {removingActionId === action.id ? 'Removing...' : 'Remove'}
+                                                        </button>
+                                                    )}
+                                                    {void console.log(action, "0000")}
+
+                                                    {['fetching', 'filtering', 'update hubspot'].includes(action.process_name) && (
+                                                        <div className="flex items-center space-x-2">
+                                                            <span className="text-sm text-gray-500">Processing...</span>
                                                             <button
                                                                 onClick={() => handleRemoveAction(action.id, action.api_key)}
                                                                 disabled={removingActionId === action.id}
@@ -406,14 +455,6 @@ export default function DashboardPage() {
                                                                 <Trash2 className="h-3 w-3 mr-1" />
                                                                 {removingActionId === action.id ? 'Removing...' : 'Remove'}
                                                             </button>
-                                                        </>
-                                                    )}
-                                                    {void console.log(action, "0000")}
-
-
-                                                    {['fetching', 'filtering', 'update hubspot'].includes(action.process_name) && (
-                                                        <div className="text-sm text-gray-500">
-                                                            Processing...
                                                         </div>
                                                     )}
                                                 </div>
@@ -482,39 +523,7 @@ export default function DashboardPage() {
                     </div>
                 </div>
 
-                {/* Account Info */}
-                <div className="bg-white overflow-hidden shadow rounded-lg">
-                    <div className="px-6 py-4 border-b border-gray-200">
-                        <h3 className="text-lg font-medium text-gray-900">Account Information</h3>
-                    </div>
-                    <div className="px-6 py-4">
-                        <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div>
-                                <dt className="text-sm font-medium text-gray-500">Name</dt>
-                                <dd className="text-sm text-gray-900">{user.first_name} {user.last_name}</dd>
-                            </div>
-                            <div>
-                                <dt className="text-sm font-medium text-gray-500">Email</dt>
-                                <dd className="text-sm text-gray-900">{user.email}</dd>
-                            </div>
-                            <div>
-                                <dt className="text-sm font-medium text-gray-500">Phone</dt>
-                                <dd className="text-sm text-gray-900">{user.phone || 'Not provided'}</dd>
-                            </div>
-                            <div>
-                                <dt className="text-sm font-medium text-gray-500">Account Status</dt>
-                                <dd className="text-sm">
-                                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${user.verified
-                                        ? 'bg-green-100 text-green-800'
-                                        : 'bg-yellow-100 text-yellow-800'
-                                        }`}>
-                                        {user.verified ? 'Verified' : 'Pending Verification'}
-                                    </span>
-                                </dd>
-                            </div>
-                        </dl>
-                    </div>
-                </div>
+
             </main>
         </div>
     );

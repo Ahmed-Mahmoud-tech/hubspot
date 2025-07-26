@@ -274,15 +274,16 @@ export class HubSpotService {
     }
   }
 
-  private async updateActionStatus(
+  public async updateActionStatus(
     actionId: number,
     status: ActionStatus,
-    count: number,
+    count?: number,
   ): Promise<void> {
-    await this.actionRepository.update(actionId, {
-      status,
-      count,
-    });
+    const updateData: Partial<Action> = { status };
+    if (typeof count !== 'undefined') {
+      updateData.count = count;
+    }
+    await this.actionRepository.update(actionId, updateData);
   }
 
   private async updateActionProcessName(
@@ -305,6 +306,31 @@ export class HubSpotService {
       where: { user_id: userId },
       order: { created_at: 'DESC' },
     });
+  }
+
+  async getUserActionsPaginated(
+    userId: number,
+    page: number,
+    limit: number,
+  ): Promise<{ actions: Action[]; total: number }> {
+    const [actions, total] = await this.actionRepository.findAndCount({
+      where: {
+        user_id: userId,
+        status: In([
+          ActionStatus.START,
+          ActionStatus.FETCHING,
+          ActionStatus.MANUALLY_MERGE,
+          ActionStatus.UPDATE_HUBSPOT,
+          ActionStatus.FINISHED,
+          ActionStatus.ERROR,
+          ActionStatus.RETRYING,
+        ]),
+      },
+      order: { created_at: 'DESC' },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+    return { actions, total };
   }
 
   async getMatchingGroups(userId: number, apiKey?: string) {
@@ -837,7 +863,8 @@ export class HubSpotService {
 
     // Delete only the specific action record
     await this.cleanupUserData(userId, apiKey);
-    await this.actionRepository.delete({ id: actionId });
+    await this.updateActionStatus(actionId, ActionStatus.REMOVE);
+    // await this.actionRepository.delete({ id: actionId });
 
     this.logger.log(`Deleted action ${actionId} for user ${userId}`);
   }

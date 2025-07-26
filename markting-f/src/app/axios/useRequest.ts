@@ -235,10 +235,32 @@ const useRequest = () => {
     return response.data;
   };
 
-  const deleteActionById = async (actionId: number, apiKey: string) => {
+  const finalDeleteActionById = async (actionId: number, apiKey: string) => {
     try {
       const response = await Request({
         method: "DELETE",
+        url: "/hubspot/delete-action",
+        data: { actionId, apiKey },
+      });
+      return response.data;
+    } catch (error: any) {
+      // Check if it's a 404 error and enhance the error message
+      if (error.response?.status === 404) {
+        const enhancedError = {
+          ...error,
+          message: "Delete endpoint not implemented",
+          response: error.response,
+        };
+        throw enhancedError;
+      }
+      // Re-throw other errors as-is
+      throw error;
+    }
+  };
+  const deleteActionById = async (actionId: number, apiKey: string) => {
+    try {
+      const response = await Request({
+        method: "PUT",
         url: "/hubspot/delete-action",
         data: { actionId, apiKey },
       });
@@ -292,6 +314,8 @@ const useRequest = () => {
 
     // Contact management
     deleteActionById,
+    // Contact management
+    finalDeleteActionById,
 
     // Auth utility methods
     isAuthenticated,

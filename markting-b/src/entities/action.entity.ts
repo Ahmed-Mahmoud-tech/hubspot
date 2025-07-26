@@ -18,6 +18,7 @@ export enum ActionStatus {
   FINISHED = 'finished',
   ERROR = 'error',
   RETRYING = 'retrying',
+  REMOVE = 'removed',
 }
 
 @Entity('actions')
