@@ -110,6 +110,7 @@ const useRequest = () => {
   const startHubSpotFetch = async (data: {
     name: string;
     apiKey: string;
+    filters: string[];
   }): Promise<{ message: string }> => {
     const response = await Request.post("/hubspot/start-fetch", data);
     return response.data as { message: string };
@@ -179,6 +180,16 @@ const useRequest = () => {
     const response = await Request.post("/hubspot/remove-contact", data);
     return response.data;
   };
+  // const mergeContacts = async (data: {
+  //   groupId: number;
+  //   primaryAccountId: string;
+  //   secondaryAccountId: string;
+  //   apiKey: string;
+  // }) => {
+  //   const response = await Request.post("/hubspot/merge-contacts", data);
+  //   return response.data;
+  // };
+
   const mergeContacts = async (data: {
     groupId: number;
     primaryAccountId: string;
@@ -186,16 +197,6 @@ const useRequest = () => {
     apiKey: string;
   }) => {
     const response = await Request.post("/hubspot/merge-contacts", data);
-    return response.data;
-  };
-
-  const batchMergeContacts = async (data: {
-    groupId: number;
-    primaryAccountId: string;
-    secondaryAccountIds: string[];
-    apiKey: string;
-  }) => {
-    const response = await Request.post("/hubspot/batch-merge-contacts", data);
     return response.data;
   };
 
@@ -299,7 +300,7 @@ const useRequest = () => {
     resetMerge,
     removeContact,
     mergeContacts,
-    batchMergeContacts,
+    // batchMergeContacts,
     resetMergeByGroup,
     resetAllPendingMerges,
     finishProcess,

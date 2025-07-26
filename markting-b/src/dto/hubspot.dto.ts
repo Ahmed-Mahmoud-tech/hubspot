@@ -22,6 +22,11 @@ export class StartHubSpotFetchDto {
   @IsNotEmpty()
   @Length(10, 200)
   apiKey: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  filters?: string[];
 }
 
 export class GetDuplicatesDto {

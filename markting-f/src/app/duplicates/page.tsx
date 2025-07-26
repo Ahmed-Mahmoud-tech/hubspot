@@ -52,7 +52,7 @@ interface ProcessStatusData {
 function DuplicatesPageContent() {
     const searchParams = useSearchParams();
     const apiKey = searchParams.get('apiKey') || '';
-    const { getDuplicates, submitMerge, finishProcess, getActions, isAuthenticated, removeContact, mergeContacts, batchMergeContacts, resetMergeByGroup, getProcessProgress } = useRequest();
+    const { getDuplicates, submitMerge, finishProcess, getActions, isAuthenticated, removeContact, mergeContacts, resetMergeByGroup, getProcessProgress } = useRequest();
     const router = useRouter();
 
     const [duplicates, setDuplicates] = useState<DuplicateGroup[]>([]);
@@ -372,51 +372,6 @@ Remember to click "Finish Process" to complete all merges in HubSpot.
                     alert(successMessage);
                     return;
                 }
-            }
-
-            // For multiple contacts, use batch merge endpoint
-            if (mergeData.removedIds.length > 1) {
-                const removedContacts = mergeData.allContactsData.filter(c =>
-                    mergeData.removedIds.includes(c.id)
-                );
-
-                const batchMergeData = {
-                    groupId: mergeData.groupId,
-                    primaryAccountId: mergeData.selectedContactHubspotId,
-                    secondaryAccountIds: removedContacts.map(c => c.hubspotId),
-                    apiKey,
-                };
-
-                const result = await batchMergeContacts(batchMergeData) as {
-                    success: boolean;
-                    message: string;
-                    results?: any[];
-                    errors?: any[];
-                };
-                console.log('Batch merge submitted successfully:', result);
-
-                // Refresh duplicates list
-                await fetchDuplicates(currentPage);
-                setIsMergeModalOpen(false);
-                setIsPairModalOpen(false);
-                setSelectedGroup(null);
-                setContactsToMerge({ contact1: null, contact2: null });
-
-                // Show success message with reminder to finish process
-                const successMessage = `
-✅ Batch merge records created successfully!
-
-📋 Details:
-• Primary Contact: ${mergeData.selectedContactHubspotId}
-• Created ${result.results?.length || 0} pending merge records
-${result.errors?.length ? `• ${result.errors.length} records failed to create` : ''}
-
-⚠️ IMPORTANT: These merges are now PENDING. 
-Remember to click "Finish Process" to complete all merges in HubSpot.
-                `.trim();
-
-                alert(successMessage);
-                return;
             }
 
             // For multiple contacts or fallback, use the old endpoint

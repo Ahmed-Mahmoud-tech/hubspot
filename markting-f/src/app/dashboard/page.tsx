@@ -42,6 +42,7 @@ export default function DashboardPage() {
     const [totalActions, setTotalActions] = useState(0);
     const itemsPerPage = 5;
 
+
     // Form state
     const [formData, setFormData] = useState({
         name: '',
@@ -49,6 +50,16 @@ export default function DashboardPage() {
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [removingActionId, setRemovingActionId] = useState<number | null>(null);
+
+    // Duplicate filter state for integration
+    const filterOptions = [
+        { key: 'phone', label: 'Phone' },
+        { key: 'first_last_name', label: 'First & Last Name' },
+        { key: 'first_name_phone', label: 'First Name & Phone' },
+        { key: 'first_last_name_company', label: 'First & Last Name & Company' },
+    ];
+    const [selectedFilters, setSelectedFilters] = useState<string[]>(filterOptions.map(f => f.key)); // default: all selected
+    const [selectAll, setSelectAll] = useState(true);
 
     const { getProfile, getActions, startHubSpotFetch, deleteActionById } = useRequest();
 
@@ -136,15 +147,44 @@ export default function DashboardPage() {
         }
     };
 
+    // Filter checkbox handlers
+    const handleFilterChange = (key: string) => {
+        let updated;
+        if (selectedFilters.includes(key)) {
+            updated = selectedFilters.filter(f => f !== key);
+        } else {
+            updated = [...selectedFilters, key];
+        }
+        setSelectedFilters(updated);
+        setSelectAll(updated.length === filterOptions.length);
+    };
+
+    const handleSelectAll = () => {
+        if (selectAll) {
+            setSelectedFilters([]);
+            setSelectAll(false);
+        } else {
+            setSelectedFilters(filterOptions.map(f => f.key));
+            setSelectAll(true);
+        }
+    };
+
     const handleFormSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsSubmitting(true);
 
         try {
-            const result = await startHubSpotFetch(formData);
+            // Always include hidden filter for same emails
+            const filtersToSend = [...selectedFilters, 'same_email'];
+            const result = await startHubSpotFetch({
+                ...formData,
+                filters: filtersToSend,
+            });
             toast.success(result.message);
             setShowForm(false);
             setFormData({ name: '', apiKey: '' });
+            setSelectedFilters(filterOptions.map(f => f.key));
+            setSelectAll(true);
             // Refresh actions list
             fetchActions(currentPage);
             // Navigate to duplicates page
@@ -363,6 +403,31 @@ export default function DashboardPage() {
                                         />
                                     </div>
                                 </div>
+                                {/* Duplicate Filter Selection */}
+                                <div className="bg-white rounded-lg shadow p-4 mt-2">
+                                    <h4 className="text-md font-semibold text-gray-900 mb-2">Duplicate Filters</h4>
+                                    <div className="flex flex-col gap-2">
+                                        <label className="flex items-center gap-2">
+                                            <input
+                                                type="checkbox"
+                                                checked={selectAll}
+                                                onChange={handleSelectAll}
+                                            />
+                                            <span className="font-medium">Select All</span>
+                                        </label>
+                                        {filterOptions.map(opt => (
+                                            <label key={opt.key} className="flex items-center gap-2 pl-4">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selectedFilters.includes(opt.key)}
+                                                    onChange={() => handleFilterChange(opt.key)}
+                                                />
+                                                {opt.label}
+                                            </label>
+                                        ))}
+                                        <span className="text-xs text-gray-500 pl-4">(Same emails are always included)</span>
+                                    </div>
+                                </div>
                                 <div className="flex justify-end space-x-3">
                                     <button
                                         type="button"
@@ -373,7 +438,7 @@ export default function DashboardPage() {
                                     </button>
                                     <button
                                         type="submit"
-                                        disabled={isSubmitting}
+                                        disabled={isSubmitting || selectedFilters.length === 0}
                                         className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 disabled:opacity-50"
                                     >
                                         {isSubmitting ? 'Starting...' : 'Start Integration'}

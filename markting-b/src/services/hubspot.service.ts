@@ -67,7 +67,7 @@ export class HubSpotService {
     startHubSpotFetchDto: StartHubSpotFetchDto,
   ): Promise<{ message: string; action: Action }> {
     try {
-      const { name, apiKey } = startHubSpotFetchDto;
+      const { name, apiKey, filters } = startHubSpotFetchDto;
       this.logger.log(
         `Starting fetch for user ${userId} with API key ${apiKey.substring(0, 10)}...`,
       );
@@ -134,14 +134,16 @@ export class HubSpotService {
 
       const savedAction = await this.actionRepository.save(action);
 
-      // Start the background fetch process
-      this.fetchAllContacts(savedAction.id, apiKey, userId).catch((error) => {
-        this.logger.error(
-          `Failed to fetch contacts for action ${savedAction.id}:`,
-          error,
-        );
-        void this.updateActionStatus(savedAction.id, ActionStatus.ERROR, 0);
-      });
+      // Start the background fetch process, pass filters
+      this.fetchAllContacts(savedAction.id, apiKey, userId, filters).catch(
+        (error) => {
+          this.logger.error(
+            `Failed to fetch contacts for action ${savedAction.id}:`,
+            error,
+          );
+          void this.updateActionStatus(savedAction.id, ActionStatus.ERROR, 0);
+        },
+      );
 
       return {
         message:
@@ -162,6 +164,7 @@ export class HubSpotService {
     actionId: number,
     apiKey: string,
     userId: number,
+    filters?: string[],
   ): Promise<void> {
     let after: string | undefined;
     let totalFetched = 0;
@@ -252,7 +255,7 @@ export class HubSpotService {
 
       // Run duplicate detection in background to avoid blocking
       this.duplicateDetectionService
-        .findAndSaveDuplicates(apiKey, userId)
+        .findAndSaveDuplicates(apiKey, userId, filters)
         .then(async () => {
           // Mark process as ready for manual merge
           await this.updateActionProcessName(actionId, 'manually merge');
