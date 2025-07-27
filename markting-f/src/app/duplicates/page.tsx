@@ -8,6 +8,7 @@ import useRequest from '@/app/axios/useRequest';
 import DuplicatesList from '@/app/duplicates/components/DuplicatesList';
 import ProcessStatus from '@/app/duplicates/components/ProcessStatus';
 import { useRouter } from 'next/navigation';
+import { PlanModal } from '@/app/plan';
 
 interface Contact {
     id: number;
@@ -19,6 +20,14 @@ interface Contact {
     phone?: string;
     company?: string;
     hs_additional_emails?: string;
+}
+
+export default function DuplicatesPage() {
+    return (
+        <Suspense fallback={<div>Loading...</div>}>
+            <DuplicatesPageContent />
+        </Suspense>
+    );
 }
 
 interface DuplicateGroup {
@@ -47,10 +56,11 @@ interface ProcessStatusData {
     api_key: string;
 }
 
+
 function DuplicatesPageContent() {
     const searchParams = useSearchParams();
     const apiKey = searchParams.get('apiKey') || '';
-    const { getDuplicates, finishProcess, getActions, isAuthenticated, mergeContacts, getProcessProgress } = useRequest();
+    const { getDuplicates, finishProcess, getActions, isAuthenticated, mergeContacts, getProcessProgress, getUserPlan } = useRequest();
     const router = useRouter();
 
     const [duplicates, setDuplicates] = useState<DuplicateGroup[]>([]);
@@ -79,6 +89,10 @@ function DuplicatesPageContent() {
         isComplete: false,
     });
 
+    const [userPlan, setUserPlan] = useState<any | null>(null);
+    const [showPlanModal, setShowPlanModal] = useState(false);
+    // TODO: Replace with actual userId from auth context or API
+    const userId = userPlan?.userId || 1;
     const limit = 10;
 
     // Store interval ID to clear it when needed
@@ -90,7 +104,16 @@ function DuplicatesPageContent() {
             window.location.href = '/login';
             return;
         }
-    }, [isAuthenticated]);
+        // Fetch user plan
+        (async () => {
+            try {
+                const plan = await getUserPlan();
+                setUserPlan(plan);
+            } catch (err) {
+                setUserPlan(null);
+            }
+        })();
+    }, []);
 
     // Fetch duplicates data
     const fetchDuplicates = async (page: number = 1) => {
@@ -347,6 +370,16 @@ function DuplicatesPageContent() {
         }
     };
 
+    useEffect(() => {
+        const showPlanModal =
+            !userPlan ||
+            (userPlan.planType === 'free' && (contactCount > 500000 || userPlan.mergeGroupsUsed >= 20)) ||
+            (userPlan.planType === 'paid' && userPlan.paymentStatus !== 'active');
+        setShowPlanModal(showPlanModal);
+
+    }, [isProcessing]);
+
+
     if (isLoading) {
         return (
             <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -358,8 +391,13 @@ function DuplicatesPageContent() {
         );
     }
 
+    // PLAN ENFORCEMENT LOGIC
+    const contactCount = duplicates.reduce((acc, group) => acc + group.group.length, 0);
+
+
     return (
         <div className="min-h-screen bg-gray-50 py-8">
+            {showPlanModal && <PlanModal open={true} onClose={() => { setShowPlanModal(false) }} userId={userId} />}
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="mb-8">
                     <h1 className="text-3xl font-bold text-gray-900">Duplicate Management</h1>
@@ -439,13 +477,5 @@ function DuplicatesPageContent() {
                 )}
             </div>
         </div>
-    );
-}
-
-export default function DuplicatesPage() {
-    return (
-        <Suspense fallback={<div>Loading...</div>}>
-            <DuplicatesPageContent />
-        </Suspense>
     );
 }

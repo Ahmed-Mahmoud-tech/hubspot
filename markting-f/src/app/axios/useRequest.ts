@@ -46,6 +46,15 @@ export interface ResetPasswordData {
 }
 
 const useRequest = () => {
+  // Stripe payment
+  const createStripeCheckoutSession = async (data: {
+    planType: string;
+    contactCount: number;
+    userId: number;
+  }) => {
+    const response = await Request.post('/stripe/create-checkout-session', data);
+    return response.data;
+  };
   const Request = useApi();
 
   // Authentication utility functions
@@ -107,6 +116,13 @@ const useRequest = () => {
   };
 
   // HubSpot integration methods
+
+  // Get current user's plan
+  const getUserPlan = async () => {
+    // You may want to pass userId or use auth headers if needed
+    const response = await Request.get('/plans/user');
+    return response.data;
+  };
   const startHubSpotFetch = async (data: {
     name: string;
     apiKey: string;
@@ -284,6 +300,7 @@ const useRequest = () => {
   return {
     // Store methods
     updateStore,
+    createStripeCheckoutSession,
 
     // Auth methods
     register,
@@ -321,6 +338,7 @@ const useRequest = () => {
     // Auth utility methods
     isAuthenticated,
     getCurrentUser,
+    getUserPlan,
   };
 };
 

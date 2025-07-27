@@ -230,7 +230,7 @@ export class MergingService {
         const mergeResult = await this.mergeContactsInHubSpot(
           apiKey,
           primaryAccountId,
-          secondaryContact.hubspotId + '0000',
+          secondaryContact.hubspotId,
         );
 
         console.log(

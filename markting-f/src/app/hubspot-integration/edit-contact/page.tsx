@@ -6,7 +6,7 @@ import useRequest from '@/app/axios/useRequest';
 
 export default function EditContactPage() {
     const searchParams = useSearchParams();
-    const { isAuthenticated } = useRequest();
+    const { isAuthenticated, submitMerge } = useRequest();
     const [isLoading, setIsLoading] = useState(false);
     const [resultMessage, setResultMessage] = useState('');
 
@@ -45,46 +45,32 @@ export default function EditContactPage() {
         setResultMessage('');
 
         try {
-            const response = await fetch('http://localhost:8000/hubspot/submit-merge', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`,
-                },
-                body: JSON.stringify(contactData),
-            });
+            const result = await submitMerge(contactData) as { message: string; details?: any };
+            setResultMessage(`✅ Success: ${result.message}`);
+            console.log('Merge details:', result.details);
 
-            const result = await response.json();
+            // Display HubSpot operation results
+            if (result.details?.hubspotOperations) {
+                const operations = result.details.hubspotOperations;
+                let hubspotMsg = '';
 
-            if (response.ok) {
-                setResultMessage(`✅ Success: ${result.message}`);
-                console.log('Merge details:', result.details);
-
-                // Display HubSpot operation results
-                if (result.details?.hubspotOperations) {
-                    const operations = result.details.hubspotOperations;
-                    let hubspotMsg = '';
-
-                    if (operations.updateResult?.success) {
-                        hubspotMsg += '✅ Contact updated in HubSpot successfully\\n';
-                    } else if (operations.updateResult?.error) {
-                        hubspotMsg += `❌ Failed to update contact in HubSpot: ${operations.updateResult.error}\\n`;
-                    }
-
-                    operations.deleteResults?.forEach((deleteResult: any) => {
-                        if (deleteResult.success) {
-                            hubspotMsg += `✅ Contact ${deleteResult.hubspotId} deleted from HubSpot\\n`;
-                        } else {
-                            hubspotMsg += `❌ Failed to delete contact ${deleteResult.hubspotId}: ${deleteResult.error}\\n`;
-                        }
-                    });
-
-                    if (hubspotMsg) {
-                        setResultMessage(prev => prev + '\\n\\nHubSpot Operations:\\n' + hubspotMsg);
-                    }
+                if (operations.updateResult?.success) {
+                    hubspotMsg += '✅ Contact updated in HubSpot successfully\n';
+                } else if (operations.updateResult?.error) {
+                    hubspotMsg += `❌ Failed to update contact in HubSpot: ${operations.updateResult.error}\n`;
                 }
-            } else {
-                setResultMessage(`❌ Error: ${result.message || 'Failed to merge contacts'}`);
+
+                operations.deleteResults?.forEach((deleteResult: any) => {
+                    if (deleteResult.success) {
+                        hubspotMsg += `✅ Contact ${deleteResult.hubspotId} deleted from HubSpot\n`;
+                    } else {
+                        hubspotMsg += `❌ Failed to delete contact ${deleteResult.hubspotId}: ${deleteResult.error}\n`;
+                    }
+                });
+
+                if (hubspotMsg) {
+                    setResultMessage(prev => prev + '\n\nHubSpot Operations:\n' + hubspotMsg);
+                }
             }
         } catch (error: any) {
             console.error('Error submitting merge:', error);
@@ -272,8 +258,8 @@ export default function EditContactPage() {
                 {/* Results */}
                 {resultMessage && (
                     <div className={`p-4 rounded border ${resultMessage.includes('✅')
-                            ? 'bg-green-50 border-green-200 text-green-800'
-                            : 'bg-red-50 border-red-200 text-red-800'
+                        ? 'bg-green-50 border-green-200 text-green-800'
+                        : 'bg-red-50 border-red-200 text-red-800'
                         }`}>
                         <pre className="whitespace-pre-wrap font-mono text-sm">
                             {resultMessage}

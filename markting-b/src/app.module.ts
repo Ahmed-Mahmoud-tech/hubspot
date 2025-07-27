@@ -3,12 +3,15 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { AppController } from './app.controller';
+import { PlanController } from './controllers/plan.controller';
 import { AppService } from './app.service';
+import { PlanService } from './services/plan.service';
 import { AuthModule } from './modules/auth.module';
 import { HubSpotModule } from './modules/hubspot.module';
 import { MergingModule } from './modules/merging.module';
 import { RemovalModule } from './modules/removal.module';
 import { User } from './entities/user.entity';
+import { UserPlan } from './entities/user-plan.entity';
 import { Action } from './entities/action.entity';
 import { Contact } from './entities/contact.entity';
 import { Matching } from './entities/matching.entity';
@@ -33,7 +36,16 @@ import { CorsMiddleware } from './middleware/cors.middleware';
         username: configService.get('DATABASE_USERNAME'),
         password: configService.get('DATABASE_PASSWORD'),
         database: configService.get('DATABASE_NAME'),
-        entities: [User, Action, Contact, Matching, Modified, Remove, Merging],
+        entities: [
+          User,
+          Action,
+          Contact,
+          Matching,
+          Modified,
+          Remove,
+          Merging,
+          UserPlan,
+        ],
         synchronize: process.env.NODE_ENV === 'development',
         logging: process.env.NODE_ENV === 'development',
       }),
@@ -43,9 +55,10 @@ import { CorsMiddleware } from './middleware/cors.middleware';
     HubSpotModule,
     MergingModule,
     RemovalModule,
+    TypeOrmModule.forFeature([UserPlan]),
   ],
-  controllers: [AppController],
-  providers: [AppService],
+  controllers: [AppController, PlanController],
+  providers: [AppService, PlanService],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
