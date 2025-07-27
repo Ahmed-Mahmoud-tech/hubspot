@@ -11,6 +11,7 @@ import { User } from '../entities/user.entity';
 import { Matching } from '../entities/matching.entity';
 import { MergeContactsDto, BatchMergeContactsDto } from '../dto/hubspot.dto';
 import axios from 'axios';
+import { merge } from 'rxjs';
 
 @Injectable()
 export class MergingService {
@@ -179,8 +180,8 @@ export class MergingService {
   }
 
   async mergeContacts(userId: number, mergeContactsDto: MergeContactsDto) {
-    const { groupId, primaryAccountId, secondaryAccountId, apiKey } =
-      mergeContactsDto;
+    const { groupId, secondaryAccountId, apiKey } = mergeContactsDto;
+    let { primaryAccountId } = mergeContactsDto;
 
     // Validate user exists
     const user = await this.userRepository.findOne({ where: { id: userId } });
@@ -193,133 +194,143 @@ export class MergingService {
     });
     console.log(user, '000000000000000000000000000000000');
 
-    // Validate that both contacts exist and belong to the user
+    // Validate that primary contact exists
     console.log(primaryContact, '0000000000000000000000000000000001');
-
-    const secondaryContact = await this.contactRepository.findOne({
-      where: { hubspotId: secondaryAccountId, user: { id: userId }, apiKey },
-    });
-    console.log(secondaryContact, '0000000000000000000000000000000002');
-
     if (!primaryContact) {
       throw new NotFoundException('Primary contact not found');
     }
 
-    if (!secondaryContact) {
-      throw new NotFoundException('Secondary contact not found');
+    // Always treat secondaryAccountId as array
+    const secondaryIds: string[] = Array.isArray(secondaryAccountId)
+      ? secondaryAccountId
+      : typeof secondaryAccountId === 'string'
+        ? [secondaryAccountId]
+        : [];
+
+    // Find all secondary contacts
+    const secondaryContacts = await this.contactRepository.find({
+      where: secondaryIds.map((id: string) => ({
+        hubspotId: id,
+        user: { id: userId },
+        apiKey,
+      })),
+    });
+    if (secondaryContacts.length !== secondaryIds.length) {
+      throw new NotFoundException('One or more secondary contacts not found');
     }
 
     try {
-      const updatedMergeRecord = await this.mergeContactsInHubSpot(
-        apiKey,
-        primaryAccountId,
-        secondaryAccountId,
-      );
+      const updatedData: Partial<Contact> = {};
+      const additionalEmails = primaryContact.hs_additional_emails
+        ? primaryContact.hs_additional_emails.split(',').map((e) => e.trim())
+        : [];
 
-      // Prepare merged data for primary contact
-      const updatedData: Partial<Contact> = {
-        lastModifiedDate: new Date(),
-      };
+      for (const secondaryContact of secondaryContacts) {
+        // // Merge in HubSpot
+        const mergeResult = await this.mergeContactsInHubSpot(
+          apiKey,
+          primaryAccountId,
+          secondaryContact.hubspotId + '0000',
+        );
 
-      // If primary has no email, set it from secondary. Otherwise, add secondary email to hs_additional_emails if different.
-      if (secondaryContact.email) {
-        if (primaryContact.email !== secondaryContact.email) {
-          // Only add to hs_additional_emails if not already present
-          const additionalEmails = (primaryContact.hs_additional_emails || '')
-            .split(',')
-            .map((e) => e.trim())
-            .filter(Boolean);
+        console.log(
+          mergeResult,
+          '000000000000000000000000000000000rrrrr',
+          mergeResult.data,
+        );
+
+        // Update only the fields defined in Contact entity from mergeResult.data.properties
+        // if (mergeResult && mergeResult.data && mergeResult.data.properties) {
+        //   const props = mergeResult.data.properties;
+        // const contactUpdate: Partial<Contact> = {
+        //   hs_additional_emails: props.hs_additional_emails,
+        //   hubspotId: props.hs_object_id || props.hubspot_id,
+        //   email: props.email,
+        //   firstName: props.firstname || props.first_name,
+        //   lastName: props.lastname || props.last_name,
+        //   phone: props.phone,
+        //   company: props.company,
+        //   createDate: props.createdate
+        //     ? new Date(props.createdate)
+        //     : undefined,
+        //   lastModifiedDate: props.lastmodifieddate
+        //     ? new Date(props.lastmodifieddate)
+        //     : undefined,
+        // };
+
+        // Update additional fields from each secondary contact
+        if (mergeResult.id) {
+          updatedData.hubspotId = mergeResult.id;
+        }
+        if (secondaryContact.email) {
           if (
             primaryContact.email !== secondaryContact.email &&
             !additionalEmails.includes(secondaryContact.email)
           ) {
-            updatedData.hs_additional_emails =
-              additionalEmails.length > 0
-                ? additionalEmails.concat([secondaryContact.email]).join(', ')
-                : secondaryContact.email;
+            additionalEmails.push(secondaryContact.email);
           }
         }
-      }
+        if (secondaryContact.hs_additional_emails) {
+          additionalEmails.push(secondaryContact.hs_additional_emails);
+        }
 
-      // Optionally, merge other fields if needed (e.g., phone, company, etc.)
-      // No need to check updatedMergeRecord as mergeContactsInHubSpot returns void
-      updatedData.hubspotId = String(updatedMergeRecord.id);
-      if (!primaryContact.phone && secondaryContact.phone) {
-        updatedData.phone = secondaryContact.phone;
-      }
-      if (!primaryContact.company && secondaryContact.company) {
-        updatedData.company = secondaryContact.company;
-      }
-      if (!primaryContact.firstName && secondaryContact.firstName) {
-        updatedData.firstName = secondaryContact.firstName;
-      }
-      if (!primaryContact.lastName && secondaryContact.lastName) {
-        updatedData.lastName = secondaryContact.lastName;
-      }
+        if (!primaryContact.phone && secondaryContact.phone) {
+          updatedData.phone = secondaryContact.phone;
+        }
+        if (!primaryContact.company && secondaryContact.company) {
+          updatedData.company = secondaryContact.company;
+        }
+        if (!primaryContact.firstName && secondaryContact.firstName) {
+          updatedData.firstName = secondaryContact.firstName;
+        }
+        if (!primaryContact.lastName && secondaryContact.lastName) {
+          updatedData.lastName = secondaryContact.lastName;
+        }
 
-      await this.contactRepository.update(primaryContact.id, updatedData);
+        updatedData.hs_additional_emails = additionalEmails.join(';');
 
-      // Remove the secondary contact from all matching groups
-      await this.removeContactFromDuplicateGroups(
-        userId,
-        secondaryContact.id,
-        apiKey,
-      );
-
-      // Optionally, update the matching group to only include the primary contact
-      const matchingGroup = await this.matchingRepository.findOne({
-        where: { id: groupId, userId, apiKey },
-      });
-      if (matchingGroup) {
-        // Remove secondary from group
-        matchingGroup.group = matchingGroup.group.filter(
-          (id) => id !== secondaryContact.id,
+        console.log(
+          primaryContact,
+          'primaryContact',
+          secondaryContact,
+          'secondaryContact',
+          updatedData,
+          '322222222211111111111111',
         );
-        // Ensure primary is present (should be, but just in case)
-        if (!matchingGroup.group.includes(primaryContact.id)) {
-          matchingGroup.group.push(primaryContact.id);
+
+        await this.contactRepository.update(
+          { id: primaryContact.id },
+          updatedData,
+        );
+        // }
+
+        primaryAccountId = primaryContact.hubspotId;
+
+        // Remove merged secondary contact(s) from group
+        // Fix: fetch group, update in JS, then save
+        const matchingGroup = await this.matchingRepository.findOne({
+          where: { id: groupId },
+        });
+        if (matchingGroup && Array.isArray(matchingGroup.group)) {
+          matchingGroup.group = matchingGroup.group.filter(
+            (id: number) => id !== secondaryContact.id,
+          );
+          await this.matchingRepository.save(matchingGroup);
         }
-        // If only one contact remains, mark as merged
-        if (matchingGroup.group.length < 2) {
-          matchingGroup.merged = true;
-          matchingGroup.mergedAt = new Date();
-        }
-        await this.matchingRepository.save(matchingGroup);
+
+        // Remove secondary contact from DB
+        await this.contactRepository.delete({ id: secondaryContact.id });
       }
+      console.log(updatedData, '322222222211111111111111');
+
+      // Return success
       return {
         success: true,
-        message:
-          'Contacts merged and matching group removed from matching table.',
-        primaryAccountId,
-        secondaryAccountId,
+        message: 'Contacts merged successfully',
+        data: updatedData,
       };
-
-      // Create merge record for later processing during finish process
-      // const mergeRecord = this.mergingRepository.create({
-      //   userId,
-      //   apiKey,
-      //   groupId,
-      //   primaryAccountId,
-      //   secondaryAccountId,
-      //   mergeStatus: 'completed', // Will be processed during finish process
-      // });
-      // await this.mergingRepository.save(mergeRecord);
-      // Mark the group as merged in matching table and set merged_at timestamp
-      // await this.markGroupAsMerged(userId, groupId, apiKey);
-      // Do NOT perform HubSpot merge here - this will be done in finish process
-      // Just keep the record in pending status for later processing
-      // return {
-      //   success: true,
-      //   message:
-      //     'Merge record created successfully. Will be processed during finish process.',
-      //   mergeId: mergeRecord.id,
-      //   primaryAccountId,
-      //   secondaryAccountId,
-      // };
     } catch (error) {
-      throw new BadRequestException(
-        `Failed to create merge record: ${error.message}`,
-      );
+      throw new BadRequestException(error.message);
     }
   }
 
@@ -506,7 +517,6 @@ export class MergingService {
   ) {
     const { groupId, primaryAccountId, secondaryAccountIds, apiKey } =
       batchMergeContactsDto;
-
     // Validate user exists
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) {
@@ -534,13 +544,13 @@ export class MergingService {
     }> = [];
 
     // Process each secondary contact
-    for (const secondaryAccountId of secondaryAccountIds) {
+    for (const secondaryAccountId of batchMergeContactsDto.secondaryAccountIds) {
       try {
         const mergeData: MergeContactsDto = {
-          groupId,
-          primaryAccountId,
+          groupId: batchMergeContactsDto.groupId,
+          primaryAccountId: batchMergeContactsDto.primaryAccountId,
           secondaryAccountId,
-          apiKey,
+          apiKey: batchMergeContactsDto.apiKey,
         };
 
         const result = await this.mergeContacts(userId, mergeData);

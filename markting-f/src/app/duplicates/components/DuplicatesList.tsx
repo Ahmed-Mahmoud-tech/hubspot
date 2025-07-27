@@ -24,7 +24,6 @@ interface DuplicatesListProps {
     totalPages: number;
     onPageChange: (page: number) => void;
     onMergeClick: (group: DuplicateGroup) => void;
-    onResetClick: (group: DuplicateGroup) => void;
     onRefresh: () => void;
     selectedContactForTwoGroup: { [groupId: number]: number | null };
     onContactSelect: (groupId: number, contactId: number) => void;
@@ -37,7 +36,6 @@ export default function DuplicatesList({
     totalPages,
     onPageChange,
     onMergeClick,
-    onResetClick,
     onRefresh,
     selectedContactForTwoGroup,
     onContactSelect,
@@ -143,20 +141,12 @@ export default function DuplicatesList({
                                             <span className="ml-2 text-sm font-normal text-gray-500">({duplicateGroup.group.length} contacts)</span>
                                         </h3>
                                     </div>
-                                    {/* {duplicateGroup.merged && (
-                                        <span className="ml-4 inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800 border border-green-200">
-                                            <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                                            </svg>
-                                            MERGED
-                                        </span>
-                                    )} */}
                                 </div>
 
                                 <div className="grid grid-cols-1 gap-6 sm:grid-cols-2  ">
                                     {duplicateGroup.group.map((contact) => {
-                                        const isClickable = duplicateGroup.group.length === 2;
-                                        const isSelected = isClickable && selectedContactForTwoGroup[duplicateGroup.id] === contact.id;
+                                        const isClickable = duplicateGroup.group.length === 2 || duplicateGroup.group.length > 2;
+                                        const isSelected = selectedContactForTwoGroup[duplicateGroup.id] === contact.id;
 
                                         return (
                                             <div
@@ -169,7 +159,7 @@ export default function DuplicatesList({
                                                     }`}
                                                 onClick={isClickable ? () => onContactSelect(duplicateGroup.id, contact.id) : undefined}
                                             >
-                                                {/* Selection indicator only for 2-contact groups when selected */}
+                                                {/* Selection indicator for selected contact in any group */}
                                                 {isSelected && (
                                                     <div className="absolute -top-2 -right-2">
                                                         <div className="flex items-center justify-center w-6 h-6 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-full text-sm font-bold shadow-lg">
@@ -254,18 +244,6 @@ export default function DuplicatesList({
                             <div className="ml-8 flex-shrink-0">
                                 {duplicateGroup.merged ? (
                                     <div className="space-y-3">
-                                        {/* <button
-                                            onClick={() => onResetClick(duplicateGroup)}
-                                            className="cursor-pointer inline-flex items-center px-6 py-3 border border-transparent text-sm font-medium rounded-lg shadow-lg text-white bg-gradient-to-r from-yellow-500 to-orange-600 hover:from-yellow-600 hover:to-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 transition-all duration-200 transform hover:scale-105"
-                                        >
-                                            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                                            </svg>
-                                            Reset Merge
-                                        </button>
-                                        <p className="text-xs text-orange-600 text-center font-medium">
-                                            ⚠️ This will undo the merge
-                                        </p> */}
                                         <span className="ml-4 inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800 border border-green-200">
                                             <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
                                                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
@@ -277,46 +255,20 @@ export default function DuplicatesList({
                                     <div className="space-y-3">
                                         <button
                                             onClick={() => onMergeClick(duplicateGroup)}
-                                            className={`cursor-pointer inline-flex items-center px-6 py-3 border border-transparent text-sm font-medium rounded-lg shadow-lg text-white transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 ${duplicateGroup.group.length === 2 && selectedContactForTwoGroup[duplicateGroup.id]
-                                                ? 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 focus:ring-green-500'
-                                                : 'bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 focus:ring-blue-500'
-                                                }`}
+                                            disabled={!selectedContactForTwoGroup[duplicateGroup.id]}
+                                            className={`cursor-pointer inline-flex items-center px-6 py-3 border border-transparent text-sm font-medium rounded-lg shadow-lg text-white transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2
+                                                ${selectedContactForTwoGroup[duplicateGroup.id]
+                                                    ? (duplicateGroup.group.length === 2
+                                                        ? 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 focus:ring-green-500'
+                                                        : 'bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 focus:ring-blue-500')
+                                                    : 'bg-gray-500 cursor-not-allowed opacity-60'}
+                                            `}
                                         >
-                                            {duplicateGroup.group.length === 2 && selectedContactForTwoGroup[duplicateGroup.id] && (
-                                                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                                </svg>
-                                            )}
-                                            {duplicateGroup.group.length === 2 && !selectedContactForTwoGroup[duplicateGroup.id] && (
-                                                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
-                                                </svg>
-                                            )}
-                                            {duplicateGroup.group.length > 2 && (
-                                                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
-                                                </svg>
-                                            )}
-                                            {duplicateGroup.group.length === 2
-                                                ? (selectedContactForTwoGroup[duplicateGroup.id] ? 'Merge Selected' : 'Select & Merge')
-                                                : 'Select to Merge'
-                                            }
+                                            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
+                                            </svg>
+                                            Merge
                                         </button>
-                                        {duplicateGroup.group.length > 2 && (
-                                            <p className="text-xs text-blue-600 text-center font-medium">
-                                                💡 Choose 2 contacts to merge
-                                            </p>
-                                        )}
-                                        {duplicateGroup.group.length === 2 && !selectedContactForTwoGroup[duplicateGroup.id] && (
-                                            <p className="text-xs text-blue-600 text-center font-medium">
-                                                👆 Click on a contact to select it
-                                            </p>
-                                        )}
-                                        {duplicateGroup.group.length === 2 && selectedContactForTwoGroup[duplicateGroup.id] && (
-                                            <p className="text-xs text-green-600 text-center font-medium">
-                                                ✅ Contact selected - ready to merge
-                                            </p>
-                                        )}
                                     </div>
                                 )}
                             </div>

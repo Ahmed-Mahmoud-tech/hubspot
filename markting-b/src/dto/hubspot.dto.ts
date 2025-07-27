@@ -128,9 +128,8 @@ export class MergeContactsDto {
   @IsNotEmpty()
   primaryAccountId: string;
 
-  @IsString()
   @IsNotEmpty()
-  secondaryAccountId: string;
+  secondaryAccountId: string | string[];
 
   @IsString()
   @IsNotEmpty()

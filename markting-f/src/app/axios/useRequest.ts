@@ -193,7 +193,7 @@ const useRequest = () => {
   const mergeContacts = async (data: {
     groupId: number;
     primaryAccountId: string;
-    secondaryAccountId: string;
+    secondaryAccountId: string | string[];
     apiKey: string;
   }) => {
     const response = await Request.post("/hubspot/merge-contacts", data);
