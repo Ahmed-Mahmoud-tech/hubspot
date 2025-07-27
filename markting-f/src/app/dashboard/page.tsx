@@ -363,7 +363,7 @@ export default function DashboardPage() {
                             <h3 className="text-lg font-medium text-gray-900">HubSpot Integrations</h3>
                             <button
                                 onClick={() => setShowForm(!showForm)}
-                                className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                                className="cursor-pointer inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                             >
                                 <Plus className="h-4 w-4 mr-1" />
                                 New Integration
@@ -491,7 +491,7 @@ export default function DashboardPage() {
                                                     {action.process_name === 'manually merge' && (
                                                         <button
                                                             onClick={() => router.push(`/duplicates?apiKey=${encodeURIComponent(action.api_key)}`)}
-                                                            className="text-sm bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700"
+                                                            className="cursor-pointer text-sm bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700"
                                                         >
                                                             Review Duplicates
                                                         </button>
@@ -501,7 +501,7 @@ export default function DashboardPage() {
                                                         <button
                                                             onClick={() => handleRemoveAction(action.id, action.api_key)}
                                                             disabled={removingActionId === action.id}
-                                                            className="text-sm bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+                                                            className="cursor-pointer text-sm bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
                                                         >
                                                             <Trash2 className="h-3 w-3 mr-1" />
                                                             {removingActionId === action.id ? 'Removing...' : 'Remove'}

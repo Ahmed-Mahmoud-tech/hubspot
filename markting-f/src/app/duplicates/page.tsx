@@ -79,7 +79,7 @@ function DuplicatesPageContent() {
         isComplete: false,
     });
 
-    const limit = 1;
+    const limit = 10;
 
     // Store interval ID to clear it when needed
     const intervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -435,66 +435,6 @@ function DuplicatesPageContent() {
                             onContactSelect={handleContactSelect}
                             limit={limit} // Pass limit to control items per page
                         />
-
-                        {/* Merge All Selected Button */}
-                        <div className="mt-8 flex justify-end">
-                            <button
-                                className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg text-white bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 shadow-lg transition-all duration-200 transform hover:scale-105 disabled:opacity-60 disabled:cursor-not-allowed"
-                                onClick={async () => {
-                                    // Gather all selected contacts for each group
-                                    const mergePromises = [];
-                                    for (const group of duplicates) {
-                                        const selectedId = selectedContactForTwoGroup[group.id];
-                                        if (selectedId) {
-                                            const primaryContact = group.group.find(c => c.id === selectedId);
-                                            if (!primaryContact) continue;
-                                            const secondaryContacts = group.group.filter(c => c.id !== selectedId).map(c => c.hubspotId);
-                                            if (secondaryContacts.length === 0) continue;
-                                            const mergeData = {
-                                                groupId: group.id,
-                                                primaryAccountId: primaryContact.hubspotId,
-                                                secondaryAccountId: secondaryContacts,
-                                                apiKey,
-                                            };
-                                            mergePromises.push(
-                                                mergeContacts(mergeData)
-                                                    .then((result: any) => ({ groupId: group.id, success: true, message: result.message }))
-                                                    .catch((error: any) => ({ groupId: group.id, success: false, message: error.message }))
-                                            );
-                                        }
-                                    }
-                                    if (mergePromises.length === 0) {
-                                        alert('Please select at least one contact in each group to merge.');
-                                        return;
-                                    }
-                                    const results = await Promise.all(mergePromises);
-                                    const successCount = results.filter(r => r.success).length;
-                                    const failCount = results.length - successCount;
-                                    let message = `✅ Merged ${successCount} group(s) successfully.`;
-                                    if (failCount > 0) {
-                                        message += `\n❌ Failed to merge ${failCount} group(s).`;
-                                    }
-                                    message += '\n\n⚠️ Remember to click "Finish Process" to complete the merges in HubSpot.';
-                                    alert(message);
-                                    // Clear selection for merged groups
-                                    setSelectedContactForTwoGroup(prev => {
-                                        const updated = { ...prev };
-                                        for (const r of results) {
-                                            if (r.success) updated[r.groupId] = null;
-                                        }
-                                        return updated;
-                                    });
-                                    // Refresh duplicates list
-                                    await fetchDuplicates(currentPage);
-                                }}
-                                disabled={Object.values(selectedContactForTwoGroup).filter(Boolean).length === 0}
-                            >
-                                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
-                                </svg>
-                                Merge All Selected
-                            </button>
-                        </div>
                     </>
                 )}
             </div>

@@ -1,6 +1,7 @@
 'use client';
 
 import { baseURL } from '@/app/constant/main';
+import Link from 'next/link';
 
 interface ProcessStatusData {
     id: number;
@@ -87,12 +88,22 @@ export default function ProcessStatus({ status, onFinish }: ProcessStatusProps) 
 
                 <div className="flex-shrink-0">
                     {status.process_name === 'manually merge' && (
-                        <button
-                            onClick={onFinish}
-                            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-                        >
-                            Clear Integration
-                        </button>
+                        <>
+                            <button
+                                onClick={onFinish}
+                                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 cursor-pointer"
+                            >
+                                Clear Integration
+                            </button>
+                            <Link href="/dashboard" passHref>
+                                <button
+                                    type="button"
+                                    className="ml-2 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-gray-600 hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 cursor-pointer"
+                                >
+                                    Back to Dashboard
+                                </button>
+                            </Link>
+                        </>
                     )}
 
                     {status.process_name === 'finished' && status.excel_link && (
