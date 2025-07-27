@@ -1,3 +1,6 @@
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Action } from '../entities/action.entity';
 import {
   Controller,
   Post,
@@ -28,7 +31,11 @@ import {
 @Controller('hubspot')
 @UseGuards(JwtAuthGuard)
 export class HubSpotController {
-  constructor(private readonly hubspotService: HubSpotService) {}
+  constructor(
+    private readonly hubspotService: HubSpotService,
+    @InjectRepository(Action)
+    private readonly actionRepo: Repository<Action>,
+  ) {}
 
   @Post('start-fetch')
   async startFetch(
@@ -367,5 +374,20 @@ export class HubSpotController {
         message: error.message || 'Failed to delete action',
       };
     }
+  }
+
+  @Get('latest-action/:apiKey')
+  async getLatestAction(@Param('apiKey') apiKey: string) {
+    console.log('Fetching latest action for API key:', apiKey);
+
+    if (!apiKey) {
+      return { success: false, error: 'Missing apiKey' };
+    }
+    // Query by apiKey field in Action entity
+    const latestAction = await this.actionRepo.findOne({
+      where: { api_key: apiKey },
+      order: { id: 'DESC' },
+    });
+    return { success: true, data: latestAction };
   }
 }

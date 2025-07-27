@@ -61,7 +61,7 @@ export default function DashboardPage() {
     const [selectedFilters, setSelectedFilters] = useState<string[]>(filterOptions.map(f => f.key)); // default: all selected
     const [selectAll, setSelectAll] = useState(true);
 
-    const { getProfile, getActions, startHubSpotFetch, deleteActionById } = useRequest();
+    const { getProfile, getActions, startHubSpotFetch, finalDeleteActionById } = useRequest();
 
     const checkAuth = useCallback(async () => {
         try {
@@ -225,7 +225,8 @@ export default function DashboardPage() {
 
         setRemovingActionId(actionId);
         try {
-            await deleteActionById(actionId, apiKey);
+            // await deleteActionById(actionId);
+            await finalDeleteActionById(actionId, apiKey);
             toast.success('Action has been successfully removed');
             // Refresh the actions list
             await fetchActions(currentPage);

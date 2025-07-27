@@ -26,6 +26,7 @@ export class PaymentService {
       status: 'pending',
       createdAt: new Date(),
       stripePaymentIntentId: paymentIntent.id,
+      apiKey: paymentIntent.metadata.apiKey || '',
     };
   }
 

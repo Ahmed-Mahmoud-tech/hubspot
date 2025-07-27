@@ -91,29 +91,6 @@ const useRequest = () => {
     return response.data;
   };
 
-  const finalDeleteActionById = async (actionId: number, apiKey: string) => {
-    try {
-      const response = await Request({
-        method: "PUT",
-        url: "/hubspot/delete-action",
-        data: { actionId, apiKey },
-      });
-      return response.data;
-    } catch (error: any) {
-      // Check if it's a 404 error and enhance the error message
-      if (error.response?.status === 404) {
-        const enhancedError = {
-          ...error,
-          message: "Delete endpoint not implemented",
-          response: error.response,
-        };
-        throw enhancedError;
-      }
-      // Re-throw other errors as-is
-      throw error;
-    }
-  };
-
   const getRemovalHistory = async () => {
     return await Request.get(`/hubspot/removal-history`);
   };
@@ -128,6 +105,10 @@ const useRequest = () => {
 
   const deleteActionById = async (actionId: number) => {
     return await Request.delete(`/hubspot/actions/${actionId}`);
+  };
+
+  const finalDeleteActionById = async (actionId: number) => {
+    return await Request.delete(`/hubspot/final-actions/${actionId}`);
   };
 
   // Store methods

@@ -14,9 +14,9 @@ async function bootstrap() {
     prefix: '/uploads/',
   });
 
-  // Enable CORS with explicit configuration
+  // Enable CORS for frontend requests from localhost:3000
   app.enableCors({
-    origin: true, // Allow all origins
+    origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH', 'HEAD'],
     allowedHeaders: [

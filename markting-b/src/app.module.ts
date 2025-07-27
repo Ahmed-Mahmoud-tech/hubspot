@@ -4,8 +4,10 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { AppController } from './app.controller';
 import { PlanController } from './controllers/plan.controller';
+import { StripeController } from './controllers/stripe.controller';
 import { AppService } from './app.service';
 import { PlanService } from './services/plan.service';
+import { Payment } from './entities/payment.entity';
 import { AuthModule } from './modules/auth.module';
 import { HubSpotModule } from './modules/hubspot.module';
 import { MergingModule } from './modules/merging.module';
@@ -45,6 +47,7 @@ import { CorsMiddleware } from './middleware/cors.middleware';
           Remove,
           Merging,
           UserPlan,
+          Payment,
         ],
         synchronize: process.env.NODE_ENV === 'development',
         logging: process.env.NODE_ENV === 'development',
@@ -55,9 +58,9 @@ import { CorsMiddleware } from './middleware/cors.middleware';
     HubSpotModule,
     MergingModule,
     RemovalModule,
-    TypeOrmModule.forFeature([UserPlan]),
+    TypeOrmModule.forFeature([UserPlan, Payment]),
   ],
-  controllers: [AppController, PlanController],
+  controllers: [AppController, PlanController, StripeController],
   providers: [AppService, PlanService],
 })
 export class AppModule implements NestModule {

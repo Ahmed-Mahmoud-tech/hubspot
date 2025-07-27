@@ -60,7 +60,7 @@ interface ProcessStatusData {
 function DuplicatesPageContent() {
     const searchParams = useSearchParams();
     const apiKey = searchParams.get('apiKey') || '';
-    const { getDuplicates, finishProcess, getActions, isAuthenticated, mergeContacts, getProcessProgress, getUserPlan } = useRequest();
+    const { getDuplicates, finishProcess, getActions, isAuthenticated, mergeContacts, getProcessProgress, getUserPlan, getLatestAction } = useRequest();
     const router = useRouter();
 
     const [duplicates, setDuplicates] = useState<DuplicateGroup[]>([]);
@@ -140,9 +140,12 @@ function DuplicatesPageContent() {
 
         const checkStatus = async () => {
             try {
-                const actions = await getActions() as any;
-                const latestAction = actions.data.find((action: ProcessStatusData) => action.api_key === apiKey);
-                setProcessStatus(latestAction || null);
+                const response = await getLatestAction(apiKey);
+                let latestAction = null;
+                if (response && typeof response === 'object' && 'data' in response) {
+                    latestAction = (response as any).data?.data ?? null;
+                }
+                setProcessStatus(latestAction);
             } catch (error) {
                 console.error('Error checking process status:', error);
             }
@@ -168,8 +171,12 @@ function DuplicatesPageContent() {
             try {
                 console.log('Checking process status for apiKey:', apiKey);
                 const actions = await getActions() as any;
-                console.log('All actions:', actions);
-                const latestAction = actions.data.find((action: ProcessStatusData) => action.api_key === apiKey);
+                // const latestAction = actions.data.data.find((action: ProcessStatusData) => action.api_key === apiKey);
+                const response = await getLatestAction(apiKey);
+                let latestAction = null;
+                if (response && typeof response === 'object' && 'data' in response) {
+                    latestAction = (response as any).data?.data ?? null;
+                } console.log('All actions:', actions);
                 console.log('Latest action for this API key:', latestAction);
                 setProcessStatus(latestAction || null);
             } catch (error) {
@@ -265,15 +272,20 @@ function DuplicatesPageContent() {
             };
             (async () => {
                 try {
-                    const result = await mergeContacts(mergeData) as { success: boolean; message: string; mergeId?: number; details?: any };
-                    alert(`✅ ${result.message}\n\n⚠️ Remember to click "Finish Process" to complete the merges in HubSpot.`);
-                    // Clear selection for this group
-                    setSelectedContactForTwoGroup(prev => ({ ...prev, [group.id]: null }));
-                    // Refresh duplicates list
-                    await fetchDuplicates(currentPage);
-                } catch (error) {
+                    const response = await mergeContacts(mergeData);
+                    const result = response.data as { success: boolean; message: string; mergeId?: number; details?: any };
+                    if (result && result.success) {
+                        alert(`✅ ${result.message}\n\n⚠️ Remember to click "Finish Process" to complete the merges in HubSpot.`);
+                        // Clear selection for this group
+                        setSelectedContactForTwoGroup(prev => ({ ...prev, [group.id]: null }));
+                        // Refresh duplicates list
+                        await fetchDuplicates(currentPage);
+                    } else {
+                        alert('❌ Merge failed. Please try again.');
+                    }
+                } catch (error: any) {
                     console.error('Error during merge all:', error);
-                    alert('❌ Error merging contacts. Please try again.\n\nError details: ' + (error as Error).message);
+                    alert('❌ Error merging contacts. Please try again.\n\nError details: ' + (error?.message || error?.toString()));
                 }
             })();
         } else {
@@ -299,7 +311,8 @@ function DuplicatesPageContent() {
                 apiKey,
             };
 
-            const result = await mergeContacts(mergeData) as { message: string; details?: any };
+            const response = await mergeContacts(mergeData);
+            const result = response.data as { message: string; details?: any };
             alert(`✅ ${result.message}\n\n⚠️ Remember to click "Finish Process" to complete the merges in HubSpot.`);
 
             // Clear selection for this group
@@ -335,12 +348,13 @@ function DuplicatesPageContent() {
             setIsProcessing(true);
 
             // Start the finish process (non-blocking)
-            const finishPromise = finishProcess({ apiKey });
+            const finishPromise = finishProcess();
 
             // Start polling for progress
             const progressInterval = setInterval(async () => {
                 try {
-                    const progress = await getProcessProgress(apiKey) as ProcessProgress;
+                    const response = await getProcessProgress();
+                    const progress = response.data as ProcessProgress;
                     setProcessingProgress(progress);
 
                     if (progress.isComplete) {
@@ -353,7 +367,8 @@ function DuplicatesPageContent() {
             }, 2000); // Poll every 2 seconds
 
             // Wait for the process to complete
-            const result = await finishPromise as { message: string; excelUrl: string };
+            const finishResponse = await finishPromise;
+            const result = finishResponse.data as { message: string; excelUrl: string };
 
             // Clean up
             clearInterval(progressInterval);
@@ -369,7 +384,8 @@ function DuplicatesPageContent() {
             alert('❌ Error finishing process. Please try again.\n\nError details: ' + (error as Error).message);
         }
     };
-
+    // PLAN ENFORCEMENT LOGIC
+    const contactCount = duplicates.reduce((acc, group) => acc + group.group.length, 0);
     useEffect(() => {
         const showPlanModal =
             !userPlan ||
@@ -377,7 +393,9 @@ function DuplicatesPageContent() {
             (userPlan.planType === 'paid' && userPlan.paymentStatus !== 'active');
         setShowPlanModal(showPlanModal);
 
-    }, [isProcessing]);
+    }, [isProcessing, contactCount, userPlan]);
+
+
 
 
     if (isLoading) {
@@ -391,13 +409,9 @@ function DuplicatesPageContent() {
         );
     }
 
-    // PLAN ENFORCEMENT LOGIC
-    const contactCount = duplicates.reduce((acc, group) => acc + group.group.length, 0);
-
-
     return (
         <div className="min-h-screen bg-gray-50 py-8">
-            {showPlanModal && <PlanModal open={true} onClose={() => { setShowPlanModal(false) }} userId={userId} />}
+            {showPlanModal && <PlanModal apiKey={apiKey} open={true} onClose={() => { setShowPlanModal(false) }} userId={userId} />}
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="mb-8">
                     <h1 className="text-3xl font-bold text-gray-900">Duplicate Management</h1>

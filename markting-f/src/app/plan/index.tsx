@@ -3,7 +3,7 @@ import { loadStripe } from '@stripe/stripe-js';
 import { ErrorMessage } from './ErrorMessage';
 import useRequest from '@/app/axios/useRequest';
 
-export function PlanModal({ open, onClose, userId }: { open: boolean; onClose: () => void; userId: number }) {
+export function PlanModal({ apiKey, open, onClose, userId }: { apiKey: string; open: boolean; onClose: () => void; userId: number }) {
     const { createStripeCheckoutSession } = useRequest();
     const initialContactCount = 480000;
     const [plan, setPlan] = useState({ type: 'free', mergeGroupsUsed: 18, contactCount: initialContactCount });
@@ -47,10 +47,11 @@ export function PlanModal({ open, onClose, userId }: { open: boolean; onClose: (
                 planType: billingType,
                 contactCount: plan.contactCount,
                 userId,
+                apiKey
             }) as { sessionId: string };
             if (!data.sessionId) throw new Error('Stripe session error');
             // Use your Stripe public key here
-            const stripePublicKey = 'pk_test_12345'; // TODO: Replace with your real public key
+            const stripePublicKey = 'pk_test_51RpU70HLTJKxRr2VrhSFOtEWl3HnkFMoVkEeW9jl3OMGqrtBDmNCUun76Kll9nwVvVMmNDTdWyDZ7N75lS0YCetv00dZwqN7WM'; // TODO: Replace with your real public key
             const stripe = await loadStripe(stripePublicKey);
             if (!stripe) throw new Error('Stripe.js failed to load');
             await stripe.redirectToCheckout({ sessionId: data.sessionId });
