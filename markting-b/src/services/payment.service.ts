@@ -27,6 +27,8 @@ export class PaymentService {
       createdAt: new Date(),
       stripePaymentIntentId: paymentIntent.id,
       apiKey: paymentIntent.metadata.apiKey || '',
+      contactCount: 0,
+      billingType: '',
     };
   }
 

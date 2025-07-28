@@ -18,12 +18,12 @@ export default function PaymentSuccessPage() {
     }
     async function handleVerifyStripeSession(sessionId: string) {
       try {
-        const response = await verifyStripeSession(sessionId);
+        const apiKey = searchParams.get('apiKey') ?? '';
+        const response = await verifyStripeSession({ sessionId, apiKey });
         const data = response && typeof response === 'object' && 'data' in response ? (response as any).data : response;
         if (data.success && data.status === 'paid') {
           setStatus('paid');
           window.alert('Payment successful!');
-          const apiKey = searchParams.get('apiKey');
           if (apiKey) {
             router.replace(`/duplicates?apiKey=${encodeURIComponent(apiKey)}`);
           } else {

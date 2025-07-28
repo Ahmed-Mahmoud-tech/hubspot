@@ -187,9 +187,16 @@ const useRequest = () => {
   };
 
   // Stripe payment verification
-  const verifyStripeSession = async (sessionId: string) => {
+  const verifyStripeSession = async ({
+    sessionId,
+    apiKey,
+  }: {
+    sessionId: string;
+    apiKey: string;
+  }) => {
     const response = await Request.post("/stripe/verify-session", {
       session_id: sessionId,
+      apiKey,
     });
     return response.data;
   };
@@ -198,6 +205,7 @@ const useRequest = () => {
     planType: string;
     contactCount: number;
     userId: number;
+    billingType: string;
     apiKey?: string;
   }) => {
     const response = await Request.post(
@@ -254,6 +262,19 @@ const useRequest = () => {
     return response.data as User;
   };
 
+  // Create user plan (free or paid)
+  const createUserPlan = async (data: {
+    planType: string;
+    contactCount: number;
+    apiKey?: string;
+    activationDate?: string;
+    paymentStatus?: string;
+  }) => {
+    // Adjust the endpoint and payload as needed to match your backend
+    const response = await Request.post("/plans/create", data);
+    return response.data;
+  };
+
   // ...existing code...
 
   return {
@@ -285,6 +306,7 @@ const useRequest = () => {
     getProcessProgress,
     deleteActionById,
     finalDeleteActionById,
+    createUserPlan,
   };
 };
 

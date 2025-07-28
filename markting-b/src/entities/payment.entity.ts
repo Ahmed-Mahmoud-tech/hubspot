@@ -1,4 +1,3 @@
-// ...existing code...
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -8,16 +7,23 @@ import {
 
 @Entity()
 export class Payment {
-  @Column({ nullable: true })
-  apiKey: string;
   @PrimaryGeneratedColumn()
   id: number;
+
+  @Column({ nullable: true })
+  apiKey: string;
 
   @Column()
   userId: number;
 
   @Column('int')
   amount: number;
+
+  @Column('int', { nullable: true })
+  contactCount: number;
+
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  billingType: string;
 
   @Column({ default: 'usd' })
   currency: string;

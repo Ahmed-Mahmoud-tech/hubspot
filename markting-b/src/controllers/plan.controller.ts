@@ -24,4 +24,13 @@ export class PlanController {
     const userId = req.user?.id || req.headers['x-user-id'] || 1;
     return this.planService.getUserPlan(userId);
   }
+
+  // Endpoint to create a user plan
+  @Post('create')
+  async createUserPlan(@Req() req, @Body() body) {
+    // Always get userId from the request (token/session/header)
+    const userId = req.user?.id || req.headers['x-user-id'] || 1;
+    // Merge userId into the body
+    return this.planService.createUserPlan({ ...body, userId });
+  }
 }

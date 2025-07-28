@@ -60,7 +60,7 @@ interface ProcessStatusData {
 function DuplicatesPageContent() {
     const searchParams = useSearchParams();
     const apiKey = searchParams.get('apiKey') || '';
-    const { getDuplicates, finishProcess, getActions, isAuthenticated, mergeContacts, getProcessProgress, getUserPlan, getLatestAction } = useRequest();
+    const { getDuplicates, finishProcess, getActions, isAuthenticated, mergeContacts, getProcessProgress, getUserPlan, getLatestAction, createUserPlan } = useRequest();
     const router = useRouter();
 
     const [duplicates, setDuplicates] = useState<DuplicateGroup[]>([]);
@@ -108,12 +108,30 @@ function DuplicatesPageContent() {
         (async () => {
             try {
                 const plan = await getUserPlan();
+                console.log("000", !!plan, "555555555555555555");
                 setUserPlan(plan);
+
+                if (!plan) {
+                    // If user has no plan and contactCount <= 500000, create a free plan
+                    const contactCount = processStatus?.count ?? 0;
+                    if (contactCount <= 500000) {
+                        const freePlan = await createUserPlan({
+                            planType: 'free',
+                            contactCount,
+                            activationDate: new Date().toISOString(),
+                            paymentStatus: 'active',
+                            apiKey,
+                        });
+                        setUserPlan(freePlan);
+                    }
+                }
             } catch (err) {
                 setUserPlan(null);
+                // If user has no plan and contactCount <= 500000, create a free plan
+
             }
         })();
-    }, []);
+    }, [apiKey, processStatus?.count]);
 
     // Fetch duplicates data
     const fetchDuplicates = async (page: number = 1) => {
@@ -173,6 +191,8 @@ function DuplicatesPageContent() {
                 const actions = await getActions() as any;
                 // const latestAction = actions.data.data.find((action: ProcessStatusData) => action.api_key === apiKey);
                 const response = await getLatestAction(apiKey);
+                console.log("6666666666666666666", response);
+
                 let latestAction = null;
                 if (response && typeof response === 'object' && 'data' in response) {
                     latestAction = (response as any).data?.data ?? null;
@@ -385,15 +405,16 @@ function DuplicatesPageContent() {
         }
     };
     // PLAN ENFORCEMENT LOGIC
-    const contactCount = duplicates.reduce((acc, group) => acc + group.group.length, 0);
+    // Use count from processStatus (getLatestAction().data.data.count) if available
+    // (removed duplicate declaration)
     useEffect(() => {
         const showPlanModal =
             !userPlan ||
-            (userPlan.planType === 'free' && (contactCount > 500000 || userPlan.mergeGroupsUsed >= 20)) ||
+            (userPlan.planType === 'free' && ((processStatus?.count ?? 0) > 500000 || userPlan.mergeGroupsUsed >= 20)) ||
             (userPlan.planType === 'paid' && userPlan.paymentStatus !== 'active');
         setShowPlanModal(showPlanModal);
 
-    }, [isProcessing, contactCount, userPlan]);
+    }, [isProcessing, processStatus, userPlan]);
 
 
 
@@ -411,11 +432,30 @@ function DuplicatesPageContent() {
 
     return (
         <div className="min-h-screen bg-gray-50 py-8">
-            {showPlanModal && <PlanModal apiKey={apiKey} open={true} onClose={() => { setShowPlanModal(false) }} userId={userId} />}
+            {showPlanModal && (
+                <PlanModal
+                    apiKey={apiKey}
+                    open={true}
+                    onClose={() => { setShowPlanModal(false); }}
+                    userId={userId}
+                    plan={userPlan}
+                    contactCount={processStatus?.count ?? 0}
+                />
+            )}
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="mb-8">
-                    <h1 className="text-3xl font-bold text-gray-900">Duplicate Management</h1>
-                    <p className="mt-2 text-gray-600">Review and merge duplicate contacts</p>
+                <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <h1 className="text-3xl font-bold text-gray-900">Duplicate Management</h1>
+                        <p className="mt-2 text-gray-600">Review and merge duplicate contacts</p>
+                    </div>
+                    {(userPlan?.planType === 'free' || !userPlan) && (
+                        <button
+                            className="mt-4 sm:mt-0 inline-block px-6 py-2 bg-blue-600 text-white font-semibold rounded shadow hover:bg-blue-700 transition"
+                            onClick={() => setShowPlanModal(true)}
+                        >
+                            Upgrade Plan
+                        </button>
+                    )}
                 </div>
 
                 {/* Process Status */}
