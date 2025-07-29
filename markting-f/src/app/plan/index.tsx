@@ -24,6 +24,7 @@ export function PlanModal({ apiKey, open, onClose, userId, plan, contactCount }:
     const [error, setError] = useState('');
     const [billingType, setBillingType] = useState<'monthly' | 'yearly'>('monthly');
     const modalRef = useRef<HTMLDivElement>(null);
+    const stripeCountLimit = 2000;
 
     useEffect(() => {
         function handleKeyDown(e: KeyboardEvent) {
@@ -54,6 +55,12 @@ export function PlanModal({ apiKey, open, onClose, userId, plan, contactCount }:
         } else {
             setLocalPlan({ type: 'free', mergeGroupsUsed: 0, contactCount: contactCount || initialContactCount });
             setInputContactCount((contactCount || initialContactCount) + 500);
+        }
+
+        // If monthly is disabled, set billingType to yearly
+        const monthlyDisabled = moreThanMonth;
+        if (monthlyDisabled) {
+            setBillingType('yearly');
         }
     }, [plan, contactCount]);
 
@@ -96,6 +103,7 @@ export function PlanModal({ apiKey, open, onClose, userId, plan, contactCount }:
         }
     };
 
+    const moreThanMonth = plan && plan.planType === 'paid' && plan.billingEndDate && new Date(plan.billingEndDate) > new Date(new Date().setMonth(new Date().getMonth() + 1))
     // Message logic
     let infoMessage = '';
     let showUpgrade = false;
@@ -136,31 +144,35 @@ export function PlanModal({ apiKey, open, onClose, userId, plan, contactCount }:
                     <div className="mb-4 text-center">
                         <span className={`text-md font-semibold ${showUpgrade ? 'text-red-600' : 'text-green-600'}`}>{infoMessage}</span>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                        {/* Free Plan Card */}
-                        <div className="bg-blue-50 border h-max border-blue-200 rounded-lg p-6 flex flex-col items-center shadow hover:shadow-lg transition relative">
-                            <div className="absolute top-4 right-4">
-                                <span className="bg-blue-600 text-white text-xs px-3 py-1 rounded font-semibold shadow">Current</span>
+                    <div
+                        className={`mb-8 ${(!plan || plan.planType !== 'paid') ? 'grid grid-cols-1 md:grid-cols-2 gap-6' : 'flex justify-center'}`}
+                    >
+                        {/* Free Plan Card: Only show if not paid plan */}
+                        {(!plan || plan.planType !== 'paid') && (
+                            <div className="bg-blue-50 border h-max border-blue-200 rounded-lg p-6 flex flex-col items-center shadow hover:shadow-lg transition relative">
+                                <div className="absolute top-4 right-4">
+                                    <span className="bg-blue-600 text-white text-xs px-3 py-1 rounded font-semibold shadow">Current</span>
+                                </div>
+                                {/* Shield icon for Free Plan */}
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 mb-2 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3l8 4v5c0 5.25-3.5 9.75-8 11-4.5-1.25-8-5.75-8-11V7l8-4z" />
+                                </svg>
+                                <div className="flex items-center gap-2 group mb-2">
+                                    <span className="text-3xl font-extrabold text-blue-700 tracking-tight">{localPlan.contactCount.toLocaleString()}</span>
+                                    <span className="text-xs font-medium text-blue-600 bg-blue-100 px-2 py-1 rounded-full shadow-sm cursor-help group-hover:bg-blue-200" title="Total contacts included in your plan">contacts</span>
+                                </div>
+                                <h2 className="text-xl font-semibold mb-2 text-[var(--foreground)]">Free Plan</h2>
+                                <ul className="text-gray-600 mb-4 text-center text-md">
+                                    <li>✔️ Up to 500,000 contacts</li>
+                                    <li>✔️ Up to 20 merge groups</li>
+                                    <li>✔️ Basic duplicate detection</li>
+                                    <li>❌ No advanced features</li>
+                                </ul>
+                                <span className="text-blue-600 font-medium mb-2">You are on the free plan</span>
                             </div>
-                            {/* Shield icon for Free Plan */}
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 mb-2 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3l8 4v5c0 5.25-3.5 9.75-8 11-4.5-1.25-8-5.75-8-11V7l8-4z" />
-                            </svg>
-                            <div className="flex items-center gap-2 group mb-2">
-                                <span className="text-3xl font-extrabold text-blue-700 tracking-tight">{localPlan.contactCount.toLocaleString()}</span>
-                                <span className="text-xs font-medium text-blue-600 bg-blue-100 px-2 py-1 rounded-full shadow-sm cursor-help group-hover:bg-blue-200" title="Total contacts included in your plan">contacts</span>
-                            </div>
-                            <h2 className="text-xl font-semibold mb-2 text-[var(--foreground)]">Free Plan</h2>
-                            <ul className="text-gray-600 mb-4 text-center text-md">
-                                <li>✔️ Up to 500,000 contacts</li>
-                                <li>✔️ Up to 20 merge groups</li>
-                                <li>✔️ Basic duplicate detection</li>
-                                <li>❌ No advanced features</li>
-                            </ul>
-                            <span className="text-blue-600 font-medium mb-2">You are on the free plan</span>
-                        </div>
+                        )}
                         {/* Paid Plan Card */}
-                        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 flex flex-col items-center shadow hover:shadow-lg transition relative">
+                        <div className="bg-yellow-50 m-auto border border-yellow-200 rounded-lg p-6 flex flex-col items-center shadow hover:shadow-lg transition relative">
                             <div className="absolute top-4 right-4">
                                 <span className="bg-yellow-500 text-white text-xs px-3 py-1 rounded font-semibold shadow animate-bounce">Upgrade</span>
                             </div>
@@ -186,8 +198,8 @@ export function PlanModal({ apiKey, open, onClose, userId, plan, contactCount }:
                                     <input
                                         id="contactCountInput"
                                         type="number"
-                                        min={localPlan.contactCount}
-                                        value={inputContactCount === 0 ? '' : inputContactCount}
+                                        min={Math.max(localPlan.contactCount, stripeCountLimit)}
+                                        value={Math.max(inputContactCount, stripeCountLimit)}
                                         onChange={e => {
                                             // Allow empty string for editing
                                             const val = e.target.value;
@@ -198,9 +210,9 @@ export function PlanModal({ apiKey, open, onClose, userId, plan, contactCount }:
                                             }
                                         }}
                                         onBlur={() => {
-                                            // On blur, enforce minimum
-                                            if (inputContactCount < localPlan.contactCount) {
-                                                setInputContactCount(localPlan.contactCount);
+                                            // On blur, enforce maximum
+                                            if (inputContactCount < Math.max(localPlan.contactCount, stripeCountLimit)) {
+                                                setInputContactCount(Math.max(localPlan.contactCount, stripeCountLimit));
                                             }
                                         }}
                                         className="w-full px-3 py-2 border border-yellow-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-center font-semibold text-yellow-700"
@@ -208,9 +220,14 @@ export function PlanModal({ apiKey, open, onClose, userId, plan, contactCount }:
                                 </div>
                                 <div className="flex items-center justify-center gap-2 mb-2">
                                     <button
-                                        className={`flex items-center gap-1 px-4 py-2 rounded-full font-semibold text-md shadow transition-all duration-200 border-2 focus:outline-none ${billingType === 'monthly' ? 'bg-yellow-500 text-white border-yellow-500 scale-105' : 'bg-gray-100 text-gray-700 border-gray-200'}`}
-                                        onClick={() => setBillingType('monthly')}
+                                        className={`flex items-center gap-1 px-4 py-2 rounded-full font-semibold text-md shadow transition-all duration-200 border-2 focus:outline-none ${billingType === 'monthly' ? 'bg-yellow-500 text-white border-yellow-500 scale-105' : 'bg-gray-100 text-gray-700 border-gray-200'} ${moreThanMonth ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                        onClick={() => {
+                                            if (!(moreThanMonth)) {
+                                                setBillingType('monthly');
+                                            }
+                                        }}
                                         aria-pressed={billingType === 'monthly'}
+                                        disabled={moreThanMonth}
                                     >
                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M8 17l4 4 4-4" /><path d="M12 21V3" /></svg>
                                         Monthly

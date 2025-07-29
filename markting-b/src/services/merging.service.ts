@@ -323,6 +323,18 @@ export class MergingService {
       }
       console.log(updatedData, '322222222211111111111111');
 
+      // Update mergeGroupsUsed in UserPlan
+      const userPlanRepo =
+        this.contactRepository.manager.getRepository('UserPlan');
+      const userPlan = await userPlanRepo.findOne({
+        where: { userId },
+        order: { activationDate: 'DESC' },
+      });
+      if (userPlan) {
+        userPlan.mergeGroupsUsed = (userPlan.mergeGroupsUsed || 0) + 1;
+        await userPlanRepo.save(userPlan);
+      }
+
       // Return success
       return {
         success: true,

@@ -1,4 +1,11 @@
-import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  JoinColumn,
+} from 'typeorm';
+import { Payment } from './payment.entity';
 import { PlanType } from './plan.entity';
 
 @Entity()
@@ -26,4 +33,11 @@ export class UserPlan {
 
   @Column({ default: 'active' })
   paymentStatus: string;
+
+  @ManyToOne(() => Payment, { nullable: true })
+  @JoinColumn({ name: 'paymentId' })
+  payment: Payment;
+
+  @Column({ nullable: true })
+  paymentId: number;
 }

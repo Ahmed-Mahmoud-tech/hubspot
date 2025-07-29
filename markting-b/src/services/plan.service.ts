@@ -42,7 +42,10 @@ export class PlanService {
   }
 
   async getUserPlan(userId: number): Promise<UserPlan | null> {
-    return await this.userPlanRepo.findOne({ where: { userId } });
+    return await this.userPlanRepo.findOne({
+      where: { userId },
+      order: { activationDate: 'DESC' },
+    });
   }
 
   async createUserPlan(data: Partial<UserPlan>): Promise<UserPlan> {

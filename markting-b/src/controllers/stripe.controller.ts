@@ -48,17 +48,17 @@ export class StripeController {
           // Add plan to user plan db using injected repository
           const { PlanType } = await import('../entities/plan.entity');
           const { Action } = await import('../entities/action.entity');
-          const actionRepo = this.paymentRepo.manager.getRepository(Action);
-          let lastActionCount = 0;
-          if (payment.userId && payment.apiKey) {
-            const lastAction = await actionRepo.findOne({
-              where: { user_id: payment.userId, api_key: payment.apiKey },
-              order: { created_at: 'DESC' },
-            });
-            if (lastAction) {
-              lastActionCount = lastAction.count || 0;
-            }
-          }
+          // const actionRepo = this.paymentRepo.manager.getRepository(Action);
+          // let lastActionCount = 0;
+          // if (payment.userId && payment.apiKey) {
+          //   const lastAction = await actionRepo.findOne({
+          //     where: { user_id: payment.userId, api_key: payment.apiKey },
+          //     order: { created_at: 'DESC' },
+          //   });
+          //   if (lastAction) {
+          //     lastActionCount = lastAction.count || 0;
+          //   }
+          // }
           // Determine billingEndDate based on payment.billingType
           let billingEndDate: Date | undefined = undefined;
           // Try to get billingType from Stripe session metadata if not in payment
@@ -84,7 +84,7 @@ export class StripeController {
             planType: PlanType.PAID,
             activationDate,
             mergeGroupsUsed: 0,
-            contactCount: lastActionCount,
+            contactCount: payment.contactCount || 0,
             billingEndDate,
             paymentStatus: 'active',
             paymentId: payment.id,
@@ -121,7 +121,14 @@ export class StripeController {
       dto.billingType === 'monthly'
         ? Math.round((safeContactCount * 100) / 2000)
         : Math.round(((safeContactCount * 100) / 4000) * 12);
-    console.log(dto.billingType, 'billingType', 'amount', amount);
+    console.log(
+      dto.billingType,
+      'billingType',
+      'amount',
+      amount,
+      safeContactCount,
+      'safeContactCount',
+    );
 
     const successUrl = `${this.configService.get<string>('STRIPE_SUCCESS_URL')}?session_id={CHECKOUT_SESSION_ID}&apiKey=${encodeURIComponent(dto.apiKey)}`;
     const session = await stripe.checkout.sessions.create({

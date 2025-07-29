@@ -31,6 +31,26 @@ interface ActionsResponse {
 export default function DashboardPage() {
     const router = useRouter();
     const [user, setUser] = useState<User | null>(null);
+    type Plan = {
+        id: number;
+        userId: number;
+        planType: string;
+        activationDate: string;
+        mergeGroupsUsed: number;
+        contactCount: number;
+        billingEndDate: string;
+        paymentStatus: string;
+        paymentId: number;
+        is_paid_plan?: boolean;
+    };
+    const [plan, setPlan] = useState<Plan | null>(null);
+    // Example: Add plan fields to user type if not present
+    // interface User {
+    //   ...existing fields...
+    //   plan_name?: string;
+    //   plan_status?: string;
+    //   is_paid_plan?: boolean;
+    // }
     const [isLoading, setIsLoading] = useState(true);
     const [actions, setActions] = useState<Action[]>([]);
     const [actionsLoading, setActionsLoading] = useState(true);
@@ -61,7 +81,7 @@ export default function DashboardPage() {
     const [selectedFilters, setSelectedFilters] = useState<string[]>(filterOptions.map(f => f.key)); // default: all selected
     const [selectAll, setSelectAll] = useState(true);
 
-    const { getProfile, getActions, startHubSpotFetch, finalDeleteActionById } = useRequest();
+    const { getProfile, getActions, startHubSpotFetch, finalDeleteActionById, getUserPlan } = useRequest();
 
     const checkAuth = useCallback(async () => {
         try {
@@ -73,6 +93,17 @@ export default function DashboardPage() {
 
             const userProfile = await getProfile();
             setUser(userProfile);
+            // Fetch user plan details
+            try {
+                const planDetails = await getUserPlan();
+                const planObj = {
+                    ...(planDetails as Plan),
+                    is_paid_plan: (planDetails as any).planType === 'paid',
+                };
+                setPlan(planObj);
+            } catch {
+                setPlan(null);
+            }
         } catch (error) {
             console.error('Failed to get user profile:', error);
             // Clear cookies and redirect to login
@@ -355,6 +386,63 @@ export default function DashboardPage() {
                                 </dd>
                             </div>
                         </dl>
+                    </div>
+                </div>
+                {/* Plan Details Section */}
+                <div className="bg-white shadow-lg rounded-xl mb-8">
+                    <div className="px-8 py-6 border-b border-blue-100 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <BarChart3 className="h-6 w-6 text-indigo-600" />
+                            <h3 className="text-lg font-semibold text-gray-900">Plan Details</h3>
+                        </div>
+                        {plan?.is_paid_plan && (
+                            <button
+                                onClick={() => { }}
+                                className="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-indigo-600 to-blue-600 rounded-lg shadow hover:from-indigo-700 hover:to-blue-700 transition"
+                            >
+                                Upgrade Plan
+                            </button>
+                        )}
+                    </div>
+                    <div className="px-8 py-6 flex flex-col md:flex-row items-center justify-between gap-6">
+                        <div className="w-full md:w-auto grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-4">
+                            <div>
+                                <div className="flex items-center gap-2 mb-1">
+                                    <span className={`inline-block w-3 h-3 rounded-full ${plan?.planType === 'paid' ? 'bg-green-500' : 'bg-gray-400'}`}></span>
+                                    <span className="font-medium text-gray-700">Type</span>
+                                </div>
+                                <div className="text-sm font-normal text-gray-900">{plan?.planType === 'paid' ? 'Paid' : 'Free'}</div>
+                            </div>
+                            <div>
+                                <div className="flex items-center gap-2 mb-1">
+                                    <span className="font-medium text-gray-700">Payment Status</span>
+                                    {plan?.paymentStatus === 'active' ? (
+                                        <span className="ml-2 px-2 py-0.5 rounded bg-green-100 text-green-800 text-xs font-semibold">Active</span>
+                                    ) : (
+                                        <span className="ml-2 px-2 py-0.5 rounded bg-red-100 text-red-800 text-xs font-semibold">Inactive</span>
+                                    )}
+                                </div>
+                            </div>
+                            <div>
+                                <div className="flex items-center gap-2 mb-1">
+                                    <span className="font-medium text-gray-700">Activation Date</span>
+                                </div>
+                                <div className="text-sm text-gray-900">{plan?.activationDate ? new Date(plan.activationDate).toLocaleDateString() : '-'}</div>
+                            </div>
+                            <div>
+                                <div className="flex items-center gap-2 mb-1">
+                                    <span className="font-medium text-gray-700">Billing End Date</span>
+                                </div>
+                                <div className="text-sm text-gray-900">{plan?.billingEndDate ? new Date(plan.billingEndDate).toLocaleDateString() : '-'}</div>
+                            </div>
+                            <div>
+                                <div className="flex items-center gap-2 mb-1">
+                                    <span className="font-medium text-gray-700">Contacts Allowed</span>
+                                </div>
+                                <div className="text-sm text-gray-900">{plan?.contactCount ?? '-'}</div>
+                            </div>
+                        </div>
+
                     </div>
                 </div>
                 {/* HubSpot Integrations Section */}

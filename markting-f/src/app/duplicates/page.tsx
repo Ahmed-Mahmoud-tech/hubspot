@@ -448,14 +448,14 @@ function DuplicatesPageContent() {
                         <h1 className="text-3xl font-bold text-gray-900">Duplicate Management</h1>
                         <p className="mt-2 text-gray-600">Review and merge duplicate contacts</p>
                     </div>
-                    {(userPlan?.planType === 'free' || !userPlan) && (
-                        <button
-                            className="mt-4 sm:mt-0 inline-block px-6 py-2 bg-blue-600 text-white font-semibold rounded shadow hover:bg-blue-700 transition"
-                            onClick={() => setShowPlanModal(true)}
-                        >
-                            Upgrade Plan
-                        </button>
-                    )}
+                    {/* {(userPlan?.planType === 'free' || !userPlan) && ( */}
+                    <button
+                        className="mt-4 sm:mt-0 inline-block px-6 py-2 bg-blue-600 text-white font-semibold rounded shadow hover:bg-blue-700 transition"
+                        onClick={() => setShowPlanModal(true)}
+                    >
+                        Upgrade Plan
+                    </button>
+                    {/* )} */}
                 </div>
 
                 {/* Process Status */}
