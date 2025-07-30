@@ -14,6 +14,8 @@ interface PlanModalProps {
 }
 
 export function PlanModal({ apiKey, open, onClose, userId, plan, contactCount }: PlanModalProps) {
+    // Move moreThanMonth above useEffect to avoid initialization error
+    const moreThanMonth = plan && plan.planType === 'paid' && plan.billingEndDate && new Date(plan.billingEndDate) > new Date(new Date().setMonth(new Date().getMonth() + 1));
     const { createStripeCheckoutSession } = useRequest();
 
     const initialContactCount = contactCount || 480000;
@@ -25,6 +27,9 @@ export function PlanModal({ apiKey, open, onClose, userId, plan, contactCount }:
     const [billingType, setBillingType] = useState<'monthly' | 'yearly'>('monthly');
     const modalRef = useRef<HTMLDivElement>(null);
     const stripeCountLimit = 2000;
+
+
+    // Move moreThanMonth above useEffect to avoid initialization error
 
     useEffect(() => {
         function handleKeyDown(e: KeyboardEvent) {
@@ -41,7 +46,6 @@ export function PlanModal({ apiKey, open, onClose, userId, plan, contactCount }:
             onClose();
         }
     }
-
 
     // If plan is null, treat as free for UI, but show correct message
     React.useEffect(() => {
@@ -103,7 +107,6 @@ export function PlanModal({ apiKey, open, onClose, userId, plan, contactCount }:
         }
     };
 
-    const moreThanMonth = plan && plan.planType === 'paid' && plan.billingEndDate && new Date(plan.billingEndDate) > new Date(new Date().setMonth(new Date().getMonth() + 1))
     // Message logic
     let infoMessage = '';
     let showUpgrade = false;

@@ -48,6 +48,9 @@ export class Action {
   @Column({ type: 'varchar', length: 255, nullable: true })
   process_name: string;
 
+  @Column({ type: 'varchar', length: 1000, nullable: true })
+  message: string;
+
   @Column({ type: 'varchar', length: 500, nullable: true })
   excel_link: string;
 

@@ -189,13 +189,47 @@ export class MergingService {
       throw new NotFoundException('User not found');
     }
 
+    // Fetch user plan
+    const userPlanRepo =
+      this.contactRepository.manager.getRepository('UserPlan');
+    const userPlan = await userPlanRepo.findOne({
+      where: { userId },
+      order: { activationDate: 'DESC' },
+    });
+    if (!userPlan) {
+      console.error('User plan not found for userId:', userId);
+      throw new BadRequestException('User plan not found.');
+    }
+    // Free plan: limit merges to 20
+    if (userPlan.planType === 'free' && userPlan.mergeGroupsUsed >= 20) {
+      console.error('Free plan merge limit exceeded:', {
+        userId,
+        mergeGroupsUsed: userPlan.mergeGroupsUsed,
+      });
+      throw new BadRequestException(
+        'Free plan limit reached: You can only merge up to 20 groups. Upgrade your plan to continue.',
+      );
+    }
+    // Paid plan: contact count must be less than contactLimit (if set)
+    if (
+      userPlan.planType === 'paid' &&
+      userPlan.contactLimit &&
+      userPlan.contactCount >= userPlan.contactLimit
+    ) {
+      console.error('Paid plan contact limit exceeded:', {
+        userId,
+        contactCount: userPlan.contactCount,
+        contactLimit: userPlan.contactLimit,
+      });
+      throw new BadRequestException(
+        'Paid plan contact limit reached. Please upgrade your plan to add more contacts.',
+      );
+    }
+
     const primaryContact = await this.contactRepository.findOne({
       where: { hubspotId: primaryAccountId, user: { id: userId }, apiKey },
     });
-    console.log(user, '000000000000000000000000000000000');
-
     // Validate that primary contact exists
-    console.log(primaryContact, '0000000000000000000000000000000001');
     if (!primaryContact) {
       throw new NotFoundException('Primary contact not found');
     }

@@ -59,7 +59,7 @@ interface ProcessStatusData {
 
 function DuplicatesPageContent() {
     const searchParams = useSearchParams();
-    const apiKey = searchParams.get('apiKey') || '';
+    const apiKey = searchParams?.get('apiKey') || '';
     const { getDuplicates, finishProcess, getActions, isAuthenticated, mergeContacts, getProcessProgress, getUserPlan, getLatestAction, createUserPlan } = useRequest();
     const router = useRouter();
 
@@ -92,7 +92,7 @@ function DuplicatesPageContent() {
     const [userPlan, setUserPlan] = useState<any | null>(null);
     const [showPlanModal, setShowPlanModal] = useState(false);
     // TODO: Replace with actual userId from auth context or API
-    const userId = userPlan?.userId || 1;
+    const userId = userPlan?.userId;
     const limit = 10;
 
     // Store interval ID to clear it when needed
@@ -252,6 +252,20 @@ function DuplicatesPageContent() {
 
     const handleMergeClick = (group: DuplicateGroup) => {
         setSelectedGroup(group);
+        // PLAN VALIDATION
+        if (!userPlan) {
+            alert('User plan not loaded. Please refresh and try again.');
+            return;
+        }
+        if (userPlan.planType === 'free' && userPlan.mergeGroupsUsed >= 20) {
+            alert('Free plan limit reached: You can only merge up to 20 groups. Upgrade your plan to continue.');
+            return;
+        }
+        if (userPlan.planType === 'paid' && userPlan.contactLimit && userPlan.contactCount >= userPlan.contactLimit) {
+            alert('Paid plan contact limit reached. Please upgrade your plan to add more contacts.');
+            return;
+        }
+
         if (group.group.length === 2) {
             // Check if a contact is selected for this 2-contact group
             const selectedContactId = selectedContactForTwoGroup[group.id];

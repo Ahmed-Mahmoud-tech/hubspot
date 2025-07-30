@@ -16,6 +16,8 @@ import { DuplicateDetectionService } from './duplicate-detection.service';
 import { ProgressService, ProcessProgress } from './progress.service';
 import { FileGenerationService } from './file-generation.service';
 import { MatchingService } from './matching.service';
+import { PlanService } from './plan.service';
+import { PlanType } from '../entities/plan.entity';
 import {
   StartHubSpotFetchDto,
   GetDuplicatesDto,
@@ -170,6 +172,21 @@ export class HubSpotService {
     let totalFetched = 0;
     const limit = 100;
 
+    // --- PLAN VALIDATION ---
+    const planService = new PlanService(
+      this.userRepository.manager.getRepository('UserPlan'),
+    );
+    const userPlan = await planService.getUserPlan(userId);
+
+    let contactLimit = 500000;
+    let isPaid = false;
+    if (userPlan) {
+      isPaid = userPlan.planType === PlanType.PAID;
+      if (isPaid && userPlan.contactCount) {
+        contactLimit = userPlan.contactCount;
+      }
+    }
+
     try {
       do {
         this.logger.log(
@@ -194,6 +211,42 @@ export class HubSpotService {
         const { results, paging } = response;
 
         if (results && results.length > 0) {
+          // --- CONTACT COUNT VALIDATION ---
+          if (isPaid) {
+            if (totalFetched + results.length > contactLimit) {
+              // Update action status, process name, and set message for frontend
+              await this.actionRepository.update(actionId, {
+                status: ActionStatus.ERROR,
+                count: totalFetched,
+                process_name: 'error',
+                message:
+                  'Contact count exceeds your paid plan limit. Please upgrade your plan.',
+              });
+              this.logger.warn(
+                'Contact count exceeds plan limit. Please upgrade your plan.',
+              );
+              throw new BadRequestException(
+                'Contact count exceeds your paid plan limit. Please upgrade your plan.',
+              );
+            }
+          } else {
+            if (totalFetched + results.length >= 50) {
+              await this.actionRepository.update(actionId, {
+                status: ActionStatus.ERROR,
+                count: totalFetched,
+                process_name: 'exceed',
+                message:
+                  'Contact count exceeds free plan limit (500,000). Please upgrade your plan.',
+              });
+              this.logger.warn(
+                'Contact count exceeds free plan limit. Please upgrade your plan.',
+              );
+              throw new BadRequestException(
+                'Contact count exceeds free plan limit (500,000). Please upgrade your plan.',
+              );
+            }
+          }
+
           await this.contactService.saveContacts(results, apiKey, userId);
           totalFetched += results.length;
 

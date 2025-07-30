@@ -61,6 +61,8 @@ export default function ProcessStatus({ status, onFinish }: ProcessStatusProps) 
                 return 'Process completed successfully';
             case 'error':
                 return 'An error occurred during processing';
+            case 'exceed':
+                return 'your contact count is exceeded the limit of your plan please upgrade your plan';
             default:
                 return 'Processing...';
         }
