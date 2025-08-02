@@ -55,6 +55,7 @@ export class HubSpotService {
     private progressService: ProgressService,
     private fileGenerationService: FileGenerationService,
     private matchingService: MatchingService,
+    private planService: PlanService,
   ) {
     // Set up circular dependency
     this.matchingService.setMergingService(this.mergingService);
@@ -173,10 +174,7 @@ export class HubSpotService {
     const limit = 100;
 
     // --- PLAN VALIDATION ---
-    const planService = new PlanService(
-      this.userRepository.manager.getRepository('UserPlan'),
-    );
-    const userPlan = await planService.getUserPlan(userId);
+    const userPlan = await this.planService.getUserPlan(userId);
 
     let contactLimit = 500000;
     let isPaid = false;
@@ -1046,7 +1044,7 @@ export class HubSpotService {
     };
   }
 
-  @Cron(CronExpression.EVERY_5_MINUTES)
+  @Cron(CronExpression.EVERY_30_SECONDS)
   async handleAutoRetryFailedActions(): Promise<void> {
     this.logger.log('Running automatic retry for failed actions...');
 

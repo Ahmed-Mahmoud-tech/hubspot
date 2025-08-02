@@ -76,4 +76,22 @@ export class EmailService {
 
     await this.transporter.sendMail(mailOptions);
   }
+  async sendPlanEndingSoonEmail(
+    email: string,
+    billingEndDate: Date,
+  ): Promise<void> {
+    const mailOptions = {
+      from: this.configService.get<string>('EMAIL_FROM'),
+      to: email,
+      subject: 'Your Plan Will Expire Soon',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2>Plan Expiry Reminder</h2>
+          <p>Your current plan will expire on <b>${billingEndDate.toLocaleDateString()}</b>.</p>
+          <p>Please renew your plan to avoid interruption of service.</p>
+        </div>
+      `,
+    };
+    await this.transporter.sendMail(mailOptions);
+  }
 }

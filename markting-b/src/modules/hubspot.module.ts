@@ -17,6 +17,7 @@ import { Remove } from '../entities/remove.entity';
 import { Merging } from '../entities/merging.entity';
 import { MergingModule } from './merging.module';
 import { RemovalModule } from './removal.module';
+import { PlanModule } from './plan.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { RemovalModule } from './removal.module';
     ]),
     MergingModule,
     RemovalModule,
+    PlanModule,
   ],
   controllers: [HubSpotController],
   providers: [

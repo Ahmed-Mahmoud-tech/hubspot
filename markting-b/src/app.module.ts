@@ -7,6 +7,9 @@ import { PlanController } from './controllers/plan.controller';
 import { StripeController } from './controllers/stripe.controller';
 import { AppService } from './app.service';
 import { PlanService } from './services/plan.service';
+import { PlanModule } from './modules/plan.module';
+import { EmailService } from './services/email.service';
+import { UserService } from './services/user.service';
 import { Payment } from './entities/payment.entity';
 import { AuthModule } from './modules/auth.module';
 import { HubSpotModule } from './modules/hubspot.module';
@@ -58,10 +61,11 @@ import { CorsMiddleware } from './middleware/cors.middleware';
     HubSpotModule,
     MergingModule,
     RemovalModule,
-    TypeOrmModule.forFeature([UserPlan, Payment]),
+    TypeOrmModule.forFeature([UserPlan, Payment, User]),
+    PlanModule,
   ],
   controllers: [AppController, PlanController, StripeController],
-  providers: [AppService, PlanService],
+  providers: [AppService, PlanService, EmailService, UserService],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
