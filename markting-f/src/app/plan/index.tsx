@@ -18,7 +18,7 @@ export function PlanModal({ apiKey, open, onClose, userId, plan, contactCount }:
     const moreThanMonth = plan && plan.planType === 'paid' && plan.billingEndDate && new Date(plan.billingEndDate) > new Date(new Date().setMonth(new Date().getMonth() + 1));
     const { createStripeCheckoutSession } = useRequest();
 
-    const initialContactCount = contactCount || 480000;
+    const initialContactCount = contactCount || 500000;
     // If plan is null, fallback to free plan for UI, but show correct message
     const [localPlan, setLocalPlan] = useState({ type: 'free', mergeGroupsUsed: 0, contactCount: initialContactCount });
     // Add input state for contact count (for paid plan)
@@ -143,9 +143,12 @@ export function PlanModal({ apiKey, open, onClose, userId, plan, contactCount }:
                 <div className="max-w-4xl w-full mx-auto p-8 bg-white rounded-xl shadow-lg border border-gray-200 relative animate-fade-in">
                     <button className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-2xl font-bold" onClick={onClose}>&times;</button>
                     <h1 className="text-3xl font-bold text-[var(--foreground)] mb-2 text-center">Contact Merge Plans</h1>
-                    <p className="text-gray-500 mb-8 text-center">Choose the best plan for your needs. Upgrade anytime for more features.</p>
-                    <div className="mb-4 text-center">
+                    <p className="text-gray-500 mb-2 text-center">Choose the best plan for your needs. Upgrade anytime for more features.</p>
+                    {/* <div className="mb-4 text-center">
                         <span className={`text-md font-semibold ${showUpgrade ? 'text-red-600' : 'text-green-600'}`}>{infoMessage}</span>
+                    </div> */}
+                    <div className="text-md text-blue-500 text-center mb-4">
+                        💡 For paid plans: <span className="font-semibold text-4xl text-black">$1</span> lets you fetch <span className="font-semibold text-xl">2,000</span> contacts (monthly) or <span className="font-semibold text-xl">4,000</span> contacts (yearly).
                     </div>
                     <div
                         className={`mb-8 ${(!plan || plan.planType !== 'paid') ? 'grid grid-cols-1 md:grid-cols-2 gap-6' : 'flex justify-center'}`}
@@ -160,9 +163,9 @@ export function PlanModal({ apiKey, open, onClose, userId, plan, contactCount }:
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 mb-2 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3l8 4v5c0 5.25-3.5 9.75-8 11-4.5-1.25-8-5.75-8-11V7l8-4z" />
                                 </svg>
-                                <div className="flex items-center gap-2 group mb-2">
+                                <div className="flex items-center gap-2 group mb-2 w-max relative">
                                     <span className="text-3xl font-extrabold text-blue-700 tracking-tight">{localPlan.contactCount.toLocaleString()}</span>
-                                    <span className="text-xs font-medium text-blue-600 bg-blue-100 px-2 py-1 rounded-full shadow-sm cursor-help group-hover:bg-blue-200" title="Total contacts included in your plan">contacts</span>
+                                    <span className="text-xs font-medium text-blue-600 bg-blue-100 px-2 py-1 rounded-full shadow-sm cursor-help group-hover:bg-blue-200 absolute left-[105%]" title="Total contacts included in your plan">contacts</span>
                                 </div>
                                 <h2 className="text-xl font-semibold mb-2 text-[var(--foreground)]">Free Plan</h2>
                                 <ul className="text-gray-600 mb-4 text-center text-md">
@@ -171,7 +174,7 @@ export function PlanModal({ apiKey, open, onClose, userId, plan, contactCount }:
                                     <li>✔️ Basic duplicate detection</li>
                                     <li>❌ No advanced features</li>
                                 </ul>
-                                <span className="text-blue-600 font-medium mb-2">You are on the free plan</span>
+                                {plan.planType !== 'paid' && <span className="text-blue-600 font-medium mb-2">You are on the free plan</span>}
                             </div>
                         )}
                         {/* Paid Plan Card */}
@@ -184,9 +187,9 @@ export function PlanModal({ apiKey, open, onClose, userId, plan, contactCount }:
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path d="M12 2l3 7h7l-5.5 4.5L18 21l-6-4-6 4 1.5-7.5L2 9h7z" stroke="currentColor" strokeWidth="2" fill="#fef3c7" />
                                 </svg>
-                                <div className="flex items-center gap-2 group mb-2">
+                                <div className="flex items-center gap-2 group mb-2 relative w-max">
                                     <span className="text-3xl font-extrabold text-yellow-700 tracking-tight">{inputContactCount.toLocaleString()}</span>
-                                    <span className="text-xs font-medium text-yellow-600 bg-yellow-100 px-2 py-1 rounded-full shadow-sm cursor-help group-hover:bg-yellow-200" title="Total contacts included in your plan">contacts</span>
+                                    <span className="text-xs font-medium text-yellow-600 bg-yellow-100 px-2 py-1 rounded-full shadow-sm cursor-help group-hover:bg-yellow-200  absolute left-[105%]" title="Total contacts included in your plan">contacts</span>
                                 </div>
                             </div>
                             <h2 className="text-xl font-semibold mb-2 text-[var(--foreground)]">Paid Plan</h2>
@@ -223,7 +226,7 @@ export function PlanModal({ apiKey, open, onClose, userId, plan, contactCount }:
                                 </div>
                                 <div className="flex items-center justify-center gap-2 mb-2">
                                     <button
-                                        className={`flex items-center gap-1 px-4 py-2 rounded-full font-semibold text-md shadow transition-all duration-200 border-2 focus:outline-none ${billingType === 'monthly' ? 'bg-yellow-500 text-white border-yellow-500 scale-105' : 'bg-gray-100 text-gray-700 border-gray-200'} ${moreThanMonth ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                        className={`cursor-pointer flex items-center gap-1 px-4 py-2 rounded-full font-semibold text-md shadow transition-all duration-200 border-2 focus:outline-none ${billingType === 'monthly' ? 'bg-yellow-500 text-white border-yellow-500 scale-105' : 'bg-gray-100 text-gray-700 border-gray-200'} ${moreThanMonth ? 'opacity-50 cursor-not-allowed' : ''}`}
                                         onClick={() => {
                                             if (!(moreThanMonth)) {
                                                 setBillingType('monthly');
@@ -237,7 +240,7 @@ export function PlanModal({ apiKey, open, onClose, userId, plan, contactCount }:
                                     </button>
                                     <span className="mx-1 text-gray-400">|</span>
                                     <button
-                                        className={`flex items-center gap-1 px-4 py-2 rounded-full font-semibold text-md shadow transition-all duration-200 border-2 focus:outline-none ${billingType === 'yearly' ? 'bg-yellow-500 text-white border-yellow-500 scale-105' : 'bg-gray-100 text-gray-700 border-gray-200'}`}
+                                        className={`cursor-pointer flex items-center gap-1 px-4 py-2 rounded-full font-semibold text-md shadow transition-all duration-200 border-2 focus:outline-none ${billingType === 'yearly' ? 'bg-yellow-500 text-white border-yellow-500 scale-105' : 'bg-gray-100 text-gray-700 border-gray-200'}`}
                                         onClick={() => setBillingType('yearly')}
                                         aria-pressed={billingType === 'yearly'}
                                     >

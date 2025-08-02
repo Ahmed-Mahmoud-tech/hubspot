@@ -218,7 +218,7 @@ export class HubSpotService {
               await this.actionRepository.update(actionId, {
                 status: ActionStatus.ERROR,
                 count: totalFetched,
-                process_name: 'error',
+                process_name: 'exceed',
                 message:
                   'Contact count exceeds your paid plan limit. Please upgrade your plan.',
               });
@@ -230,7 +230,9 @@ export class HubSpotService {
               );
             }
           } else {
-            if (totalFetched + results.length >= 50) {
+            if (totalFetched + results.length >= 500000) {
+              // Clear contact data with the same API key
+              await this.contactService.deleteContactsByApiKey(apiKey);
               await this.actionRepository.update(actionId, {
                 status: ActionStatus.ERROR,
                 count: totalFetched,
@@ -325,7 +327,36 @@ export class HubSpotService {
         });
     } catch (error) {
       this.logger.error(`Error fetching contacts:`, error);
-      await this.updateActionStatus(actionId, ActionStatus.ERROR, totalFetched);
+      // Clean up data if error occurs
+      try {
+        await this.cleanupUserData(userId, apiKey);
+      } catch (cleanupError) {
+        this.logger.error(
+          'Error during cleanupUserData after fetch error:',
+          cleanupError,
+        );
+      }
+      // If error is due to exceeding limit, set process_name to 'exceed', else 'error'
+      const errorMessage = error?.message || '';
+      if (
+        errorMessage.includes(
+          'Contact count exceeds free plan limit (500,000). Please upgrade your plan.',
+        )
+      ) {
+        await this.updateActionStatus(
+          actionId,
+          ActionStatus.ERROR,
+          totalFetched,
+        );
+        await this.updateActionProcessName(actionId, 'exceed');
+      } else {
+        await this.updateActionStatus(
+          actionId,
+          ActionStatus.ERROR,
+          totalFetched,
+        );
+        await this.updateActionProcessName(actionId, 'error');
+      }
       throw error;
     }
   }
@@ -338,6 +369,22 @@ export class HubSpotService {
     const updateData: Partial<Action> = { status };
     if (typeof count !== 'undefined') {
       updateData.count = count;
+    }
+    // If status is ERROR, also set process_name to 'error',
+    // except for 'exceed' case (handled directly in fetchAllContacts)
+    if (status === ActionStatus.ERROR) {
+      // Only set to 'error' if not already set to 'exceed'
+      // (if process_name is not being set in this call, fetch it from DB)
+      if (!('process_name' in updateData)) {
+        const action = await this.actionRepository.findOne({
+          where: { id: actionId },
+        });
+        if (action && action.process_name !== 'exceed') {
+          updateData.process_name = 'error';
+        }
+      } else if (updateData.process_name !== 'exceed') {
+        updateData.process_name = 'error';
+      }
     }
     await this.actionRepository.update(actionId, updateData);
   }
@@ -475,7 +522,13 @@ export class HubSpotService {
         progress: 95,
       });
 
-      await this.cleanupUserData(userId, apiKey);
+      console.log(userId, '00000000000000000000044', apiKey);
+      try {
+        await this.cleanupUserData(userId, apiKey);
+      } catch (cleanupError) {
+        this.logger.error('Error during cleanupUserData:', cleanupError);
+        throw cleanupError;
+      }
 
       // Update process name to 'finished'
       await this.updateActionProcessName(action.id, 'finished');
@@ -889,18 +942,37 @@ export class HubSpotService {
   }
 
   private async cleanupUserData(userId: number, apiKey: string): Promise<void> {
-    console.log(apiKey, '44444444444444444444444444');
-
-    // Remove all data except users and actions
-    await this.contactService.deleteContactsByApiKey(apiKey);
-    await this.matchingService.deleteMatchingByApiKey(apiKey);
-    await this.matchingService.deleteModifiedByApiKey(apiKey);
-    await this.matchingService.deleteRemovedByApiKey(apiKey);
-    await this.mergingRepository.delete({ apiKey });
-
     this.logger.log(
-      `Cleaned up data for user ${userId} with API key ${apiKey}`,
+      `[cleanupUserData] Starting cleanup for user ${userId} and apiKey ${apiKey}`,
     );
+    try {
+      // Remove all data except users and actions
+      const deletedContacts =
+        await this.contactService.deleteContactsByApiKey(apiKey);
+      this.logger.log(`[cleanupUserData] Deleted contacts:`, deletedContacts);
+      const deletedMatching =
+        await this.matchingService.deleteMatchingByApiKey(apiKey);
+      this.logger.log(`[cleanupUserData] Deleted matching:`, deletedMatching);
+      const deletedModified =
+        await this.matchingService.deleteModifiedByApiKey(apiKey);
+      this.logger.log(`[cleanupUserData] Deleted modified:`, deletedModified);
+
+      const deletedRemoved =
+        await this.matchingService.deleteRemovedByApiKey(apiKey);
+      this.logger.log(`[cleanupUserData] Deleted removed:`, deletedRemoved);
+
+      const deletedMerging = await this.mergingRepository.delete({ apiKey });
+      this.logger.log(`[cleanupUserData] Deleted merging:`, deletedMerging);
+      this.logger.log(
+        `[cleanupUserData] Cleaned up data for user ${userId} with API key ${apiKey}`,
+      );
+    } catch (err) {
+      this.logger.error(
+        `[cleanupUserData] Error during cleanup for user ${userId} and apiKey ${apiKey}:`,
+        err,
+      );
+      throw err;
+    }
   }
 
   async deleteActionById(

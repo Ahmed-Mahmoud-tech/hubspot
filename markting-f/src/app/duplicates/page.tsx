@@ -60,7 +60,7 @@ interface ProcessStatusData {
 function DuplicatesPageContent() {
     const searchParams = useSearchParams();
     const apiKey = searchParams?.get('apiKey') || '';
-    const { getDuplicates, finishProcess, getActions, isAuthenticated, mergeContacts, getProcessProgress, getUserPlan, getLatestAction, createUserPlan } = useRequest();
+    const { getDuplicates, finishProcess, getActions, isAuthenticated, mergeContacts, getProcessProgress, getUserPlan, getLatestAction, createUserPlan, finalDeleteActionById } = useRequest();
     const router = useRouter();
 
     const [duplicates, setDuplicates] = useState<DuplicateGroup[]>([]);
@@ -163,7 +163,25 @@ function DuplicatesPageContent() {
                 if (response && typeof response === 'object' && 'data' in response) {
                     latestAction = (response as any).data?.data ?? null;
                 }
-                setProcessStatus(latestAction);
+
+                // Stop interval and show error if status is 'error'
+                if (latestAction && latestAction.status === 'error') {
+                    if (intervalRef.current) {
+                        clearInterval(intervalRef.current);
+                        intervalRef.current = null;
+                    }
+                    setProcessStatus(latestAction);
+
+                    return;
+                }
+
+                // Stop interval if process_name is 'exceed'
+                if (latestAction && latestAction.process_name === 'exceed' && intervalRef.current) {
+                    clearInterval(intervalRef.current);
+                    intervalRef.current = null;
+                } else {
+                    setProcessStatus(latestAction);
+                }
             } catch (error) {
                 console.error('Error checking process status:', error);
             }
@@ -365,59 +383,61 @@ function DuplicatesPageContent() {
 
     const handleFinishProcess = async () => {
         try {
-            // Show loading message with enhanced functionality description
-            const confirmation = confirm(
-                '🔄 This will:\n' +
-                '• Automatically merge all remaining duplicate groups (oldest contacts as primary)\n' +
-                '• Update modified contacts in HubSpot\n' +
-                '• Remove marked contacts from HubSpot\n' +
-                '• Generate Excel report\n' +
-                '• Clean up temporary data\n\n' +
-                'This process may take several minutes for large datasets. Continue?'
-            );
-
-            if (!confirmation) return;
-
-            // Start processing and progress tracking
-            setIsProcessing(true);
-
-            // Start the finish process (non-blocking)
-            const finishPromise = finishProcess();
-
-            // Start polling for progress
-            const progressInterval = setInterval(async () => {
-                try {
-                    const response = await getProcessProgress();
-                    const progress = response.data as ProcessProgress;
-                    setProcessingProgress(progress);
-
-                    if (progress.isComplete) {
-                        clearInterval(progressInterval);
-                        setIsProcessing(false);
-                    }
-                } catch (error) {
-                    console.error('Error fetching progress:', error);
-                }
-            }, 2000); // Poll every 2 seconds
-
-            // Wait for the process to complete
-            const finishResponse = await finishPromise;
-            const result = finishResponse.data as { message: string; excelUrl: string };
-
-            // Clean up
-            clearInterval(progressInterval);
-            setIsProcessing(false);
-
-            alert(`✅ Process completed successfully!\n\n📊 Excel file: ${result.excelUrl}\n\nAll duplicates have been merged, modified contacts updated, and removed contacts processed.`);
-
-            // Redirect to dashboard
+            if (!apiKey) {
+                alert('Missing API key.');
+                return;
+            }
+            await finishProcess({ apiKey });
             router.push('/dashboard');
         } catch (error) {
-            setIsProcessing(false);
+            alert('❌ Error finishing process. Please try again.');
             console.error('Error finishing process:', error);
-            alert('❌ Error finishing process. Please try again.\n\nError details: ' + (error as Error).message);
         }
-    };
+    }
+    // const handleFinishProcess = async () => {
+    //     try {
+
+
+    //         // Start processing and progress tracking
+    //         setIsProcessing(true);
+
+    //         // Start the finish process (non-blocking)
+    //         const finishPromise = finishProcess();
+
+    //         // Start polling for progress
+    //         const progressInterval = setInterval(async () => {
+    //             try {
+    //                 const response = await getProcessProgress();
+    //                 const progress = response.data as ProcessProgress;
+    //                 setProcessingProgress(progress);
+
+    //                 if (progress.isComplete) {
+    //                     clearInterval(progressInterval);
+    //                     setIsProcessing(false);
+    //                 }
+    //             } catch (error) {
+    //                 console.error('Error fetching progress:', error);
+    //             }
+    //         }, 2000); // Poll every 2 seconds
+
+    //         // Wait for the process to complete
+    //         const finishResponse = await finishPromise;
+    //         const result = finishResponse.data as { message: string; excelUrl: string };
+
+    //         // Clean up
+    //         clearInterval(progressInterval);
+    //         setIsProcessing(false);
+
+    //         alert(`✅ Process completed successfully!\n\n📊 Excel file: ${result.excelUrl}\n\nAll duplicates have been merged, modified contacts updated, and removed contacts processed.`);
+
+    //         // Redirect to dashboard
+    //         router.push('/dashboard');
+    //     } catch (error) {
+    //         setIsProcessing(false);
+    //         console.error('Error finishing process:', error);
+    //         alert('❌ Error finishing process. Please try again.\n\nError details: ' + (error as Error).message);
+    //     }
+    // };
     // PLAN ENFORCEMENT LOGIC
     // Use count from processStatus (getLatestAction().data.data.count) if available
     // (removed duplicate declaration)
@@ -462,14 +482,20 @@ function DuplicatesPageContent() {
                         <h1 className="text-3xl font-bold text-gray-900">Duplicate Management</h1>
                         <p className="mt-2 text-gray-600">Review and merge duplicate contacts</p>
                     </div>
-                    {/* {(userPlan?.planType === 'free' || !userPlan) && ( */}
-                    <button
-                        className="mt-4 sm:mt-0 inline-block px-6 py-2 bg-blue-600 text-white font-semibold rounded shadow hover:bg-blue-700 transition"
-                        onClick={() => setShowPlanModal(true)}
-                    >
-                        Upgrade Plan
-                    </button>
-                    {/* )} */}
+                    <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 items-center">
+                        {processStatus?.process_name !== "fetching" && <button
+                            className="mt-4 sm:mt-0 inline-block px-6 py-2 bg-blue-600 text-white font-semibold rounded shadow hover:bg-blue-700 transition"
+                            onClick={() => setShowPlanModal(true)}
+                        >
+                            Upgrade Plan
+                        </button>}
+                        <button
+                            className="mt-2 sm:mt-0 inline-block px-6 py-2 bg-gray-200 text-gray-800 font-semibold rounded shadow hover:bg-gray-300 transition border border-gray-300"
+                            onClick={() => router.push('/dashboard')}
+                        >
+                            Back to Dashboard
+                        </button>
+                    </div>
                 </div>
 
                 {/* Process Status */}

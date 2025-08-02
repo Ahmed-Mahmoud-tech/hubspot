@@ -73,8 +73,8 @@ const useRequest = () => {
     return await Request.post(`/hubspot/reset-all-pending-merges`);
   };
 
-  const finishProcess = async () => {
-    return await Request.post(`/hubspot/finish-process`);
+  const finishProcess = async (data?: any) => {
+    return await Request.post(`/hubspot/finish`, data);
   };
 
   const getActions = async (params?: { page?: number; limit?: number }) => {
