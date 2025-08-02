@@ -85,10 +85,17 @@ export class EmailService {
       to: email,
       subject: 'Your Plan Will Expire Soon',
       html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2>Plan Expiry Reminder</h2>
-          <p>Your current plan will expire on <b>${billingEndDate.toLocaleDateString()}</b>.</p>
-          <p>Please renew your plan to avoid interruption of service.</p>
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #f9f9f9; padding: 32px 24px; border-radius: 8px; border: 1px solid #eee;">
+          <h2 style="color: #d9534f;">Plan Expiry Reminder</h2>
+          <p style="font-size: 16px;">Hello,</p>
+          <p style="font-size: 16px;">We wanted to let you know that your current plan will <b style="color: #d9534f;">expire on <span style='font-size:18px;'>${billingEndDate.toLocaleDateString()}</span></b>.</p>
+          <p style="font-size: 16px;">To ensure uninterrupted access to our services, please renew your plan before the expiry date.</p>
+          <div style="text-align: center; margin: 32px 0;">
+            <a href="${this.configService.get<string>('FRONTEND_URL')}/dashboard" style="display: inline-block; padding: 14px 32px; background-color: #007bff; color: #fff; text-decoration: none; border-radius: 5px; font-size: 18px; font-weight: bold;">Renew Now</a>
+          </div>
+          <p style="font-size: 15px; color: #555;">If you have already renewed, please disregard this message.</p>
+          <hr style="margin: 24px 0; border: none; border-top: 1px solid #eee;" />
+          <p style="font-size: 13px; color: #bbb;">Thank you for choosing our service!</p>
         </div>
       `,
     };

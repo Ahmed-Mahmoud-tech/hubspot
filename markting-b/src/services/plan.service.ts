@@ -16,35 +16,44 @@ export class PlanService {
     private readonly userService: UserService,
   ) {}
   // Cron job: runs every minute
-  @Cron(CronExpression.EVERY_MINUTE)
+  @Cron(CronExpression.EVERY_DAY_AT_1AM)
   async notifyUsersBeforePlanEnds() {
     // Get latest plan for each user (subquery for max activationDate per userId)
+    console.log('777777777777777777');
+
+    const now = new Date();
     const subQuery = this.userPlanRepo
       .createQueryBuilder('up')
-      .select('up.userId', 'userId')
-      .addSelect('MAX(up.activationDate)', 'maxActivationDate')
-      .groupBy('up.userId');
+      .select('up."userId"', 'userId')
+      .addSelect('MAX(up."activationDate")', 'maxActivationDate')
+      .groupBy('up."userId"');
 
     const latestPlans = await this.userPlanRepo
       .createQueryBuilder('userPlan')
       .innerJoin(
         '(' + subQuery.getQuery() + ')',
         'latest',
-        'userPlan.userId = latest.userId AND userPlan.activationDate = latest.maxActivationDate',
+        '"userPlan"."userId" = latest."userId" AND "userPlan"."activationDate" = latest."maxActivationDate"',
       )
       .select(['userPlan.userId', 'userPlan.billingEndDate'])
+      .where('"userPlan"."billingEndDate" > :now', { now })
       .getRawMany();
 
-    const now = new Date();
     for (const plan of latestPlans) {
-      if (!plan.billingEndDate) continue;
-      const billingEnd = new Date(plan.billingEndDate);
+      console.log(
+        `Processing plan ${latestPlans.indexOf(plan)} of ${latestPlans.length}`,
+      );
+      if (!plan.userPlan_billingEndDate) continue;
+      const billingEnd = new Date(plan.userPlan_billingEndDate);
       const diffDays = Math.ceil(
         (billingEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
       );
-      if (diffDays === 2) {
+
+      console.log(diffDays, '444444444466666666666', latestPlans, '44444411');
+      if (diffDays < 2) {
         // Get user email
-        const user = await this.userService.findById(plan.userId);
+        const user = await this.userService.findById(plan.userPlan_userId);
+
         if (user && user.email) {
           await this.emailService.sendPlanEndingSoonEmail(
             user.email,

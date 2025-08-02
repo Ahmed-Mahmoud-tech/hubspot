@@ -6,7 +6,7 @@ import { AppController } from './app.controller';
 import { PlanController } from './controllers/plan.controller';
 import { StripeController } from './controllers/stripe.controller';
 import { AppService } from './app.service';
-import { PlanService } from './services/plan.service';
+// import { PlanService } from './services/plan.service';
 import { PlanModule } from './modules/plan.module';
 import { EmailService } from './services/email.service';
 import { UserService } from './services/user.service';
@@ -65,7 +65,7 @@ import { CorsMiddleware } from './middleware/cors.middleware';
     PlanModule,
   ],
   controllers: [AppController, PlanController, StripeController],
-  providers: [AppService, PlanService, EmailService, UserService],
+  providers: [AppService, EmailService, UserService],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
