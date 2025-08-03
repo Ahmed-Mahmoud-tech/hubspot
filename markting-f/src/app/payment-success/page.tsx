@@ -12,13 +12,13 @@ export default function PaymentSuccessPage() {
   const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
-    const sessionId = searchParams.get('session_id');
+    const sessionId = searchParams?.get('session_id');
     if (typeof sessionId === 'string') {
       handleVerifyStripeSession(sessionId);
     }
     async function handleVerifyStripeSession(sessionId: string) {
       try {
-        const apiKey = searchParams.get('apiKey') ?? '';
+        const apiKey = searchParams?.get('apiKey') ?? '';
         const response = await verifyStripeSession({ sessionId, apiKey });
         const data = response && typeof response === 'object' && 'data' in response ? (response as any).data : response;
         if (data.success && data.status === 'paid') {

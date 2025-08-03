@@ -147,6 +147,21 @@ const useRequest = () => {
     return response.data;
   };
 
+  // Get user's current balance
+  const getUserBalance = async () => {
+    const response = await Request.get("/plans/balance");
+    return response.data;
+  };
+
+  // Calculate upgrade pricing with balance
+  const calculateUpgradePrice = async (data: {
+    contactCount: number;
+    billingType: "monthly" | "yearly";
+  }) => {
+    const response = await Request.post("/plans/upgrade-price", data);
+    return response.data;
+  };
+
   // HubSpot integration methods
   const startHubSpotFetch = async (data: {
     name: string;
@@ -290,6 +305,8 @@ const useRequest = () => {
     isAuthenticated,
     getCurrentUser,
     getUserPlan,
+    getUserBalance,
+    calculateUpgradePrice,
     startHubSpotFetch,
     getDuplicates,
     submitMerge,

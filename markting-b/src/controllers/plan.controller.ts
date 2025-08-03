@@ -47,4 +47,29 @@ export class PlanController {
     // Merge userId into the body
     return this.planService.createUserPlan({ ...body, userId });
   }
+
+  // Endpoint to get user's current balance
+  @UseGuards(JwtAuthGuard)
+  @Get('balance')
+  async getUserBalance(@Req() req) {
+    const userId = req.user?.id;
+    console.log('1111111111111111111111uuuu');
+
+    return this.planService.calculateUserBalance(userId);
+  }
+
+  // Endpoint to calculate upgrade pricing with balance
+  @UseGuards(JwtAuthGuard)
+  @Post('upgrade-price')
+  async calculateUpgradePrice(
+    @Req() req,
+    @Body() body: { contactCount: number; billingType: 'monthly' | 'yearly' },
+  ) {
+    const userId = req.user?.id;
+    return this.planService.calculateUpgradePrice(
+      userId,
+      body.contactCount,
+      body.billingType,
+    );
+  }
 }

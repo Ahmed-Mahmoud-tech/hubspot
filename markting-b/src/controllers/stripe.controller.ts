@@ -5,6 +5,7 @@ import Stripe from 'stripe';
 import { ConfigService } from '@nestjs/config';
 import { Payment } from '../entities/payment.entity';
 import { UserPlan } from '../entities/user-plan.entity';
+import { PlanService } from '../services/plan.service';
 
 let stripe: Stripe;
 
@@ -16,6 +17,7 @@ export class StripeController {
     @InjectRepository(UserPlan)
     private userPlanRepo: Repository<UserPlan>,
     private readonly configService: ConfigService,
+    private readonly planService: PlanService,
   ) {
     const secretKey = this.configService.get<string>('STRIPE_SECRET_KEY');
     stripe = new Stripe(secretKey!, {
@@ -114,18 +116,37 @@ export class StripeController {
       '55555555554444',
     );
 
+    // Calculate upgrade pricing with balance consideration
+    const upgradeInfo = await this.planService.calculateUpgradePrice(
+      dto.userId,
+      dto.contactCount,
+      dto.billingType as 'monthly' | 'yearly',
+    );
+
+    if (!upgradeInfo.canUpgrade) {
+      throw new Error(
+        `Cannot upgrade: The new plan price ($${upgradeInfo.originalPrice}) minus your balance ($${upgradeInfo.userBalance}) must be at least $1.00`,
+      );
+    }
+
+    // Use the calculated final price (in dollars) and convert to cents for Stripe
+    const amount = Math.round(upgradeInfo.finalPrice * 100);
+
     // Enforce minimum contact count for Stripe minimum charge ($1.00)
     const minContactCount = 2000; // $1.00 minimum for monthly (2000 contacts)
     const safeContactCount = Math.max(dto.contactCount, minContactCount);
-    const amount =
-      dto.billingType === 'monthly'
-        ? Math.round((safeContactCount * 100) / 2000)
-        : Math.round(((safeContactCount * 100) / 4000) * 12);
+
     console.log(
       dto.billingType,
       'billingType',
       'amount',
       amount,
+      'finalPrice',
+      upgradeInfo.finalPrice,
+      'userBalance',
+      upgradeInfo.userBalance,
+      'originalPrice',
+      upgradeInfo.originalPrice,
       safeContactCount,
       'safeContactCount',
     );
@@ -137,7 +158,13 @@ export class StripeController {
         {
           price_data: {
             currency: 'usd',
-            product_data: { name: 'Contact Merge Plan' },
+            product_data: {
+              name: 'Contact Merge Plan',
+              description:
+                upgradeInfo.userBalance > 0
+                  ? `Plan upgrade (${safeContactCount.toLocaleString()} contacts) - Balance applied: $${upgradeInfo.userBalance}`
+                  : `Plan upgrade (${safeContactCount.toLocaleString()} contacts)`,
+            },
             unit_amount: amount,
           },
           quantity: 1,
@@ -150,8 +177,12 @@ export class StripeController {
         userId: String(dto.userId),
         contactCount: String(safeContactCount),
         billingType: dto.billingType,
+        originalPrice: String(upgradeInfo.originalPrice),
+        userBalance: String(upgradeInfo.userBalance),
+        finalPrice: String(upgradeInfo.finalPrice),
       },
     });
+
     await this.paymentRepo.save({
       userId: dto.userId,
       amount,
@@ -160,7 +191,12 @@ export class StripeController {
       contactCount: safeContactCount,
       billingType: dto.billingType,
     });
-    return { sessionId: session.id, url: session.url };
+
+    return {
+      sessionId: session.id,
+      url: session.url,
+      upgradeInfo,
+    };
   }
 
   @Post('webhook')

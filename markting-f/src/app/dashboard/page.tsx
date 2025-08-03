@@ -115,7 +115,7 @@ export default function DashboardPage() {
         } finally {
             setIsLoading(false);
         }
-    }, [getProfile, router]);
+    }, [router]);
 
     useEffect(() => {
         checkAuth();
@@ -166,7 +166,7 @@ export default function DashboardPage() {
         } finally {
             setActionsLoading(false);
         }
-    }, [getActions]);
+    }, []);
 
     useEffect(() => {
         if (user) {

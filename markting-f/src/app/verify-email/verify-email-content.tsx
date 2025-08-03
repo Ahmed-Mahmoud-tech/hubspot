@@ -12,7 +12,7 @@ export default function VerifyEmailContent() {
   const { verifyEmail } = useRequest();
 
   useEffect(() => {
-    const token = searchParams.get('token');
+    const token = searchParams?.get('token');
 
     if (!token) {
       setStatus('error');

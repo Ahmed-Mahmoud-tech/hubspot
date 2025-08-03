@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { loadStripe } from '@stripe/stripe-js';
 import { ErrorMessage } from './ErrorMessage';
 import useRequest from '@/app/axios/useRequest';
@@ -16,7 +16,7 @@ interface PlanModalProps {
 export function PlanModal({ apiKey, open, onClose, userId, plan, contactCount }: PlanModalProps) {
     // Move moreThanMonth above useEffect to avoid initialization error
     const moreThanMonth = plan && plan.planType === 'paid' && plan.billingEndDate && new Date(plan.billingEndDate) > new Date(new Date().setMonth(new Date().getMonth() + 1));
-    const { createStripeCheckoutSession } = useRequest();
+    const { createStripeCheckoutSession, getUserBalance, calculateUpgradePrice } = useRequest();
 
     const initialContactCount = contactCount || 500000;
     // If plan is null, fallback to free plan for UI, but show correct message
@@ -25,6 +25,8 @@ export function PlanModal({ apiKey, open, onClose, userId, plan, contactCount }:
     const [inputContactCount, setInputContactCount] = useState(initialContactCount + 500);
     const [error, setError] = useState('');
     const [billingType, setBillingType] = useState<'monthly' | 'yearly'>('monthly');
+    const [upgradeInfo, setUpgradeInfo] = useState<any>(null);
+    const [userBalance, setUserBalance] = useState<any>(null);
     const modalRef = useRef<HTMLDivElement>(null);
     const stripeCountLimit = 2000;
 
@@ -47,6 +49,27 @@ export function PlanModal({ apiKey, open, onClose, userId, plan, contactCount }:
         }
     }
 
+    const fetchUserBalance = useCallback(async () => {
+        try {
+            const balance = await getUserBalance();
+            setUserBalance(balance);
+        } catch (error) {
+            console.error('Error fetching user balance:', error);
+        }
+    }, []);
+
+    const fetchUpgradePrice = useCallback(async () => {
+        try {
+            const pricing = await calculateUpgradePrice({
+                contactCount: inputContactCount,
+                billingType: billingType,
+            });
+            setUpgradeInfo(pricing);
+        } catch (error) {
+            console.error('Error calculating upgrade price:', error);
+        }
+    }, [inputContactCount, billingType]);
+
     // If plan is null, treat as free for UI, but show correct message
     React.useEffect(() => {
         if (plan) {
@@ -66,7 +89,19 @@ export function PlanModal({ apiKey, open, onClose, userId, plan, contactCount }:
         if (monthlyDisabled) {
             setBillingType('yearly');
         }
-    }, [plan, contactCount]);
+
+        // Fetch user balance if user has a paid plan
+        if (plan && plan.planType === 'paid') {
+            fetchUserBalance();
+        }
+    }, [plan, contactCount, initialContactCount, moreThanMonth, fetchUserBalance]);
+
+    // Fetch user balance and calculate upgrade pricing when contact count or billing type changes
+    React.useEffect(() => {
+        if (plan && plan.planType === 'paid' && inputContactCount > 0) {
+            fetchUpgradePrice();
+        }
+    }, [inputContactCount, billingType, plan, fetchUpgradePrice]);
 
     if (!open) return null;
 
@@ -147,120 +182,241 @@ export function PlanModal({ apiKey, open, onClose, userId, plan, contactCount }:
                     {/* <div className="mb-4 text-center">
                         <span className={`text-md font-semibold ${showUpgrade ? 'text-red-600' : 'text-green-600'}`}>{infoMessage}</span>
                     </div> */}
-                    <div className="text-md text-blue-500 text-center mb-4">
+                    <div className="text-md text-blue-500 text-center mb-3">
                         💡 For paid plans: <span className="font-semibold text-4xl text-black">$1</span> lets you fetch <span className="font-semibold text-xl">2,000</span> contacts (monthly) or <span className="font-semibold text-xl">4,000</span> contacts (yearly).
                     </div>
-                    <div
-                        className={`mb-8 ${(!plan || plan.planType !== 'paid') ? 'grid grid-cols-1 md:grid-cols-2 gap-6' : 'flex justify-center'}`}
-                    >
-                        {/* Free Plan Card: Only show if not paid plan */}
-                        {(!plan || plan.planType !== 'paid') && (
-                            <div className="bg-blue-50 border h-max border-blue-200 rounded-lg p-6 flex flex-col items-center shadow hover:shadow-lg transition relative">
-                                <div className="absolute top-4 right-4">
-                                    <span className="bg-blue-600 text-white text-xs px-3 py-1 rounded font-semibold shadow">Current</span>
+                    <div className='flex flex-col md:flex-row gap-4 justify-center'>
+                        <div className="flex flex-col gap-3">
+                            {/* Upgrade Pricing Section - Outside Cards */}
+                            {(userBalance && userBalance.hasBalance) && (
+                                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-2xl p-4 mb-3 shadow-lg">
+                                    <div className="flex items-center justify-center mb-2">
+                                        <div className="bg-blue-100 rounded-full p-3 mr-3">
+                                            <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                                            </svg>
+                                        </div>
+                                        <h3 className="text-xl font-bold text-blue-800">Upgrade Pricing Breakdown</h3>
+                                    </div>
+                                    <div className="grid md:grid-cols-3 gap-2 text-center">
+                                        <div className="bg-white rounded-xl p-4 shadow-sm">
+                                            <p className="text-sm text-gray-600 mb-1">Original Price</p>
+                                            <p className="text-2xl font-bold text-gray-800">${upgradeInfo.originalPrice.toFixed(2)}</p>
+                                        </div>
+                                        {upgradeInfo.userBalance > 0 && (
+                                            <div className="bg-green-50 rounded-xl p-4 shadow-sm border border-green-200">
+                                                <p className="text-sm text-green-600 mb-1">Your Balance</p>
+                                                <p className="text-2xl font-bold text-green-700">${upgradeInfo.userBalance.toFixed(2)}</p>
+                                            </div>
+                                        )}
+                                        <div className="bg-yellow-50 rounded-xl p-4 shadow-sm border border-yellow-200">
+                                            <p className="text-sm text-yellow-600 mb-1">Final Amount</p>
+                                            <p className="text-2xl font-bold text-yellow-700">${upgradeInfo.finalPrice.toFixed(2)}</p>
+                                        </div>
+                                    </div>
+                                    {!upgradeInfo.canUpgrade && (
+                                        <div className="mt-4 bg-red-50 border border-red-200 rounded-lg p-3 text-center">
+                                            <p className="text-red-600 text-sm font-medium">⚠️ Minimum charge of $1.00 required for upgrade</p>
+                                        </div>
+                                    )}
                                 </div>
-                                {/* Shield icon for Free Plan */}
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 mb-2 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3l8 4v5c0 5.25-3.5 9.75-8 11-4.5-1.25-8-5.75-8-11V7l8-4z" />
-                                </svg>
-                                <div className="flex items-center gap-2 group mb-2 w-max relative">
-                                    <span className="text-3xl font-extrabold text-blue-700 tracking-tight">{localPlan.contactCount.toLocaleString()}</span>
-                                    <span className="text-xs font-medium text-blue-600 bg-blue-100 px-2 py-1 rounded-full shadow-sm cursor-help group-hover:bg-blue-200 absolute left-[105%]" title="Total contacts included in your plan">contacts</span>
+                            )}
+
+                            {/* Current Plan Balance - Outside Cards */}
+                            {userBalance && userBalance.hasBalance && (
+                                <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-2xl p-4 mb-3 shadow-lg">
+                                    <div className="flex items-center justify-center mb-2">
+                                        <div className="bg-green-100 rounded-full p-3 mr-3">
+                                            <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                                            </svg>
+                                        </div>
+                                        <h3 className="text-xl font-bold text-green-800">Current Plan Balance</h3>
+                                    </div>
+                                    <div className="grid md:grid-cols-2 gap-2 text-center">
+                                        <div className="bg-white rounded-xl p-4 shadow-sm">
+                                            <p className="text-sm text-green-600 mb-1">Available Credit</p>
+                                            <p className="text-3xl font-bold text-green-700">${userBalance.balanceAmount.toFixed(2)}</p>
+                                        </div>
+                                        <div className="bg-white rounded-xl p-4 shadow-sm">
+                                            <p className="text-sm text-green-600 mb-1">Time Remaining</p>
+                                            <p className="text-3xl font-bold text-green-700">{userBalance.remainingDays}</p>
+                                            <p className="text-xs text-green-600">days</p>
+                                        </div>
+                                    </div>
                                 </div>
-                                <h2 className="text-xl font-semibold mb-2 text-[var(--foreground)]">Free Plan</h2>
-                                <ul className="text-gray-600 mb-4 text-center text-md">
-                                    <li>✔️ Up to 500,000 contacts</li>
-                                    <li>✔️ Up to 20 merge groups</li>
-                                    <li>✔️ Basic duplicate detection</li>
-                                    <li>❌ No advanced features</li>
-                                </ul>
-                                {plan.planType !== 'paid' && <span className="text-blue-600 font-medium mb-2">You are on the free plan</span>}
+                            )}
+                        </div>
+                        <div
+                            className={`mb-4 ${(!plan || plan.planType !== 'paid') ? 'grid grid-cols-1 md:grid-cols-2 gap-4' : 'flex justify-center'}`}
+                        >
+                            {/* Free Plan Card: Only show if not paid plan */}
+                            {(!plan || plan.planType !== 'paid') && (
+                                <div className="bg-gradient-to-br from-blue-50 via-blue-25 to-white border-2 border-blue-200 rounded-2xl p-6 flex flex-col items-center shadow-xl hover:shadow-2xl transition-all duration-300 relative">
+                                    <div className="absolute top-3 right-3">
+                                        <span className="bg-gradient-to-r from-blue-500 to-blue-600 text-white text-xs px-4 py-2 rounded-full font-bold shadow-lg">Current Plan</span>
+                                    </div>
+                                    {/* Enhanced Shield icon for Free Plan */}
+                                    <div className="bg-blue-100 rounded-full p-2 mb-1 shadow-inner">
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3l8 4v5c0 5.25-3.5 9.75-8 11-4.5-1.25-8-5.75-8-11V7l8-4z" />
+                                        </svg>
+                                    </div>
+                                    <div className="flex items-center gap-2 group mb-2 w-max relative">
+                                        <span className="text-4xl font-extrabold text-blue-700 tracking-tight drop-shadow">{localPlan.contactCount.toLocaleString()}</span>
+                                        <span className="text-xs font-medium text-blue-600 bg-blue-100 px-3 py-1 rounded-full shadow-sm cursor-help group-hover:bg-blue-200 transition-colors" title="Total contacts included in your plan">contacts</span>
+                                    </div>
+                                    <h2 className="text-2xl font-bold mb-2 text-blue-800">Free Plan</h2>
+                                    <ul className="text-gray-700 mb-4 text-center text-md space-y-1">
+                                        <li className="flex items-center justify-center gap-2">
+                                            <span className="text-green-500 font-bold">✔️</span>
+                                            <span>Up to <span className="font-semibold">500,000</span> contacts</span>
+                                        </li>
+                                        <li className="flex items-center justify-center gap-2">
+                                            <span className="text-green-500 font-bold">✔️</span>
+                                            <span>Up to <span className="font-semibold">20</span> merge groups</span>
+                                        </li>
+                                        <li className="flex items-center justify-center gap-2">
+                                            <span className="text-green-500 font-bold">✔️</span>
+                                            <span>Basic duplicate detection</span>
+                                        </li>
+                                        <li className="flex items-center justify-center gap-2">
+                                            <span className="text-red-500 font-bold">❌</span>
+                                            <span>Advanced features</span>
+                                        </li>
+                                    </ul>
+                                    <div className="mt-auto pt-2 border-t border-blue-200 w-full text-center">
+                                        <span className="text-blue-600 font-semibold bg-blue-50 px-4 py-2 rounded-full">Active Plan</span>
+                                    </div>
+                                </div>
+                            )}
+                            {/* Paid Plan Card */}
+                            <div className="relative bg-gradient-to-br from-yellow-100 via-yellow-50 to-white border-2 border-yellow-300 rounded-2xl p-6 flex flex-col items-center shadow-xl hover:shadow-2xl transition-all duration-300 min-w-[340px] max-w-md w-full">
+                                <div className="absolute top-3 right-3 flex items-center gap-2">
+                                    <span className="bg-gradient-to-r from-yellow-400 to-yellow-500 text-white text-xs px-4 py-2 rounded-full font-bold shadow-lg animate-pulse">⭐ Upgrade</span>
+                                </div>
+
+                                {/* Enhanced Crown Icon */}
+                                <div className="bg-yellow-100 rounded-full p-3 mb-3 shadow-inner">
+                                    <svg className="w-12 h-12 text-yellow-500 drop-shadow" fill="currentColor" viewBox="0 0 24 24">
+                                        <path d="M12 2l3 7h7l-5.5 4.5L18 21l-6-4-6 4 1.5-7.5L2 9h7z" />
+                                    </svg>
+                                </div>
+
+                                <div className="flex flex-col items-center w-full">
+                                    <div className="flex items-center gap-2 mb-2 relative w-max">
+                                        <span className="text-5xl font-extrabold text-yellow-700 tracking-tight drop-shadow">{inputContactCount.toLocaleString()}</span>
+                                        <span className="text-xs font-medium text-yellow-700 bg-yellow-100 px-3 py-1 rounded-full shadow-sm cursor-help transition-colors" title="Total contacts included in your plan">contacts</span>
+                                    </div>
+                                    <h2 className="text-3xl font-bold mb-1 text-yellow-800">Premium Plan</h2>
+                                    <ul className="text-gray-700 mb-4 text-center text-md space-y-1">
+                                        <li className="flex items-center justify-center gap-2">
+                                            <span className="text-green-500 font-bold">✔️</span>
+                                            <span><span className="font-bold text-yellow-700">Unlimited</span> merge groups</span>
+                                        </li>
+                                        <li className="flex items-center justify-center gap-2">
+                                            <span className="text-green-500 font-bold">✔️</span>
+                                            <span><span className="font-bold text-yellow-700">Dynamic pricing</span> by contact count</span>
+                                        </li>
+                                        <li className="flex items-center justify-center gap-2">
+                                            <span className="text-green-500 font-bold">✔️</span>
+                                            <span><span className="font-bold text-yellow-700">Flexible</span> Monthly/Yearly billing</span>
+                                        </li>
+                                        <li className="flex items-center justify-center gap-2">
+                                            <span className="text-green-500 font-bold">✔️</span>
+                                            <span><span className="font-bold text-yellow-700">Priority</span> support</span>
+                                        </li>
+                                    </ul>
+                                </div>
+
+                                {/* Contact Count Input */}
+                                <div className="mb-4 w-full flex flex-col items-center">
+                                    <label className="mb-2 text-sm text-gray-700 font-bold" htmlFor="contactCountInput">📊 Select Contact Count</label>
+                                    <div className="relative w-44 mb-2">
+                                        <input
+                                            id="contactCountInput"
+                                            type="number"
+                                            min={Math.max(localPlan.contactCount, stripeCountLimit)}
+                                            value={Math.max(inputContactCount, stripeCountLimit)}
+                                            onChange={e => {
+                                                const val = e.target.value;
+                                                if (val === '') {
+                                                    setInputContactCount(0);
+                                                } else {
+                                                    setInputContactCount(Number(val));
+                                                }
+                                            }}
+                                            onBlur={() => {
+                                                if (inputContactCount < Math.max(localPlan.contactCount, stripeCountLimit)) {
+                                                    setInputContactCount(Math.max(localPlan.contactCount, stripeCountLimit));
+                                                }
+                                            }}
+                                            className="w-full px-4 py-3 border-2 border-yellow-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-400 text-center font-bold text-yellow-700 bg-yellow-50 shadow-sm text-xl transition-all"
+                                        />
+                                    </div>
+
+                                    {/* Billing Type Selection */}
+                                    <div className="flex items-center justify-center gap-2 mb-2 w-full">
+                                        <button
+                                            className={`flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold text-sm shadow-md transition-all duration-200 border-2 focus:outline-none ${billingType === 'monthly' ? 'bg-yellow-500 text-white border-yellow-500 scale-105 shadow-lg' : 'bg-white text-gray-700 border-gray-300 hover:border-yellow-300'} ${moreThanMonth ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-lg'}`}
+                                            onClick={() => {
+                                                if (!(moreThanMonth)) {
+                                                    setBillingType('monthly');
+                                                }
+                                            }}
+                                            aria-pressed={billingType === 'monthly'}
+                                            disabled={moreThanMonth}
+                                        >
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M8 17l4 4 4-4" /><path d="M12 21V3" /></svg>
+                                            Monthly
+                                        </button>
+                                        <button
+                                            className={`flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold text-sm shadow-md transition-all duration-200 border-2 focus:outline-none ${billingType === 'yearly' ? 'bg-yellow-500 text-white border-yellow-500 scale-105 shadow-lg' : 'bg-white text-gray-700 border-gray-300 hover:border-yellow-300'} hover:shadow-lg`}
+                                            onClick={() => setBillingType('yearly')}
+                                            aria-pressed={billingType === 'yearly'}
+                                        >
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></svg>
+                                            Yearly
+                                            <span className="bg-green-500 text-white text-xs px-2 py-1 rounded-full ml-1">SAVE</span>
+                                        </button>
+                                    </div>
+
+                                    {/* Simple pricing display inside card */}
+                                    {/* {!upgradeInfo && ( */}
+                                    <div className="bg-white rounded-xl p-3 shadow-inner border border-yellow-200 mb-2 w-full">
+                                        <div className="text-center">
+                                            {billingType === 'monthly' ? (
+                                                <div>
+                                                    <span className="text-3xl font-bold text-yellow-700">${monthlyCost.toFixed(2)}</span>
+                                                    <span className="text-sm text-gray-600">/month</span>
+                                                </div>
+                                            ) : (
+                                                <div>
+                                                    <span className="text-3xl font-bold text-yellow-700">${yearlyMonthlyCost.toFixed(2)}</span>
+                                                    <span className="text-sm text-gray-600">/month</span>
+                                                    <div className="text-xs text-gray-500 mt-1">(${annualCost.toFixed(2)} billed yearly)</div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                    {/* )} */}
+                                </div>
+
+                                {/* Upgrade Button */}
+                                <button
+                                    className={`w-full font-bold py-3 px-5 rounded-xl shadow-lg transition-all duration-200 text-lg tracking-wide transform hover:scale-105 ${upgradeInfo && !upgradeInfo.canUpgrade
+                                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed border border-gray-300'
+                                        : 'bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-yellow-500 hover:to-yellow-600 text-white border border-yellow-400 shadow-yellow-200'
+                                        }`}
+                                    onClick={handleUpgrade}
+                                    disabled={upgradeInfo && !upgradeInfo.canUpgrade}
+                                >
+                                    {upgradeInfo && !upgradeInfo.canUpgrade ? '❌ Cannot Upgrade' : '🚀 Upgrade to Premium'}
+                                </button>
                             </div>
-                        )}
-                        {/* Paid Plan Card */}
-                        <div className="bg-yellow-50 m-auto border border-yellow-200 rounded-lg p-6 flex flex-col items-center shadow hover:shadow-lg transition relative">
-                            <div className="absolute top-4 right-4">
-                                <span className="bg-yellow-500 text-white text-xs px-3 py-1 rounded font-semibold shadow animate-bounce">Upgrade</span>
-                            </div>
-                            <div className="mb-2 text-yellow-500 flex flex-col items-center w-full">
-                                {/* Paid Plan Icon: Crown/Star */}
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path d="M12 2l3 7h7l-5.5 4.5L18 21l-6-4-6 4 1.5-7.5L2 9h7z" stroke="currentColor" strokeWidth="2" fill="#fef3c7" />
-                                </svg>
-                                <div className="flex items-center gap-2 group mb-2 relative w-max">
-                                    <span className="text-3xl font-extrabold text-yellow-700 tracking-tight">{inputContactCount.toLocaleString()}</span>
-                                    <span className="text-xs font-medium text-yellow-600 bg-yellow-100 px-2 py-1 rounded-full shadow-sm cursor-help group-hover:bg-yellow-200  absolute left-[105%]" title="Total contacts included in your plan">contacts</span>
-                                </div>
-                            </div>
-                            <h2 className="text-xl font-semibold mb-2 text-[var(--foreground)]">Paid Plan</h2>
-                            <ul className="text-gray-600 mb-4 text-center text-md">
-                                <li>✔️ Unlimited merge groups</li>
-                                <li>✔️ Dynamic pricing based on contact count</li>
-                                <li>✔️ Monthly/Yearly billing options</li>
-                            </ul>
-                            <div className="mb-4 w-full flex flex-col items-center">
-                                <label className="mb-2 text-sm text-gray-700 font-medium" htmlFor="contactCountInput">Contact Count</label>
-                                <div className="relative w-32 mb-2">
-                                    <input
-                                        id="contactCountInput"
-                                        type="number"
-                                        min={Math.max(localPlan.contactCount, stripeCountLimit)}
-                                        value={Math.max(inputContactCount, stripeCountLimit)}
-                                        onChange={e => {
-                                            // Allow empty string for editing
-                                            const val = e.target.value;
-                                            if (val === '') {
-                                                setInputContactCount(0);
-                                            } else {
-                                                setInputContactCount(Number(val));
-                                            }
-                                        }}
-                                        onBlur={() => {
-                                            // On blur, enforce maximum
-                                            if (inputContactCount < Math.max(localPlan.contactCount, stripeCountLimit)) {
-                                                setInputContactCount(Math.max(localPlan.contactCount, stripeCountLimit));
-                                            }
-                                        }}
-                                        className="w-full px-3 py-2 border border-yellow-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-center font-semibold text-yellow-700"
-                                    />
-                                </div>
-                                <div className="flex items-center justify-center gap-2 mb-2">
-                                    <button
-                                        className={`cursor-pointer flex items-center gap-1 px-4 py-2 rounded-full font-semibold text-md shadow transition-all duration-200 border-2 focus:outline-none ${billingType === 'monthly' ? 'bg-yellow-500 text-white border-yellow-500 scale-105' : 'bg-gray-100 text-gray-700 border-gray-200'} ${moreThanMonth ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                        onClick={() => {
-                                            if (!(moreThanMonth)) {
-                                                setBillingType('monthly');
-                                            }
-                                        }}
-                                        aria-pressed={billingType === 'monthly'}
-                                        disabled={moreThanMonth}
-                                    >
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M8 17l4 4 4-4" /><path d="M12 21V3" /></svg>
-                                        Monthly
-                                    </button>
-                                    <span className="mx-1 text-gray-400">|</span>
-                                    <button
-                                        className={`cursor-pointer flex items-center gap-1 px-4 py-2 rounded-full font-semibold text-md shadow transition-all duration-200 border-2 focus:outline-none ${billingType === 'yearly' ? 'bg-yellow-500 text-white border-yellow-500 scale-105' : 'bg-gray-100 text-gray-700 border-gray-200'}`}
-                                        onClick={() => setBillingType('yearly')}
-                                        aria-pressed={billingType === 'yearly'}
-                                    >
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></svg>
-                                        Yearly
-                                    </button>
-                                </div>
-                                {billingType === 'monthly' ? (
-                                    <div className="text-base text-yellow-700 font-semibold">${monthlyCost.toFixed(2)}/mo</div>
-                                ) : (
-                                    <div className="text-base text-yellow-700 font-semibold">${yearlyMonthlyCost.toFixed(2)}/mo <span className="text-xs text-gray-500">(${annualCost.toFixed(2)} total/year)</span></div>
-                                )}
-                            </div>
-                            <span className="text-yellow-600 font-medium mb-2">Upgrade for more features</span>
-                            <button
-                                className="bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-2 px-6 rounded mt-2 shadow"
-                                onClick={handleUpgrade}
-                            >Upgrade Plan</button>
                         </div>
                     </div>
+
                     <ErrorMessage error={error} />
                 </div>
                 <style>{`

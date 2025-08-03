@@ -4,6 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Plan, PlanType } from '../entities/plan.entity';
 import { UserPlan } from '../entities/user-plan.entity';
+import { Payment } from '../entities/payment.entity';
 import { EmailService } from './email.service';
 import { UserService } from './user.service';
 
@@ -12,6 +13,8 @@ export class PlanService {
   constructor(
     @InjectRepository(UserPlan)
     private userPlanRepo: Repository<UserPlan>,
+    @InjectRepository(Payment)
+    private paymentRepo: Repository<Payment>,
     private readonly emailService: EmailService,
     private readonly userService: UserService,
   ) {}
@@ -112,5 +115,148 @@ export class PlanService {
   ): Promise<UserPlan | null> {
     await this.userPlanRepo.update({ userId }, data);
     return await this.getUserPlan(userId);
+  }
+
+  async calculateUserBalance(userId: number): Promise<{
+    hasBalance: boolean;
+    balanceAmount: number;
+    remainingDays: number;
+    originalAmount: number;
+    totalDays: number;
+  }> {
+    console.log('111111111111111111111111111111111111111ww');
+    // Get the current user plan
+    const currentPlan = await this.userPlanRepo.findOne({
+      where: {
+        userId,
+        planType: PlanType.PAID,
+        paymentStatus: 'active',
+      },
+      order: { activationDate: 'DESC' },
+      relations: ['payment'],
+    });
+    console.log('111111111111111111111111111111111111111qqq');
+
+    if (!currentPlan || !currentPlan.billingEndDate || !currentPlan.paymentId) {
+      return {
+        hasBalance: false,
+        balanceAmount: 0,
+        remainingDays: 0,
+        originalAmount: 0,
+        totalDays: 0,
+      };
+    }
+    console.log('111111111111111111111111111111111111111');
+
+    const now = new Date();
+    const endDate = new Date(currentPlan.billingEndDate);
+
+    // Check if the plan is still active (end date is in the future)
+    if (endDate <= now) {
+      return {
+        hasBalance: false,
+        balanceAmount: 0,
+        remainingDays: 0,
+        originalAmount: 0,
+        totalDays: 0,
+      };
+    }
+    console.log('1111111111111111111111111111111111111112');
+
+    // Get the payment information
+    const payment = await this.paymentRepo.findOne({
+      where: { id: currentPlan.paymentId },
+    });
+    console.log('1111111111111111111111111111111111111113');
+
+    if (!payment || payment.status !== 'completed') {
+      return {
+        hasBalance: false,
+        balanceAmount: 0,
+        remainingDays: 0,
+        originalAmount: 0,
+        totalDays: 0,
+      };
+    }
+
+    console.log('1111111111111111111111111111111111111114');
+    // Calculate remaining days
+    const remainingDays = Math.ceil(
+      (endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
+    );
+
+    console.log('1111111111111111111111111111111111111115');
+    // Calculate total days from activation to end
+    const startDate = new Date(currentPlan.activationDate);
+    const totalDays = Math.ceil(
+      (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24),
+    );
+
+    console.log('1111111111111111111111111111111111111116');
+
+    const originalAmount = payment.amount / 100; // Convert from cents to dollars
+    const balanceAmount = (originalAmount * remainingDays) / totalDays;
+    console.log(
+      'startDate',
+      startDate,
+      'endDate',
+      endDate,
+      'balanceAmount',
+      balanceAmount,
+      'remainingDays',
+      remainingDays,
+      'totalDays',
+      totalDays,
+      'originalAmount',
+      originalAmount,
+    );
+
+    return {
+      hasBalance: remainingDays > 0,
+      balanceAmount: Math.round(balanceAmount * 100) / 100, // Round to 2 decimal places
+      remainingDays,
+      originalAmount,
+      totalDays,
+    };
+  }
+
+  async calculateUpgradePrice(
+    userId: number,
+    newContactCount: number,
+    newBillingType: 'monthly' | 'yearly',
+  ): Promise<{
+    originalPrice: number;
+    userBalance: number;
+    finalPrice: number;
+    canUpgrade: boolean;
+    balanceInfo: any;
+  }> {
+    // Calculate the new plan price
+    const newPlan = this.getPaidPlan(newContactCount, newBillingType);
+    const originalPrice = newPlan.price;
+
+    // Get user's current balance
+    const balanceInfo = await this.calculateUserBalance(userId);
+    const userBalance = balanceInfo.balanceAmount;
+
+    // Calculate final price after applying balance
+    let finalPrice = originalPrice - userBalance;
+
+    // Ensure minimum price of $1.00
+    const minimumPrice = 1.0;
+    if (finalPrice < minimumPrice) {
+      finalPrice = minimumPrice;
+    }
+
+    // User can only upgrade if the new plan price minus their balance is at least $1
+    const canUpgrade = originalPrice - userBalance >= minimumPrice;
+
+    return {
+      originalPrice: Math.round(originalPrice * 100) / 100,
+      userBalance: Math.round(userBalance * 100) / 100,
+      finalPrice: Math.round(finalPrice * 100) / 100,
+      canUpgrade,
+      balanceInfo,
+    };
   }
 }
