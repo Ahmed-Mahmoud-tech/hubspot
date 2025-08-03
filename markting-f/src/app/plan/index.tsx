@@ -252,22 +252,22 @@ export function PlanModal({ apiKey, open, onClose, userId, plan, contactCount }:
                         >
                             {/* Free Plan Card: Only show if not paid plan */}
                             {(!plan || plan.planType !== 'paid') && (
-                                <div className="bg-gradient-to-br from-blue-50 via-blue-25 to-white border-2 border-blue-200 rounded-2xl p-6 flex flex-col items-center shadow-xl hover:shadow-2xl transition-all duration-300 relative">
-                                    <div className="absolute top-3 right-3">
-                                        <span className="bg-gradient-to-r from-blue-500 to-blue-600 text-white text-xs px-4 py-2 rounded-full font-bold shadow-lg">Current Plan</span>
+                                <div className="bg-gradient-to-br from-blue-50 via-blue-25 to-white border-2 border-blue-200 rounded-2xl p-3 flex flex-col items-center shadow-xl hover:shadow-2xl transition-all duration-300 relative text-xs">
+                                    <div className="absolute top-2 right-2">
+                                        <span className="bg-gradient-to-r from-blue-500 to-blue-600 text-white text-[10px] px-2 py-1 rounded-full font-bold shadow">Current Plan</span>
                                     </div>
                                     {/* Enhanced Shield icon for Free Plan */}
-                                    <div className="bg-blue-100 rounded-full p-2 mb-1 shadow-inner">
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <div className="bg-blue-100 rounded-full p-1 mb-1 shadow-inner">
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3l8 4v5c0 5.25-3.5 9.75-8 11-4.5-1.25-8-5.75-8-11V7l8-4z" />
                                         </svg>
                                     </div>
-                                    <div className="flex items-center gap-2 group mb-2 w-max relative">
-                                        <span className="text-4xl font-extrabold text-blue-700 tracking-tight drop-shadow">{localPlan.contactCount.toLocaleString()}</span>
-                                        <span className="text-xs font-medium text-blue-600 bg-blue-100 px-3 py-1 rounded-full shadow-sm cursor-help group-hover:bg-blue-200 transition-colors" title="Total contacts included in your plan">contacts</span>
+                                    <div className="flex items-center gap-1 group mb-1 w-max relative">
+                                        <span className="text-2xl font-extrabold text-blue-700 tracking-tight drop-shadow">{localPlan.contactCount.toLocaleString()}</span>
+                                        <span className="text-[10px] font-medium text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full shadow-sm cursor-help group-hover:bg-blue-200 transition-colors" title="Total contacts included in your plan">contacts</span>
                                     </div>
-                                    <h2 className="text-2xl font-bold mb-2 text-blue-800">Free Plan</h2>
-                                    <ul className="text-gray-700 mb-4 text-center text-md space-y-1">
+                                    <h2 className="text-lg font-bold mb-1 text-blue-800">Free Plan</h2>
+                                    <ul className="text-gray-700 mb-2 text-center text-xs space-y-0.5">
                                         <li className="flex items-center justify-center gap-2">
                                             <span className="text-green-500 font-bold">✔️</span>
                                             <span>Up to <span className="font-semibold">500,000</span> contacts</span>
@@ -285,44 +285,44 @@ export function PlanModal({ apiKey, open, onClose, userId, plan, contactCount }:
                                             <span>Advanced features</span>
                                         </li>
                                     </ul>
-                                    <div className="mt-auto pt-2 border-t border-blue-200 w-full text-center">
-                                        <span className="text-blue-600 font-semibold bg-blue-50 px-4 py-2 rounded-full">Active Plan</span>
+                                    <div className="mt-auto pt-1 border-t border-blue-200 w-full text-center">
+                                        <span className="text-blue-600 font-semibold bg-blue-50 px-2 py-1 rounded-full text-xs">Active Plan</span>
                                     </div>
                                 </div>
                             )}
                             {/* Paid Plan Card */}
-                            <div className="relative bg-gradient-to-br from-yellow-100 via-yellow-50 to-white border-2 border-yellow-300 rounded-2xl p-6 flex flex-col items-center shadow-xl hover:shadow-2xl transition-all duration-300 min-w-[340px] max-w-md w-full">
-                                <div className="absolute top-3 right-3 flex items-center gap-2">
-                                    <span className="bg-gradient-to-r from-yellow-400 to-yellow-500 text-white text-xs px-4 py-2 rounded-full font-bold shadow-lg animate-pulse">⭐ Upgrade</span>
+                            <div className="min-w-[340px] relative bg-gradient-to-br from-yellow-100 via-yellow-50 to-white border-2 border-yellow-300 rounded-2xl p-6 flex flex-col items-center shadow-xl hover:shadow-2xl transition-all duration-300 min-w-[240px] max-w-md w-full text-xs">
+                                <div className="absolute top-2 right-2 flex items-center gap-1">
+                                    <span className="bg-gradient-to-r from-yellow-400 to-yellow-500 text-white text-[10px] px-2 py-1 rounded-full font-bold shadow animate-pulse">⭐ Upgrade</span>
                                 </div>
 
                                 {/* Enhanced Crown Icon */}
-                                <div className="bg-yellow-100 rounded-full p-3 mb-3 shadow-inner">
-                                    <svg className="w-12 h-12 text-yellow-500 drop-shadow" fill="currentColor" viewBox="0 0 24 24">
+                                <div className="bg-yellow-100 rounded-full p-1.5 mb-2 shadow-inner">
+                                    <svg className="w-7 h-7 text-yellow-500 drop-shadow" fill="currentColor" viewBox="0 0 24 24">
                                         <path d="M12 2l3 7h7l-5.5 4.5L18 21l-6-4-6 4 1.5-7.5L2 9h7z" />
                                     </svg>
                                 </div>
 
                                 <div className="flex flex-col items-center w-full">
-                                    <div className="flex items-center gap-2 mb-2 relative w-max">
-                                        <span className="text-5xl font-extrabold text-yellow-700 tracking-tight drop-shadow">{inputContactCount.toLocaleString()}</span>
-                                        <span className="text-xs font-medium text-yellow-700 bg-yellow-100 px-3 py-1 rounded-full shadow-sm cursor-help transition-colors" title="Total contacts included in your plan">contacts</span>
+                                    <div className="flex items-center gap-1 mb-1 relative w-max">
+                                        <span className="text-3xl font-extrabold text-yellow-700 tracking-tight drop-shadow">{Math.max(inputContactCount, stripeCountLimit).toLocaleString()}</span>
+                                        <span className="text-[10px] font-medium text-yellow-700 bg-yellow-100 px-2 py-0.5 rounded-full shadow-sm cursor-help transition-colors" title="Total contacts included in your plan">contacts</span>
                                     </div>
-                                    <h2 className="text-3xl font-bold mb-1 text-yellow-800">Premium Plan</h2>
-                                    <ul className="text-gray-700 mb-4 text-center text-md space-y-1">
-                                        <li className="flex items-center justify-center gap-2">
+                                    <h2 className="text-lg font-bold mb-1 text-yellow-800">Premium Plan</h2>
+                                    <ul className="text-gray-700 mb-2 text-center text-xs space-y-0.5">
+                                        <li className="flex items-center justify-center gap-1">
                                             <span className="text-green-500 font-bold">✔️</span>
                                             <span><span className="font-bold text-yellow-700">Unlimited</span> merge groups</span>
                                         </li>
-                                        <li className="flex items-center justify-center gap-2">
+                                        <li className="flex items-center justify-center gap-1">
                                             <span className="text-green-500 font-bold">✔️</span>
                                             <span><span className="font-bold text-yellow-700">Dynamic pricing</span> by contact count</span>
                                         </li>
-                                        <li className="flex items-center justify-center gap-2">
+                                        <li className="flex items-center justify-center gap-1">
                                             <span className="text-green-500 font-bold">✔️</span>
                                             <span><span className="font-bold text-yellow-700">Flexible</span> Monthly/Yearly billing</span>
                                         </li>
-                                        <li className="flex items-center justify-center gap-2">
+                                        <li className="flex items-center justify-center gap-1">
                                             <span className="text-green-500 font-bold">✔️</span>
                                             <span><span className="font-bold text-yellow-700">Priority</span> support</span>
                                         </li>
@@ -330,9 +330,9 @@ export function PlanModal({ apiKey, open, onClose, userId, plan, contactCount }:
                                 </div>
 
                                 {/* Contact Count Input */}
-                                <div className="mb-4 w-full flex flex-col items-center">
-                                    <label className="mb-2 text-sm text-gray-700 font-bold" htmlFor="contactCountInput">📊 Select Contact Count</label>
-                                    <div className="relative w-44 mb-2">
+                                <div className="mb-2 w-full flex flex-col items-center">
+                                    <label className="mb-1 text-xs text-gray-700 font-bold" htmlFor="contactCountInput">📊 Select Contact Count</label>
+                                    <div className="relative w-32 mb-2">
                                         <input
                                             id="contactCountInput"
                                             type="number"
@@ -351,14 +351,14 @@ export function PlanModal({ apiKey, open, onClose, userId, plan, contactCount }:
                                                     setInputContactCount(Math.max(localPlan.contactCount, stripeCountLimit));
                                                 }
                                             }}
-                                            className="w-full px-4 py-3 border-2 border-yellow-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-400 text-center font-bold text-yellow-700 bg-yellow-50 shadow-sm text-xl transition-all"
+                                            className="w-full px-2 py-2 border-2 border-yellow-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-400 text-center font-bold text-yellow-700 bg-yellow-50 shadow-sm text-xs transition-all"
                                         />
                                     </div>
 
                                     {/* Billing Type Selection */}
-                                    <div className="flex items-center justify-center gap-2 mb-2 w-full">
+                                    <div className="flex items-center justify-center gap-3 mb-1 w-full">
                                         <button
-                                            className={`flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold text-sm shadow-md transition-all duration-200 border-2 focus:outline-none ${billingType === 'monthly' ? 'bg-yellow-500 text-white border-yellow-500 scale-105 shadow-lg' : 'bg-white text-gray-700 border-gray-300 hover:border-yellow-300'} ${moreThanMonth ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-lg'}`}
+                                            className={`flex-1 flex items-center justify-center gap-2 px-2 py-2 rounded-xl font-bold text-sm shadow-md transition-all duration-200 border-2 focus:outline-none ${billingType === 'monthly' ? 'bg-yellow-500 text-white border-yellow-500 scale-105 shadow-lg' : 'bg-white text-gray-700 border-gray-300 hover:border-yellow-300'} ${moreThanMonth ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-lg'}`}
                                             onClick={() => {
                                                 if (!(moreThanMonth)) {
                                                     setBillingType('monthly');
@@ -371,29 +371,28 @@ export function PlanModal({ apiKey, open, onClose, userId, plan, contactCount }:
                                             Monthly
                                         </button>
                                         <button
-                                            className={`flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold text-sm shadow-md transition-all duration-200 border-2 focus:outline-none ${billingType === 'yearly' ? 'bg-yellow-500 text-white border-yellow-500 scale-105 shadow-lg' : 'bg-white text-gray-700 border-gray-300 hover:border-yellow-300'} hover:shadow-lg`}
+                                            className={`flex-1 flex items-center justify-center gap-2 px-2 py-2 rounded-xl font-bold text-sm shadow-md transition-all duration-200 border-2 focus:outline-none ${billingType === 'yearly' ? 'bg-yellow-500 text-white border-yellow-500 scale-105 shadow-lg' : 'bg-white text-gray-700 border-gray-300 hover:border-yellow-300'} hover:shadow-lg`}
                                             onClick={() => setBillingType('yearly')}
                                             aria-pressed={billingType === 'yearly'}
                                         >
                                             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></svg>
                                             Yearly
-                                            <span className="bg-green-500 text-white text-xs px-2 py-1 rounded-full ml-1">SAVE</span>
                                         </button>
                                     </div>
 
                                     {/* Simple pricing display inside card */}
                                     {/* {!upgradeInfo && ( */}
-                                    <div className="bg-white rounded-xl p-3 shadow-inner border border-yellow-200 mb-2 w-full">
+                                    <div className="bg-white rounded-xl p-2 m-1 shadow-inner border border-yellow-200 mb-1 w-full text-xs">
                                         <div className="text-center">
                                             {billingType === 'monthly' ? (
-                                                <div>
+                                                <div className='flex items-center justify-center'>
                                                     <span className="text-3xl font-bold text-yellow-700">${monthlyCost.toFixed(2)}</span>
                                                     <span className="text-sm text-gray-600">/month</span>
                                                 </div>
                                             ) : (
-                                                <div>
+                                                <div className='flex items-center justify-center'>
                                                     <span className="text-3xl font-bold text-yellow-700">${yearlyMonthlyCost.toFixed(2)}</span>
-                                                    <span className="text-sm text-gray-600">/month</span>
+                                                    <span className="text-sm text-gray-600 me-2">/month</span>
                                                     <div className="text-xs text-gray-500 mt-1">(${annualCost.toFixed(2)} billed yearly)</div>
                                                 </div>
                                             )}
@@ -404,7 +403,7 @@ export function PlanModal({ apiKey, open, onClose, userId, plan, contactCount }:
 
                                 {/* Upgrade Button */}
                                 <button
-                                    className={`w-full font-bold py-3 px-5 rounded-xl shadow-lg transition-all duration-200 text-lg tracking-wide transform hover:scale-105 ${upgradeInfo && !upgradeInfo.canUpgrade
+                                    className={`w-full font-bold py-2 px-3 rounded-xl shadow transition-all duration-200 text-xs tracking-wide transform hover:scale-105 ${upgradeInfo && !upgradeInfo.canUpgrade
                                         ? 'bg-gray-300 text-gray-500 cursor-not-allowed border border-gray-300'
                                         : 'bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-yellow-500 hover:to-yellow-600 text-white border border-yellow-400 shadow-yellow-200'
                                         }`}
