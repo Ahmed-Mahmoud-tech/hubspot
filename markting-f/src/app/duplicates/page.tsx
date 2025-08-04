@@ -10,6 +10,7 @@ import ProcessStatus from '@/app/duplicates/components/ProcessStatus';
 import FieldSelectionModal from '@/app/duplicates/components/FieldSelectionModal';
 import { useRouter } from 'next/navigation';
 import { PlanModal } from '@/app/plan';
+import { freeContactLimit, freeMergeGroupLimit } from '@/constant/main';
 
 interface Contact {
     id: number;
@@ -110,7 +111,7 @@ function DuplicatesPageContent() {
                 if (!plan) {
                     // If user has no plan and contactCount <= 500000, create a free plan
                     const contactCount = processStatus?.count ?? 0;
-                    if (contactCount <= 500000) {
+                    if (contactCount <= freeContactLimit) {
                         const freePlan = await createUserPlan({
                             planType: 'free',
                             contactCount,
@@ -272,8 +273,8 @@ function DuplicatesPageContent() {
             alert('User plan not loaded. Please refresh and try again.');
             return;
         }
-        if (userPlan.planType === 'free' && userPlan.mergeGroupsUsed >= 20) {
-            alert('Free plan limit reached: You can only merge up to 20 groups. Upgrade your plan to continue.');
+        if (userPlan.planType === 'free' && userPlan.mergeGroupsUsed >= freeMergeGroupLimit) {
+            alert(`Free plan limit reached: You can only merge up to ${freeMergeGroupLimit} groups. Upgrade your plan to continue.`);
             return;
         }
         if (userPlan.planType === 'paid' && userPlan.contactLimit && userPlan.contactCount >= userPlan.contactLimit) {
@@ -454,7 +455,7 @@ function DuplicatesPageContent() {
     useEffect(() => {
         const showPlanModal =
             !userPlan ||
-            (userPlan.planType === 'free' && ((processStatus?.count ?? 0) > 500000 || userPlan.mergeGroupsUsed >= 20)) ||
+            (userPlan.planType === 'free' && ((processStatus?.count ?? 0) > freeContactLimit || userPlan.mergeGroupsUsed >= freeMergeGroupLimit)) ||
             (userPlan.planType === 'paid' && userPlan.paymentStatus !== 'active');
         setShowPlanModal(showPlanModal);
 

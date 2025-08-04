@@ -6,6 +6,7 @@ import { ConfigService } from '@nestjs/config';
 import { Payment } from '../entities/payment.entity';
 import { UserPlan } from '../entities/user-plan.entity';
 import { PlanService } from '../services/plan.service';
+import { dividedContactPerMonth } from 'src/constant/main';
 
 let stripe: Stripe;
 
@@ -133,7 +134,7 @@ export class StripeController {
     const amount = Math.round(upgradeInfo.finalPrice * 100);
 
     // Enforce minimum contact count for Stripe minimum charge ($1.00)
-    const minContactCount = 2000; // $1.00 minimum for monthly (2000 contacts)
+    const minContactCount = dividedContactPerMonth; // $1.00 minimum for monthly (2000 contacts)
     const safeContactCount = Math.max(dto.contactCount, minContactCount);
 
     console.log(

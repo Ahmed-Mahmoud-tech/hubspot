@@ -1,3 +1,4 @@
+import { dividedContactPerMonth, dividedContactPerYear } from '@/constant/main';
 import { useState } from 'react';
 
 interface PlanUpgradeProps {
@@ -8,8 +9,8 @@ interface PlanUpgradeProps {
 
 export function PlanUpgrade({ contactCount, billingType, onPay }: PlanUpgradeProps) {
   const [editableContactCount, setEditableContactCount] = useState(contactCount);
-  const monthlyCost = editableContactCount / 2000;
-  const yearlyMonthlyCost = editableContactCount / 4000;
+  const monthlyCost = editableContactCount / dividedContactPerMonth;
+  const yearlyMonthlyCost = editableContactCount / dividedContactPerYear;
   const annualCost = yearlyMonthlyCost * 12;
 
   return (

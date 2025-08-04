@@ -1,3 +1,4 @@
+import { freeContactLimit } from '@/constant/main';
 import React from 'react';
 
 interface UsageAlertsProps {
@@ -16,7 +17,7 @@ export function UsageAlerts({ mergeGroupsUsed, contactCount, plan }: UsageAlerts
           Usage Alert: 80% of free merge groups used.
         </div>
       )}
-      {plan.type === 'free' && contactCount >= 500000 * 0.8 && (
+      {plan.type === 'free' && contactCount >= freeContactLimit * 0.8 && (
         <div style={{ color: 'orange' }}>
           Usage Alert: Contact count approaching plan limit.
         </div>

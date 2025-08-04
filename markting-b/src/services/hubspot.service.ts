@@ -29,6 +29,7 @@ import {
   ResetMergeByGroupDto,
 } from '../dto/hubspot.dto';
 import axios from 'axios';
+import { freeContactLimit } from 'src/constant/main';
 
 @Injectable()
 export class HubSpotService {
@@ -176,7 +177,7 @@ export class HubSpotService {
     // --- PLAN VALIDATION ---
     const userPlan = await this.planService.getUserPlan(userId);
 
-    let contactLimit = 500000;
+    let contactLimit = freeContactLimit;
     let isPaid = false;
     if (userPlan) {
       isPaid = userPlan.planType === PlanType.PAID;
@@ -228,7 +229,7 @@ export class HubSpotService {
               );
             }
           } else {
-            if (totalFetched + results.length >= 500000) {
+            if (totalFetched + results.length >= freeContactLimit) {
               // Clear contact data with the same API key
               await this.contactService.deleteContactsByApiKey(apiKey);
               await this.actionRepository.update(actionId, {

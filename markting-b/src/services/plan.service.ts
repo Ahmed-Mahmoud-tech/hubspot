@@ -7,6 +7,12 @@ import { UserPlan } from '../entities/user-plan.entity';
 import { Payment } from '../entities/payment.entity';
 import { EmailService } from './email.service';
 import { UserService } from './user.service';
+import {
+  dividedContactPerMonth,
+  dividedContactPerYear,
+  freeContactLimit,
+  freeMergeGroupLimit,
+} from 'src/constant/main';
 
 @Injectable()
 export class PlanService {
@@ -71,8 +77,8 @@ export class PlanService {
     id: 1,
     type: PlanType.FREE,
     name: 'Free Plan',
-    mergeGroupLimit: 20,
-    contactLimit: 500000,
+    mergeGroupLimit: freeMergeGroupLimit,
+    contactLimit: freeContactLimit,
     durationDays: 30,
     price: 0,
     billingType: null,
@@ -81,9 +87,9 @@ export class PlanService {
   getPaidPlan(contactCount: number, billingType: 'monthly' | 'yearly'): Plan {
     let price = 0;
     if (billingType === 'monthly') {
-      price = contactCount / 2000;
+      price = contactCount / dividedContactPerMonth;
     } else {
-      price = (contactCount / 4000) * 12;
+      price = (contactCount / dividedContactPerYear) * 12;
     }
     return {
       id: 2,

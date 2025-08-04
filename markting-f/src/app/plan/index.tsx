@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { loadStripe } from '@stripe/stripe-js';
 import { ErrorMessage } from './ErrorMessage';
 import useRequest from '@/app/axios/useRequest';
+import { dividedContactPerMonth, dividedContactPerYear, freeContactLimit, freeMergeGroupLimit } from '@/constant/main';
 
 interface PlanModalProps {
     apiKey: string;
@@ -18,7 +19,7 @@ export function PlanModal({ apiKey, open, onClose, userId, plan, contactCount }:
     const moreThanMonth = plan && plan.planType === 'paid' && plan.billingEndDate && new Date(plan.billingEndDate) > new Date(new Date().setMonth(new Date().getMonth() + 1));
     const { createStripeCheckoutSession, getUserBalance, calculateUpgradePrice } = useRequest();
 
-    const initialContactCount = contactCount || 500000;
+    const initialContactCount = contactCount || freeContactLimit;
     // If plan is null, fallback to free plan for UI, but show correct message
     const [localPlan, setLocalPlan] = useState({ type: 'free', mergeGroupsUsed: 0, contactCount: initialContactCount });
     // Add input state for contact count (for paid plan)
@@ -28,7 +29,7 @@ export function PlanModal({ apiKey, open, onClose, userId, plan, contactCount }:
     const [upgradeInfo, setUpgradeInfo] = useState<any>(null);
     const [userBalance, setUserBalance] = useState<any>(null);
     const modalRef = useRef<HTMLDivElement>(null);
-    const stripeCountLimit = 2000;
+    const stripeCountLimit = dividedContactPerMonth;
 
 
     // Move moreThanMonth above useEffect to avoid initialization error
@@ -108,8 +109,8 @@ export function PlanModal({ apiKey, open, onClose, userId, plan, contactCount }:
     if (!open) return null;
 
     // Pricing logic (use inputContactCount for paid plan)
-    const monthlyCost = inputContactCount / 2000;
-    const yearlyMonthlyCost = inputContactCount / 4000;
+    const monthlyCost = inputContactCount / dividedContactPerMonth;
+    const yearlyMonthlyCost = inputContactCount / dividedContactPerYear;
     const annualCost = yearlyMonthlyCost * 12;
 
     // Add userId as a prop to PlanModal
@@ -148,14 +149,14 @@ export function PlanModal({ apiKey, open, onClose, userId, plan, contactCount }:
     let infoMessage = '';
     let showUpgrade = false;
     if (!plan) {
-        if (contactCount > 500000) {
+        if (contactCount > freeContactLimit) {
             infoMessage = 'You have more than 500,000 contacts. You must upgrade your plan to continue merging.';
             showUpgrade = true;
         } else {
             infoMessage = 'You are currently on the free plan.';
         }
     } else if (plan.planType === 'free') {
-        if (contactCount > 500000) {
+        if (contactCount > freeContactLimit) {
             infoMessage = 'You have exceeded the free plan contact limit (500,000). Please upgrade your plan to continue merging.';
             showUpgrade = true;
         } else {
@@ -274,7 +275,7 @@ export function PlanModal({ apiKey, open, onClose, userId, plan, contactCount }:
                                         </li>
                                         <li className="flex items-center justify-center gap-2">
                                             <span className="text-green-500 font-bold">✔️</span>
-                                            <span>Up to <span className="font-semibold">20</span> merge groups</span>
+                                            <span>Up to <span className="font-semibold">{freeMergeGroupLimit}</span> merge groups</span>
                                         </li>
                                         <li className="flex items-center justify-center gap-2">
                                             <span className="text-green-500 font-bold">✔️</span>

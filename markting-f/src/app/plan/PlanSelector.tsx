@@ -1,3 +1,4 @@
+import { freeContactLimit, freeMergeGroupLimit } from '@/constant/main';
 import React from 'react';
 
 interface PlanSelectorProps {
@@ -15,14 +16,14 @@ export function PlanSelector({ onUpgrade, usage }: PlanSelectorProps) {
       <div style={{ border: '1px solid #ccc', padding: 16, marginBottom: 16 }}>
         <h3>Free Plan</h3>
         <ul>
-          <li>20 merge groups/month</li>
+          <li>{freeMergeGroupLimit} merge groups/month</li>
           <li>500,000 contact storage limit</li>
           <li>1 month duration</li>
           <li>No cost</li>
         </ul>
         <div>
-          {usage.mergeGroupsUsed >= 20 && <span style={{ color: 'red' }}>Merge group limit reached. Upgrade required.</span>}
-          {usage.contactCount > 500000 && <span style={{ color: 'red' }}>Contact limit exceeded. Upgrade required.</span>}
+          {usage.mergeGroupsUsed >= freeMergeGroupLimit && <span style={{ color: 'red' }}>Merge group limit reached. Upgrade required.</span>}
+          {usage.contactCount > freeContactLimit && <span style={{ color: 'red' }}>Contact limit exceeded. Upgrade required.</span>}
         </div>
       </div>
       <div style={{ border: '1px solid #ccc', padding: 16 }}>

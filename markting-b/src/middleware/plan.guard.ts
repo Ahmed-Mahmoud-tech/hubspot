@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { UserPlan } from '../entities/user-plan.entity';
 import { PlanType } from '../entities/plan.entity';
+import { freeContactLimit, freeMergeGroupLimit } from 'src/constant/main';
 
 @Injectable()
 export class PlanGuard implements CanActivate {
@@ -14,12 +15,12 @@ export class PlanGuard implements CanActivate {
     const userPlan: UserPlan = request.userPlan;
     // Example enforcement logic
     if (userPlan.planType === PlanType.FREE) {
-      if (userPlan.mergeGroupsUsed >= 20) {
+      if (userPlan.mergeGroupsUsed >= freeMergeGroupLimit) {
         throw new ForbiddenException(
           'Free plan merge group limit exceeded. Upgrade required.',
         );
       }
-      if (userPlan.contactCount > 500000) {
+      if (userPlan.contactCount > freeContactLimit) {
         throw new ForbiddenException(
           'Free plan contact limit exceeded. Upgrade required.',
         );
