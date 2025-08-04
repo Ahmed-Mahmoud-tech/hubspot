@@ -188,9 +188,8 @@ export function PlanModal({ apiKey, open, onClose, userId, plan, contactCount }:
                         💡 For paid plans: <span className="font-semibold text-4xl text-black">$1</span> lets you fetch <span className="font-semibold text-xl">2,000</span> contacts (monthly) or <span className="font-semibold text-xl">4,000</span> contacts (yearly).
                     </div>
                     <div className='flex flex-col md:flex-row gap-4 justify-center'>
-                        <div className="flex flex-col gap-3">
-                            {/* Upgrade Pricing Section - Outside Cards */}
-                            {(userBalance && userBalance.hasBalance && upgradeInfo) && (
+                        {/* <div className="flex flex-col gap-3">
+                             {(userBalance && userBalance.hasBalance && upgradeInfo) && (
                                 <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-2xl p-4 mb-3 shadow-lg">
                                     <div className="flex items-center justify-center mb-2">
                                         <div className="bg-blue-100 rounded-full p-3 mr-3">
@@ -224,8 +223,7 @@ export function PlanModal({ apiKey, open, onClose, userId, plan, contactCount }:
                                 </div>
                             )}
 
-                            {/* Current Plan Balance - Outside Cards */}
-                            {userBalance && userBalance.hasBalance && (
+                             {userBalance && userBalance.hasBalance && (
                                 <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-2xl p-4 mb-3 shadow-lg">
                                     <div className="flex items-center justify-center mb-2">
                                         <div className="bg-green-100 rounded-full p-3 mr-3">
@@ -248,7 +246,7 @@ export function PlanModal({ apiKey, open, onClose, userId, plan, contactCount }:
                                     </div>
                                 </div>
                             )}
-                        </div>
+                        </div> */}
                         <div
                             className={`mb-4 ${(!plan || plan.planType !== 'paid') ? 'grid grid-cols-1 md:grid-cols-2 gap-4' : 'flex justify-center'}`}
                         >
@@ -333,6 +331,21 @@ export function PlanModal({ apiKey, open, onClose, userId, plan, contactCount }:
 
                                 {/* Contact Count Input */}
                                 <div className="mb-2 w-full flex flex-col items-center">
+                                    {/* Quick summary: Balance and Amount to Pay */}
+                                    {(userBalance && userBalance.hasBalance && upgradeInfo) && (
+                                        <div className="flex flex-col items-center mb-2 w-full">
+                                            <div className="flex flex-row justify-center gap-3 w-full">
+                                                <div className="bg-green-50 border border-green-200 rounded-lg px-3 py-1 flex items-center">
+                                                    <span className="text-md me-2 text-green-700 font-semibold">Balance</span>
+                                                    <span className="text-md font-bold text-green-700">${userBalance.balanceAmount.toFixed(2)}</span>
+                                                </div>
+                                                <div className="bg-orange-50 border border-yellow-200 rounded-lg px-3 py-1 flex items-center">
+                                                    <span className="text-md me-2 text-yellow-700 font-semibold">To Pay</span>
+                                                    <span className="text-md font-bold text-yellow-700">${upgradeInfo.finalPrice.toFixed(2)}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
                                     <label className="mb-1 text-xs text-gray-700 font-bold" htmlFor="contactCountInput">📊 Select Contact Count</label>
                                     <div className="relative w-32 mb-2">
                                         <input
