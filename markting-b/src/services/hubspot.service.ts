@@ -1503,4 +1503,48 @@ export class HubSpotService {
       apiKey,
     );
   }
+
+  async updateContactInHubSpot(
+    userId: number,
+    contactId: string,
+    apiKey: string,
+    fields: any,
+  ): Promise<any> {
+    try {
+      // Call HubSpot API to update the contact
+      const response = await axios.patch(
+        `https://api.hubapi.com/crm/v3/objects/contacts/${contactId}`,
+        {
+          properties: fields,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+          },
+        },
+      );
+
+      // After updating HubSpot, update the local contact table
+      await this.contactService.updateContactByHubspotId(contactId, {
+        firstName: fields.firstname,
+        lastName: fields.lastname,
+        phone: fields.phone,
+        company: fields.company,
+      });
+
+      this.logger.log(
+        `Successfully updated contact ${contactId} in HubSpot and local DB`,
+      );
+      return response.data;
+    } catch (error) {
+      this.logger.error(
+        `Failed to update contact ${contactId} in HubSpot:`,
+        error.response?.data || error.message,
+      );
+      throw new BadRequestException(
+        `Failed to update contact in HubSpot: ${error.response?.data?.message || error.message}`,
+      );
+    }
+  }
 }

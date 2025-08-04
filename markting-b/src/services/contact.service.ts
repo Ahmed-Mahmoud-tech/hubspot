@@ -124,4 +124,12 @@ export class ContactService {
       ],
     });
   }
+
+  async updateContactByHubspotId(
+    hubspotId: string,
+    fields: Partial<Contact>,
+  ): Promise<void> {
+    await this.contactRepository.update({ hubspotId }, fields);
+    this.logger.log(`Updated contact in local DB with hubspotId ${hubspotId}`);
+  }
 }

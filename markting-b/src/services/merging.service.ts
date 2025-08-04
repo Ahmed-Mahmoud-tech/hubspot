@@ -179,7 +179,15 @@ export class MergingService {
     };
   }
 
-  async mergeContacts(userId: number, mergeContactsDto: MergeContactsDto) {
+  async mergeContacts(
+    userId: number,
+    mergeContactsDto: MergeContactsDto,
+  ): Promise<{
+    success: boolean;
+    message: string;
+    data: Partial<Contact>;
+    id: string | undefined;
+  }> {
     const { groupId, secondaryAccountId, apiKey } = mergeContactsDto;
     let { primaryAccountId } = mergeContactsDto;
 
@@ -255,42 +263,32 @@ export class MergingService {
 
     try {
       const updatedData: Partial<Contact> = {};
+      let mergedId: string | undefined;
       const additionalEmails = primaryContact.hs_additional_emails
         ? primaryContact.hs_additional_emails.split(',').map((e) => e.trim())
         : [];
 
+      // Keep track of the current primary ID for consecutive merges
+      let currentPrimaryId = primaryAccountId;
+
       for (const secondaryContact of secondaryContacts) {
-        // // Merge in HubSpot
+        // Merge in HubSpot using the current primary ID (which may have been updated from previous merges)
         const mergeResult = await this.mergeContactsInHubSpot(
           apiKey,
-          primaryAccountId,
+          currentPrimaryId,
           secondaryContact.hubspotId,
         );
+        if (mergeResult && mergeResult.id) {
+          mergedId = mergeResult.id;
+          // Update the current primary ID for the next merge
+          currentPrimaryId = mergeResult.id;
+        }
 
         console.log(
           mergeResult,
           '000000000000000000000000000000000rrrrr',
           mergeResult.data,
         );
-
-        // Update only the fields defined in Contact entity from mergeResult.data.properties
-        // if (mergeResult && mergeResult.data && mergeResult.data.properties) {
-        //   const props = mergeResult.data.properties;
-        // const contactUpdate: Partial<Contact> = {
-        //   hs_additional_emails: props.hs_additional_emails,
-        //   hubspotId: props.hs_object_id || props.hubspot_id,
-        //   email: props.email,
-        //   firstName: props.firstname || props.first_name,
-        //   lastName: props.lastname || props.last_name,
-        //   phone: props.phone,
-        //   company: props.company,
-        //   createDate: props.createdate
-        //     ? new Date(props.createdate)
-        //     : undefined,
-        //   lastModifiedDate: props.lastmodifieddate
-        //     ? new Date(props.lastmodifieddate)
-        //     : undefined,
-        // };
 
         // Update additional fields from each secondary contact
         if (mergeResult.id) {
@@ -336,9 +334,9 @@ export class MergingService {
           { id: primaryContact.id },
           updatedData,
         );
-        // }
 
-        primaryAccountId = primaryContact.hubspotId;
+        // Update the primaryAccountId to the merged ID for database consistency
+        primaryAccountId = currentPrimaryId;
 
         // Remove merged secondary contact(s) from group
         // Fix: fetch group, update in JS, then save
@@ -374,6 +372,7 @@ export class MergingService {
         success: true,
         message: 'Contacts merged successfully',
         data: updatedData,
+        id: mergedId,
       };
     } catch (error) {
       throw new BadRequestException(error.message);
@@ -569,6 +568,8 @@ export class MergingService {
       throw new NotFoundException('User not found');
     }
 
+    let updatedPrimaryId: string | undefined;
+
     // Validate primary contact
     const primaryContact = await this.contactRepository.findOne({
       where: { hubspotId: primaryAccountId, user: { id: userId }, apiKey },
@@ -594,16 +595,23 @@ export class MergingService {
       try {
         const mergeData: MergeContactsDto = {
           groupId: batchMergeContactsDto.groupId,
-          primaryAccountId: batchMergeContactsDto.primaryAccountId,
+          primaryAccountId:
+            updatedPrimaryId || batchMergeContactsDto.primaryAccountId,
           secondaryAccountId,
           apiKey: batchMergeContactsDto.apiKey,
         };
+        console.log('6666666666666666666666444444444444444');
 
         const result = await this.mergeContacts(userId, mergeData);
         mergeResults.push({
           secondaryAccountId,
           success: true,
         });
+        console.log('6666666666666666666666444444444444444ss', result);
+
+        updatedPrimaryId = result?.id; // Update primary ID for next merges
+
+        console.log(updatedPrimaryId, 'updatedPrimaryId');
       } catch (error) {
         errors.push({
           secondaryAccountId,

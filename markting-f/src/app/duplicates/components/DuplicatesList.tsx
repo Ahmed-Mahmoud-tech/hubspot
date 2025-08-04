@@ -24,6 +24,7 @@ interface DuplicatesListProps {
     totalPages: number;
     onPageChange: (page: number) => void;
     onMergeClick: (group: DuplicateGroup) => void;
+    onDirectMergeClick: (group: DuplicateGroup) => void;
     onRefresh: () => void;
     selectedContactForTwoGroup: { [groupId: number]: number | null };
     onContactSelect: (groupId: number, contactId: number) => void;
@@ -36,6 +37,7 @@ export default function DuplicatesList({
     totalPages,
     onPageChange,
     onMergeClick,
+    onDirectMergeClick,
     onRefresh,
     selectedContactForTwoGroup,
     onContactSelect,
@@ -131,7 +133,7 @@ export default function DuplicatesList({
                         }`}>
                         <div className="flex items-start justify-between">
                             <div className="flex-1">
-                                <div className="flex items-center mb-6">
+                                <div className="flex items-center mb-6 justify-between flex-wrap gap-2">
                                     <div className="flex items-center">
                                         <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-sm mr-3">
                                             {currentPage > 1 ? (currentPage - 1) * (limit ?? 10) + index + 1 : index + 1}
@@ -141,6 +143,7 @@ export default function DuplicatesList({
                                             <span className="ml-2 text-sm font-normal text-gray-500">({duplicateGroup.group.length} contacts)</span>
                                         </h3>
                                     </div>
+
                                 </div>
 
                                 <div className="grid grid-cols-1 gap-6 sm:grid-cols-2  ">
@@ -253,7 +256,7 @@ export default function DuplicatesList({
                                     </div>
                                 ) : (
                                     <div className="space-y-3">
-                                        <button
+                                        {/* <button
                                             onClick={() => onMergeClick(duplicateGroup)}
                                             disabled={!selectedContactForTwoGroup[duplicateGroup.id]}
                                             className={`cursor-pointer inline-flex items-center px-6 py-3 border border-transparent text-sm font-medium rounded-lg shadow-lg text-white transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2
@@ -268,7 +271,36 @@ export default function DuplicatesList({
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
                                             </svg>
                                             Merge
-                                        </button>
+                                        </button> */}
+
+                                        <div className="flex gap-2 mt-2 sm:mt-0">
+                                            <button
+                                                onClick={() => onDirectMergeClick(duplicateGroup)}
+                                                disabled={selectedContactForTwoGroup[duplicateGroup.id] == null}
+                                                className={`cursor-pointer inline-flex items-center px-6 py-3 border border-transparent text-sm font-medium rounded-lg shadow-lg text-white transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2
+                                                ${selectedContactForTwoGroup[duplicateGroup.id]
+                                                        ? 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 focus:ring-green-500'
+                                                        : 'bg-gray-500 cursor-not-allowed opacity-60'}
+                                            `}
+                                            >
+                                                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
+                                                </svg>    Merge
+                                            </button>
+                                            <button
+                                                onClick={() => onMergeClick(duplicateGroup)}
+                                                disabled={selectedContactForTwoGroup[duplicateGroup.id] == null}
+                                                className={`cursor-pointer inline-flex items-center px-6 py-3 border border-transparent text-sm font-medium rounded-lg shadow-lg text-white transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2
+                                                ${selectedContactForTwoGroup[duplicateGroup.id]
+                                                        ? 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 focus:ring-blue-500'
+                                                        : 'bg-gray-500 cursor-not-allowed opacity-60'}
+                                            `}
+                                            >
+                                                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536M9 13l6.586-6.586a2 2 0 112.828 2.828L11.828 15.828a4 4 0 01-1.414.94l-4.243 1.415 1.415-4.243a4 4 0 01.94-1.414z" />
+                                                </svg>Edit & Merge
+                                            </button>
+                                        </div>
                                     </div>
                                 )}
                             </div>

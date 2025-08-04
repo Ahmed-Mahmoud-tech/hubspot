@@ -201,6 +201,20 @@ const useRequest = () => {
     return response.data;
   };
 
+  const updateContact = async (data: {
+    contactId: string;
+    apiKey: string;
+    fields: {
+      firstname?: string;
+      lastname?: string;
+      phone?: string;
+      company?: string;
+    };
+  }) => {
+    const response = await Request.post("/hubspot/update-contact", data);
+    return response.data;
+  };
+
   // Stripe payment verification
   const verifyStripeSession = async ({
     sessionId,
@@ -310,6 +324,7 @@ const useRequest = () => {
     startHubSpotFetch,
     getDuplicates,
     submitMerge,
+    updateContact,
     resetMerge,
     removeContact,
     mergeContacts,

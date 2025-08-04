@@ -390,4 +390,19 @@ export class HubSpotController {
     });
     return { success: true, data: latestAction };
   }
+
+  @Post('update-contact')
+  async updateContact(
+    @Request() req: any,
+    @Body()
+    updateContactDto: { contactId: string; apiKey: string; fields: any },
+  ) {
+    const userId = req.user.id as number;
+    return this.hubspotService.updateContactInHubSpot(
+      userId,
+      updateContactDto.contactId,
+      updateContactDto.apiKey,
+      updateContactDto.fields,
+    );
+  }
 }

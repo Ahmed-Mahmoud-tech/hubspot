@@ -154,6 +154,11 @@ export class StripeController {
     const successUrl = `${this.configService.get<string>('STRIPE_SUCCESS_URL')}?session_id={CHECKOUT_SESSION_ID}&apiKey=${encodeURIComponent(dto.apiKey)}`;
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
+      payment_method_options: {
+        card: {
+          request_three_d_secure: 'any', // Require 3D Secure for all cards
+        },
+      },
       line_items: [
         {
           price_data: {
