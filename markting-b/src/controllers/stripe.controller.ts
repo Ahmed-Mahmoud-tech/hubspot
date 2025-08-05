@@ -191,11 +191,12 @@ export class StripeController {
 
     await this.paymentRepo.save({
       userId: dto.userId,
-      amount,
+      amount: amount, // amount is already in cents
       status: 'pending',
       stripePaymentIntentId: session.id,
       contactCount: safeContactCount,
       billingType: dto.billingType,
+      originalPrice: Math.round(upgradeInfo.originalPrice * 100), // store originalPrice in cents
     });
 
     return {

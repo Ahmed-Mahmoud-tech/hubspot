@@ -40,4 +40,8 @@ export class Payment {
 
   @Column()
   stripePaymentIntentId: string;
+
+  // originalPrice is stored in cents (integer)
+  @Column('int', { nullable: true })
+  originalPrice: number;
 }

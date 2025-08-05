@@ -200,7 +200,10 @@ export class PlanService {
 
     console.log('1111111111111111111111111111111111111116');
 
-    const originalAmount = payment.amount / 100; // Convert from cents to dollars
+    // const originalAmount = payment.amount / 100; // Convert from cents to dollars
+
+    const originalAmount = payment.originalPrice / 100; // Convert from cents to dollars
+
     const balanceAmount = (originalAmount * remainingDays) / totalDays;
     console.log(
       'startDate',
@@ -237,9 +240,11 @@ export class PlanService {
     canUpgrade: boolean;
     balanceInfo: any;
   }> {
-    // Calculate the new plan price
-    const newPlan = this.getPaidPlan(newContactCount, newBillingType);
-    const originalPrice = newPlan.price;
+    const originalPrice =
+      newContactCount /
+      (newBillingType === 'monthly'
+        ? dividedContactPerMonth
+        : dividedContactPerYear);
 
     // Get user's current balance
     const balanceInfo = await this.calculateUserBalance(userId);

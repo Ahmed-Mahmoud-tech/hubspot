@@ -14,23 +14,22 @@ interface PlanModalProps {
     contactCount: number;
 }
 
-
 export function PlanModal({ apiKey, open, onClose, userId, plan, contactCount }: PlanModalProps) {
     // Move moreThanMonth above useEffect to avoid initialization error
     const moreThanMonth = plan && plan.planType === 'paid' && plan.billingEndDate && new Date(plan.billingEndDate) > new Date(new Date().setMonth(new Date().getMonth() + 1));
     const { createStripeCheckoutSession, getUserBalance, calculateUpgradePrice } = useRequest();
-    // Assign stripeCountLimit only once and memoize for future-proofing
-    const stripeCountLimit = React.useMemo(() => dividedContactPerMonth, []);
+
     const initialContactCount = contactCount || freeContactLimit;
     // If plan is null, fallback to free plan for UI, but show correct message
     const [localPlan, setLocalPlan] = useState({ type: 'free', mergeGroupsUsed: 0, contactCount: initialContactCount });
-    // Add input state for contact count (for paid plan), always not less than stripeCountLimit
-    const [inputContactCount, setInputContactCount] = useState(() => Math.max(initialContactCount + dividedContactPerMonth, stripeCountLimit));
+    // Add input state for contact count (for paid plan)
+    const [inputContactCount, setInputContactCount] = useState(initialContactCount + 500);
     const [error, setError] = useState('');
     const [billingType, setBillingType] = useState<'monthly' | 'yearly'>('monthly');
     const [upgradeInfo, setUpgradeInfo] = useState<any>(null);
     const [userBalance, setUserBalance] = useState<any>(null);
     const modalRef = useRef<HTMLDivElement>(null);
+    const stripeCountLimit = dividedContactPerMonth;
 
 
     // Move moreThanMonth above useEffect to avoid initialization error
@@ -81,10 +80,10 @@ export function PlanModal({ apiKey, open, onClose, userId, plan, contactCount }:
                 mergeGroupsUsed: plan.mergeGroupsUsed || 0,
                 contactCount: plan.contactCount || initialContactCount,
             });
-            setInputContactCount(Math.max((plan.contactCount || initialContactCount) + dividedContactPerMonth, stripeCountLimit));
+            setInputContactCount((plan.contactCount || initialContactCount) + 500);
         } else {
             setLocalPlan({ type: 'free', mergeGroupsUsed: 0, contactCount: contactCount || initialContactCount });
-            setInputContactCount(Math.max((contactCount || initialContactCount) + dividedContactPerMonth, stripeCountLimit));
+            setInputContactCount((contactCount || initialContactCount) + 500);
         }
 
         // If monthly is disabled, set billingType to yearly
@@ -191,7 +190,7 @@ export function PlanModal({ apiKey, open, onClose, userId, plan, contactCount }:
                     </div>
                     <div className='flex flex-col md:flex-row gap-4 justify-center'>
                         {/* <div className="flex flex-col gap-3">
-                            {(userBalance && userBalance.hasBalance && upgradeInfo) && (
+                             {(userBalance && userBalance.hasBalance && upgradeInfo) && (
                                 <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-2xl p-4 mb-3 shadow-lg">
                                     <div className="flex items-center justify-center mb-2">
                                         <div className="bg-blue-100 rounded-full p-3 mr-3">
@@ -204,7 +203,7 @@ export function PlanModal({ apiKey, open, onClose, userId, plan, contactCount }:
                                     <div className="grid md:grid-cols-3 gap-2 text-center">
                                         <div className="bg-white rounded-xl p-4 shadow-sm">
                                             <p className="text-sm text-gray-600 mb-1">Original Price</p>
-                                            <p className="text-2xl font-bold text-gray-800">${billingType === 'monthly' ? monthlyCost.toFixed(2) : yearlyMonthlyCost?.toFixed(2)}</p>
+                                            <p className="text-2xl font-bold text-gray-800">${upgradeInfo?.originalPrice?.toFixed(2)}</p>
                                         </div>
                                         {upgradeInfo.userBalance > 0 && (
                                             <div className="bg-green-50 rounded-xl p-4 shadow-sm border border-green-200">
@@ -225,7 +224,7 @@ export function PlanModal({ apiKey, open, onClose, userId, plan, contactCount }:
                                 </div>
                             )}
 
-                            {userBalance && userBalance.hasBalance && (
+                             {userBalance && userBalance.hasBalance && (
                                 <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-2xl p-4 mb-3 shadow-lg">
                                     <div className="flex items-center justify-center mb-2">
                                         <div className="bg-green-100 rounded-full p-3 mr-3">
@@ -349,24 +348,17 @@ export function PlanModal({ apiKey, open, onClose, userId, plan, contactCount }:
                                         </div>
                                     )}
                                     <label className="mb-1 text-xs text-gray-700 font-bold" htmlFor="contactCountInput">📊 Select Contact Count</label>
-                                    {/* Show minimum charge error in card if upgradeInfo exists and !upgradeInfo.canUpgrade */}
-                                    {upgradeInfo && !upgradeInfo.canUpgrade && (
-                                        <div className="mt-2 mb-2 bg-red-50 border border-red-200 rounded-lg p-2 text-center w-full">
-                                            <p className="text-red-600 text-xs font-medium">⚠️ Minimum charge of $1.00 required for upgrade</p>
-                                        </div>
-                                    )}
                                     <div className="relative w-32 mb-2">
                                         <input
                                             id="contactCountInput"
                                             type="number"
                                             min={Math.max(localPlan.contactCount, stripeCountLimit)}
-                                            value={inputContactCount === 0 ? '' : inputContactCount}
+                                            value={inputContactCount === 0 ? '' : Math.max(inputContactCount, stripeCountLimit)}
                                             onChange={e => {
                                                 const val = e.target.value;
                                                 if (val === '') {
                                                     setInputContactCount(0);
                                                 } else {
-                                                    // Allow user to type any value, only enforce min onBlur
                                                     setInputContactCount(Number(val));
                                                 }
                                             }}
