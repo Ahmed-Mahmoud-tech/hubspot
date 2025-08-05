@@ -1,2 +1,1 @@
-payment depend on the last payment not for the price 
-fetch all fields and make user select so you need to change all fields to be Dynamic
+new fields
