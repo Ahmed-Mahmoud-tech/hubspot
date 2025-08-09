@@ -22,6 +22,7 @@ interface Contact {
     phone?: string;
     company?: string;
     hs_additional_emails?: string;
+    otherProperties?: Record<string, any>;
 }
 
 export default function DuplicatesPage() {
@@ -333,6 +334,16 @@ function DuplicatesPageContent() {
                 fieldsToUpdate.company = updatedPrimaryData.company;
             }
 
+            // Handle other properties
+            if (updatedPrimaryData.otherProperties) {
+                Object.entries(updatedPrimaryData.otherProperties).forEach(([key, value]) => {
+                    const currentValue = primaryContact.otherProperties?.[key];
+                    if (value !== currentValue) {
+                        fieldsToUpdate[key] = value;
+                    }
+                });
+            }
+
             let updatedContactId = primaryContact.hubspotId;
 
             if (Object.keys(fieldsToUpdate).length > 0) {
@@ -355,6 +366,7 @@ function DuplicatesPageContent() {
                         lastName: updatedPrimaryData.lastName,
                         phone: updatedPrimaryData.phone,
                         company: updatedPrimaryData.company,
+                        otherProperties: updatedPrimaryData.otherProperties,
                         hubspotId: updatedContactId,
                     };
                     return { ...g, group: updatedGroup };

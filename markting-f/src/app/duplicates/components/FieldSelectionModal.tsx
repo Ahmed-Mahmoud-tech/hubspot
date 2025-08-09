@@ -12,6 +12,7 @@ interface Contact {
     phone?: string;
     company?: string;
     hs_additional_emails?: string;
+    otherProperties?: Record<string, any>;
 }
 
 interface FieldData {
@@ -19,6 +20,7 @@ interface FieldData {
     lastName?: string;
     phone?: string;
     company?: string;
+    otherProperties?: Record<string, any>;
 }
 
 interface FieldSelectionModalProps {
@@ -41,6 +43,7 @@ export default function FieldSelectionModal({
         lastName: primaryContact.lastName || '',
         phone: primaryContact.phone || '',
         company: primaryContact.company || '',
+        otherProperties: primaryContact.otherProperties || {},
     });
 
     // Reset form when modal opens with new data
@@ -51,6 +54,7 @@ export default function FieldSelectionModal({
                 lastName: primaryContact.lastName || '',
                 phone: primaryContact.phone || '',
                 company: primaryContact.company || '',
+                otherProperties: primaryContact.otherProperties || {},
             });
         }
     }, [isOpen, primaryContact]);
@@ -62,6 +66,43 @@ export default function FieldSelectionModal({
             ...prev,
             [field]: value
         }));
+    };
+
+    const handleOtherPropertyChange = (propertyName: string, value: string) => {
+        setSelectedFields(prev => ({
+            ...prev,
+            otherProperties: {
+                ...prev.otherProperties,
+                [propertyName]: value
+            }
+        }));
+    };
+
+    // Get all unique other properties from all contacts
+    const getAllOtherProperties = () => {
+        const allContacts = [primaryContact, ...secondaryContacts];
+        const allOtherProperties: Record<string, Set<string>> = {};
+        
+        allContacts.forEach(contact => {
+            if (contact.otherProperties) {
+                Object.entries(contact.otherProperties).forEach(([key, value]) => {
+                    if (!allOtherProperties[key]) {
+                        allOtherProperties[key] = new Set();
+                    }
+                    if (value && value.toString().trim()) {
+                        allOtherProperties[key].add(value.toString());
+                    }
+                });
+            }
+        });
+
+        // Convert sets to arrays
+        const result: Record<string, string[]> = {};
+        Object.entries(allOtherProperties).forEach(([key, valueSet]) => {
+            result[key] = Array.from(valueSet);
+        });
+        
+        return result;
     };
 
     const handleConfirm = () => {
@@ -251,6 +292,58 @@ export default function FieldSelectionModal({
                             </div>
                         </div>
                     </div>
+
+                    {/* Other Properties */}
+                    {Object.keys(getAllOtherProperties()).length > 0 && (
+                        <div className="bg-gray-50 rounded-xl p-5 shadow-sm border border-gray-100 transition hover:shadow-md mt-6">
+                            <label className="block text-sm font-semibold text-gray-700 mb-3 tracking-wide">
+                                Additional Properties
+                            </label>
+                            <div className="space-y-4">
+                                {Object.entries(getAllOtherProperties()).map(([propertyName, options]) => (
+                                    <div key={propertyName} className="bg-white rounded-lg p-4 border border-gray-200">
+                                        <label className="block text-xs font-medium text-gray-600 mb-2 uppercase tracking-wider">
+                                            {propertyName}
+                                        </label>
+                                        <div className="space-y-2">
+                                            {options.map((option, index) => (
+                                                <label key={index} className="flex items-center gap-2 cursor-pointer group py-1 px-2 rounded-lg transition hover:bg-blue-50">
+                                                    <input
+                                                        type="radio"
+                                                        name={`otherProperty_${propertyName}`}
+                                                        value={option}
+                                                        checked={selectedFields.otherProperties?.[propertyName] === option}
+                                                        onChange={(e) => handleOtherPropertyChange(propertyName, e.target.value)}
+                                                        className="accent-blue-600 w-4 h-4 transition group-hover:scale-110"
+                                                    />
+                                                    <span className="text-sm text-gray-800 group-hover:text-blue-700 font-medium break-words flex-1">
+                                                        {option.length > 80 ? `${option.substring(0, 80)}...` : option}
+                                                    </span>
+                                                </label>
+                                            ))}
+                                            <div className="flex items-center gap-2 mt-2 bg-gray-50 rounded-lg border border-gray-200 px-2 py-1 shadow-inner">
+                                                <input
+                                                    type="radio"
+                                                    name={`otherProperty_${propertyName}`}
+                                                    value=""
+                                                    checked={!options.includes(selectedFields.otherProperties?.[propertyName] || '')}
+                                                    onChange={() => { }}
+                                                    className="accent-blue-600 w-4 h-4"
+                                                />
+                                                <input
+                                                    type="text"
+                                                    placeholder={`Enter custom ${propertyName}`}
+                                                    value={options.includes(selectedFields.otherProperties?.[propertyName] || '') ? '' : selectedFields.otherProperties?.[propertyName] || ''}
+                                                    onChange={(e) => handleOtherPropertyChange(propertyName, e.target.value)}
+                                                    className="flex-1 px-3 py-2 rounded-md focus:outline-none text-gray-900 transition bg-white border border-gray-200"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* Footer */}

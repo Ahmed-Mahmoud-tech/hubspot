@@ -133,6 +133,25 @@ export class ContactService {
     });
   }
 
+  async getContactByHubspotId(hubspotId: string): Promise<Contact | null> {
+    return this.contactRepository.findOne({
+      where: { hubspotId },
+      select: [
+        'id',
+        'hubspotId',
+        'email',
+        'firstName',
+        'lastName',
+        'phone',
+        'company',
+        'hs_additional_emails',
+        'createDate',
+        'lastModifiedDate',
+        'otherProperties',
+      ],
+    });
+  }
+
   async deleteContactsByApiKey(apiKey: string): Promise<void> {
     await this.contactRepository.delete({ apiKey });
     this.logger.log(`Deleted all contacts for API key ${apiKey}`);

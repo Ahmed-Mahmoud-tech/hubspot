@@ -1528,11 +1528,50 @@ export class HubSpotService {
       );
 
       // After updating HubSpot, update the local contact table
+      // Separate standard properties from other properties
+      const standardProps: any = {};
+      const otherProps: any = {};
+
+      // Standard property mappings
+      if (fields.firstname !== undefined)
+        standardProps.firstName = fields.firstname;
+      if (fields.lastname !== undefined)
+        standardProps.lastName = fields.lastname;
+      if (fields.phone !== undefined) standardProps.phone = fields.phone;
+      if (fields.company !== undefined) standardProps.company = fields.company;
+      if (fields.email !== undefined) standardProps.email = fields.email;
+      if (fields.hs_additional_emails !== undefined)
+        standardProps.hs_additional_emails = fields.hs_additional_emails;
+
+      // Extract other properties (non-standard ones)
+      const standardFieldNames = [
+        'firstname',
+        'lastname',
+        'phone',
+        'company',
+        'email',
+        'hs_additional_emails',
+      ];
+      Object.entries(fields).forEach(([key, value]) => {
+        if (!standardFieldNames.includes(key) && value !== undefined) {
+          otherProps[key] = value;
+        }
+      });
+
+      // Get current other properties and merge with new ones
+      const currentContact =
+        await this.contactService.getContactByHubspotId(contactId);
+      const currentOtherProperties = currentContact?.otherProperties || {};
+      const mergedOtherProperties = {
+        ...currentOtherProperties,
+        ...otherProps,
+      };
+
       await this.contactService.updateContactByHubspotId(contactId, {
-        firstName: fields.firstname,
-        lastName: fields.lastname,
-        phone: fields.phone,
-        company: fields.company,
+        ...standardProps,
+        ...(Object.keys(mergedOtherProperties).length > 0 && {
+          otherProperties: mergedOtherProperties,
+        }),
       });
 
       this.logger.log(
