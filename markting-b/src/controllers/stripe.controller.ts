@@ -112,11 +112,6 @@ export class StripeController {
       apiKey: string;
     },
   ) {
-    console.log(
-      this.configService.get<string>('STRIPE_SUCCESS_URL'),
-      '55555555554444',
-    );
-
     // Calculate upgrade pricing with balance consideration
     const upgradeInfo = await this.planService.calculateUpgradePrice(
       dto.userId,
@@ -136,21 +131,6 @@ export class StripeController {
     // Enforce minimum contact count for Stripe minimum charge ($1.00)
     const minContactCount = dividedContactPerMonth; // $1.00 minimum for monthly (2000 contacts)
     const safeContactCount = Math.max(dto.contactCount, minContactCount);
-
-    console.log(
-      dto.billingType,
-      'billingType',
-      'amount',
-      amount,
-      'finalPrice',
-      upgradeInfo.finalPrice,
-      'userBalance',
-      upgradeInfo.userBalance,
-      'originalPrice',
-      upgradeInfo.originalPrice,
-      safeContactCount,
-      'safeContactCount',
-    );
 
     const successUrl = `${this.configService.get<string>('STRIPE_SUCCESS_URL')}?session_id={CHECKOUT_SESSION_ID}&apiKey=${encodeURIComponent(dto.apiKey)}`;
     const session = await stripe.checkout.sessions.create({

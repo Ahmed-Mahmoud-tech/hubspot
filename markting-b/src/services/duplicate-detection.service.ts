@@ -69,8 +69,12 @@ export class DuplicateDetectionService {
     const duplicateGroups: number[][] = [];
     const processedContacts = new Set<number>();
 
+    // Parse filters to identify what checks to perform
+    const filterConfig = this.parseFilters(filters || []);
+    this.logger.log('Filter configuration:', filterConfig);
+
     // Always check for same_email (hidden default)
-    if (!filters || filters.includes('same_email')) {
+    if (filterConfig.sameEmail) {
       this.logger.log('Finding email duplicates using SQL...');
       const emailDuplicates = await this.findEmailDuplicates(apiKey, userId);
       for (const group of emailDuplicates) {
@@ -84,10 +88,18 @@ export class DuplicateDetectionService {
       this.logger.log(`Found ${emailDuplicates.length} email duplicate groups`);
     }
 
-    if (!filters || filters.includes('phone')) {
-      this.logger.log('Finding phone duplicates using SQL...');
-      const phoneDuplicates = await this.findPhoneDuplicates(apiKey, userId);
-      for (const group of phoneDuplicates) {
+    // Process dynamic conditions
+    for (const condition of filterConfig.conditions) {
+      this.logger.log(
+        `Processing condition: ${condition.name} with properties: ${condition.properties.join(', ')}`,
+      );
+      const conditionDuplicates = await this.findDynamicDuplicates(
+        apiKey,
+        userId,
+        condition.properties,
+      );
+
+      for (const group of conditionDuplicates) {
         const contactIds = group.contact_ids;
         const unprocessedIds = contactIds.filter(
           (id: number) => !processedContacts.has(id),
@@ -96,9 +108,10 @@ export class DuplicateDetectionService {
           duplicateGroups.push(unprocessedIds);
           unprocessedIds.forEach((id: number) => processedContacts.add(id));
           this.logger.log(
-            `Found phone duplicate group: ${unprocessedIds.length} contacts with phone "${group.phone}"`,
+            `Found ${condition.name} duplicate group: ${unprocessedIds.length} contacts`,
           );
         } else if (unprocessedIds.length === 1) {
+          // Try to merge with existing group
           const existingGroupIndex = duplicateGroups.findIndex(
             (existingGroup) =>
               contactIds.some((id: number) => existingGroup.includes(id)),
@@ -107,78 +120,11 @@ export class DuplicateDetectionService {
             duplicateGroups[existingGroupIndex].push(unprocessedIds[0]);
             processedContacts.add(unprocessedIds[0]);
             this.logger.log(
-              `Merged contact ${unprocessedIds[0]} with existing group by phone`,
+              `Merged contact ${unprocessedIds[0]} with existing group by ${condition.name}`,
             );
           }
         }
       }
-      this.logger.log(`Processed ${phoneDuplicates.length} phone groups`);
-    }
-
-    if (!filters || filters.includes('first_last_name')) {
-      this.logger.log('Finding first & last name duplicates using SQL...');
-      const nameDuplicates = await this.findFirstLastNameDuplicates(
-        apiKey,
-        userId,
-      );
-      for (const group of nameDuplicates) {
-        const contactIds = group.contact_ids;
-        const unprocessedIds = contactIds.filter(
-          (id: number) => !processedContacts.has(id),
-        );
-        if (unprocessedIds.length > 1) {
-          duplicateGroups.push(unprocessedIds);
-          unprocessedIds.forEach((id: number) => processedContacts.add(id));
-          this.logger.log(
-            `Found first & last name duplicate group: ${unprocessedIds.length} contacts with name "${group.first_name} ${group.last_name}"`,
-          );
-        }
-      }
-    }
-
-    if (!filters || filters.includes('first_name_phone')) {
-      this.logger.log('Finding first name & phone duplicates using SQL...');
-      const namePhoneDuplicates = await this.findFirstNamePhoneDuplicates(
-        apiKey,
-        userId,
-      );
-      for (const group of namePhoneDuplicates) {
-        const contactIds = group.contact_ids;
-        const unprocessedIds = contactIds.filter(
-          (id: number) => !processedContacts.has(id),
-        );
-        if (unprocessedIds.length > 1) {
-          duplicateGroups.push(unprocessedIds);
-          unprocessedIds.forEach((id: number) => processedContacts.add(id));
-          this.logger.log(
-            `Found first name & phone duplicate group: ${unprocessedIds.length} contacts with name "${group.first_name}" and phone "${group.phone}"`,
-          );
-        }
-      }
-    }
-
-    if (!filters || filters.includes('first_last_name_company')) {
-      this.logger.log('Finding name+company duplicates using SQL...');
-      const nameCompanyDuplicates = await this.findNameCompanyDuplicates(
-        apiKey,
-        userId,
-      );
-      for (const group of nameCompanyDuplicates) {
-        const contactIds = group.contact_ids;
-        const unprocessedIds = contactIds.filter(
-          (id: number) => !processedContacts.has(id),
-        );
-        if (unprocessedIds.length > 1) {
-          duplicateGroups.push(unprocessedIds);
-          unprocessedIds.forEach((id: number) => processedContacts.add(id));
-          this.logger.log(
-            `Found name+company duplicate group: ${unprocessedIds.length} contacts with name "${group.first_name} ${group.last_name}" at "${group.company}"`,
-          );
-        }
-      }
-      this.logger.log(
-        `Processed ${nameCompanyDuplicates.length} name+company groups`,
-      );
     }
 
     // Filter out any groups that somehow ended up with only 1 contact
@@ -190,6 +136,91 @@ export class DuplicateDetectionService {
 
     // Save duplicate groups
     await this.saveDuplicateGroups(validGroups, apiKey, userId);
+  }
+
+  /**
+   * Parse filter strings into a structured configuration
+   * Filter examples:
+   * - "same_email" - use email matching
+   * - "condition_0:phone" - condition 0 with phone property
+   * - "condition_1:firstname,lastname" - condition 1 with firstname and lastname
+   */
+  private parseFilters(filters: string[]): {
+    sameEmail: boolean;
+    conditions: Array<{ name: string; properties: string[] }>;
+  } {
+    const config = {
+      sameEmail: false,
+      conditions: [] as Array<{ name: string; properties: string[] }>,
+    };
+
+    for (const filter of filters) {
+      if (filter === 'same_email') {
+        config.sameEmail = true;
+      } else if (filter.startsWith('condition_') && filter.includes(':')) {
+        const [conditionName, propertyList] = filter.split(':');
+        const properties = propertyList.split(',').map((p) => p.trim());
+        config.conditions.push({
+          name: conditionName,
+          properties,
+        });
+      }
+    }
+
+    return config;
+  }
+
+  /**
+   * Find duplicates based on dynamic property combinations
+   */
+  private async findDynamicDuplicates(
+    apiKey: string,
+    userId: number,
+    properties: string[],
+  ): Promise<any[]> {
+    // Map frontend property names to database column names
+    const propertyMapping: Record<string, string> = {
+      firstname: 'first_name',
+      lastname: 'last_name',
+      email: 'email',
+      phone: 'phone',
+      company: 'company',
+    };
+
+    // Convert properties to database column names
+    const dbColumns = properties.map((prop) => {
+      const dbColumn = propertyMapping[prop];
+      if (dbColumn) {
+        return `"${dbColumn}"`;
+      }
+      // For properties stored in otherProperties JSON column
+      return `other_properties->>'${prop}'`;
+    });
+
+    // Build WHERE conditions for non-null values
+    const whereConditions = properties
+      .map((prop, index) => {
+        const dbColumn = propertyMapping[prop];
+        if (dbColumn) {
+          return `"${dbColumn}" IS NOT NULL AND "${dbColumn}" != ''`;
+        }
+        return `other_properties->>'${prop}' IS NOT NULL AND other_properties->>'${prop}' != ''`;
+      })
+      .join(' AND ');
+
+    // Build the dynamic SQL query
+    const query = `
+      SELECT ${dbColumns.join(', ')}, array_agg(id) as contact_ids, count(*) as count
+      FROM contacts
+      WHERE "api_key" = $1 AND "user_id" = $2
+        AND ${whereConditions}
+      GROUP BY ${dbColumns.join(', ')}
+      HAVING count(*) > 1
+    `;
+
+    this.logger.log(`Executing dynamic duplicate query: ${query}`);
+
+    return this.matchingRepository.query(query, [apiKey, userId]);
   }
 
   private async findEmailDuplicates(

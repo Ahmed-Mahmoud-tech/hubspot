@@ -17,6 +17,10 @@ import { User } from './user.entity';
 export class Contact {
   @Column({ name: 'hs_additional_emails', type: 'text', nullable: true })
   hs_additional_emails?: string;
+
+  @Column({ name: 'other_properties', type: 'json', nullable: true })
+  otherProperties?: Record<string, any>;
+
   @PrimaryGeneratedColumn()
   id: number;
 

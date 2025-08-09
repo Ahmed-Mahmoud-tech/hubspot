@@ -198,6 +198,7 @@ export class HubSpotService {
             apiKey,
             after,
             limit,
+            filters,
           );
         } catch (error) {
           this.logger.error(

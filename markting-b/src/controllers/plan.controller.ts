@@ -53,8 +53,6 @@ export class PlanController {
   @Get('balance')
   async getUserBalance(@Req() req) {
     const userId = req.user?.id;
-    console.log('1111111111111111111111uuuu');
-
     return this.planService.calculateUserBalance(userId);
   }
 

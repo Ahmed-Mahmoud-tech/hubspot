@@ -212,8 +212,6 @@ export class HubSpotController {
     @Body() finishProcessDto: FinishProcessDto,
   ) {
     const userId = req.user.id as number;
-    console.log('00000000000000000000000000000000', userId, finishProcessDto);
-
     return this.hubspotService.finishProcess(userId, finishProcessDto);
   }
 

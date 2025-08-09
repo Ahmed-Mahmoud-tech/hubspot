@@ -146,6 +146,7 @@ export class MatchingService {
             lastName: contact.lastName,
             phone: contact.phone,
             company: contact.company,
+            otherProperties: contact.otherProperties,
           }));
 
         return {

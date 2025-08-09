@@ -1,5 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import axios from 'axios';
+import * as fs from 'fs';
+import * as path from 'path';
 
 interface HubSpotContact {
   id: string;
@@ -52,9 +54,6 @@ export class HubSpotApiService {
           params: params as Record<string, string | number>,
         });
 
-        this.logger.log(`API request successful on attempt ${attempt}`);
-        console.log(JSON.stringify(response.data, null, 2));
-
         return response;
       } catch (error) {
         lastError = error;
@@ -105,38 +104,57 @@ export class HubSpotApiService {
     apiKey: string,
     after?: string,
     limit: number = 100,
+    filters?: string[],
   ): Promise<HubSpotListResponse> {
-    const properties = [
+    // Default properties that are always fetched
+    const defaultProperties = [
       'firstname',
       'lastname',
       'email',
       'phone',
       'company',
       'hs_additional_emails',
-    ].join(',');
+      'createdate',
+      'lastmodifieddate',
+      'hs_object_id',
+    ];
 
-    const url = `https://api.hubapi.com/crm/v3/objects/contacts?limit=100&properties=${properties}`;
+    // Extract additional properties from filters
+    const additionalProperties = this.extractPropertiesFromFilters(
+      filters || [],
+    );
+
+    // Combine default and additional properties, removing duplicates
+    const allProperties = [
+      ...new Set([...defaultProperties, ...additionalProperties]),
+    ];
+
+    // Add allProperties to the URL for debugging and clarity
+    const url = `https://api.hubapi.com/crm/v3/objects/contacts?properties=${encodeURIComponent(allProperties.join(','))}`;
 
     const params: any = {
       limit,
-      properties: [
-        'email',
-        'firstname',
-        'lastname',
-        'phone',
-        'company',
-        'createdate',
-        'lastmodifieddate',
-        'hs_object_id',
-      ],
     };
-
     if (after) {
       params.after = after;
     }
 
     const response = await this.makeHubSpotAPIRequest(url, apiKey, params);
     const data = response.data as HubSpotListResponse;
+
+    // Debug: log file path and handle errors
+    const outputFile = path.join(__dirname, 'hubspot-contacts.json');
+    const contactsData = JSON.stringify(data, null, 2);
+    try {
+      this.logger.log(
+        `Appending contacts data to: ${outputFile} xxxxxxx ${JSON.stringify(allProperties)}`,
+      );
+      fs.appendFileSync(outputFile, contactsData + '\n');
+      this.logger.log('Append successful');
+    } catch (err) {
+      this.logger.error('Append failed:', err);
+    }
+
     // Set hs_additional_emails property for each contact if present
     if (data.results) {
       data.results = data.results.map((contact) => {
@@ -148,6 +166,27 @@ export class HubSpotApiService {
       });
     }
     return data;
+  }
+
+  /**
+   * Extract property names from filter strings
+   * Filter format examples:
+   * - "same_email" - ignore
+   * - "condition_0:phone" - extract "phone"
+   * - "condition_1:firstname,lastname" - extract "firstname" and "lastname"
+   */
+  private extractPropertiesFromFilters(filters: string[]): string[] {
+    const properties: string[] = [];
+
+    for (const filter of filters) {
+      if (filter.startsWith('condition_') && filter.includes(':')) {
+        const [, propertyList] = filter.split(':');
+        const filterProperties = propertyList.split(',').map((p) => p.trim());
+        properties.push(...filterProperties);
+      }
+    }
+
+    return properties;
   }
 
   async updateHubSpotContact(

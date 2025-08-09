@@ -130,7 +130,6 @@ export class PlanService {
     originalAmount: number;
     totalDays: number;
   }> {
-    console.log('111111111111111111111111111111111111111ww');
     // Get the current user plan
     const currentPlan = await this.userPlanRepo.findOne({
       where: {
@@ -141,7 +140,6 @@ export class PlanService {
       order: { activationDate: 'DESC' },
       relations: ['payment'],
     });
-    console.log('111111111111111111111111111111111111111qqq');
 
     if (!currentPlan || !currentPlan.billingEndDate || !currentPlan.paymentId) {
       return {
@@ -152,7 +150,6 @@ export class PlanService {
         totalDays: 0,
       };
     }
-    console.log('111111111111111111111111111111111111111');
 
     const now = new Date();
     const endDate = new Date(currentPlan.billingEndDate);
@@ -167,13 +164,11 @@ export class PlanService {
         totalDays: 0,
       };
     }
-    console.log('1111111111111111111111111111111111111112');
 
     // Get the payment information
     const payment = await this.paymentRepo.findOne({
       where: { id: currentPlan.paymentId },
     });
-    console.log('1111111111111111111111111111111111111113');
 
     if (!payment || payment.status !== 'completed') {
       return {
@@ -184,21 +179,16 @@ export class PlanService {
         totalDays: 0,
       };
     }
-
-    console.log('1111111111111111111111111111111111111114');
     // Calculate remaining days
     const remainingDays = Math.ceil(
       (endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
     );
 
-    console.log('1111111111111111111111111111111111111115');
     // Calculate total days from activation to end
     const startDate = new Date(currentPlan.activationDate);
     const totalDays = Math.ceil(
       (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24),
     );
-
-    console.log('1111111111111111111111111111111111111116');
 
     // const originalAmount = payment.amount / 100; // Convert from cents to dollars
 

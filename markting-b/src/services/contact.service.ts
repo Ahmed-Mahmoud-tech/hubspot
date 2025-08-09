@@ -32,24 +32,53 @@ export class ContactService {
     apiKey: string,
     userId: number,
   ): Promise<void> {
-    const contactEntities = hubspotContacts.map((hsContact) => ({
-      hubspotId: hsContact.id,
-      email: hsContact.properties.email || undefined,
-      firstName: hsContact.properties.firstname || undefined,
-      lastName: hsContact.properties.lastname || undefined,
-      phone: hsContact.properties.phone || undefined,
-      company: hsContact.properties.company || undefined,
-      hs_additional_emails:
-        hsContact.properties.hs_additional_emails || undefined,
-      createDate: hsContact.properties.createdate
-        ? new Date(hsContact.properties.createdate)
-        : undefined,
-      lastModifiedDate: hsContact.properties.lastmodifieddate
-        ? new Date(hsContact.properties.lastmodifieddate)
-        : undefined,
-      apiKey,
-      user: { id: userId },
-    }));
+    const contactEntities = hubspotContacts.map((hsContact) => {
+      // Standard properties
+      const standardProps = {
+        hubspotId: hsContact.id,
+        email: hsContact.properties.email || undefined,
+        firstName: hsContact.properties.firstname || undefined,
+        lastName: hsContact.properties.lastname || undefined,
+        phone: hsContact.properties.phone || undefined,
+        company: hsContact.properties.company || undefined,
+        hs_additional_emails:
+          hsContact.properties.hs_additional_emails || undefined,
+        createDate: hsContact.properties.createdate
+          ? new Date(hsContact.properties.createdate)
+          : undefined,
+        lastModifiedDate: hsContact.properties.lastmodifieddate
+          ? new Date(hsContact.properties.lastmodifieddate)
+          : undefined,
+        apiKey,
+        user: { id: userId },
+      };
+
+      // Extract additional properties (excluding standard ones)
+      const standardPropertyNames = [
+        'email',
+        'firstname',
+        'lastname',
+        'phone',
+        'company',
+        'hs_additional_emails',
+        'createdate',
+        'lastmodifieddate',
+        'hs_object_id',
+      ];
+
+      const otherProperties: Record<string, any> = {};
+      for (const [key, value] of Object.entries(hsContact.properties)) {
+        if (!standardPropertyNames.includes(key) && value !== undefined) {
+          otherProperties[key] = value;
+        }
+      }
+
+      return {
+        ...standardProps,
+        otherProperties:
+          Object.keys(otherProperties).length > 0 ? otherProperties : undefined,
+      };
+    });
 
     // Use save with upsert option to handle potential duplicates
     await this.contactRepository.save(contactEntities, { chunk: 50 });
@@ -75,6 +104,7 @@ export class ContactService {
         'createDate',
         'lastModifiedDate',
         'hs_additional_emails',
+        'otherProperties',
       ],
     });
   }
@@ -92,6 +122,7 @@ export class ContactService {
         'hubspotId',
         'lastModifiedDate',
         'hs_additional_emails',
+        'otherProperties',
       ],
     });
   }
@@ -121,6 +152,7 @@ export class ContactService {
         'lastName',
         'company',
         'hs_additional_emails',
+        'otherProperties',
       ],
     });
   }
