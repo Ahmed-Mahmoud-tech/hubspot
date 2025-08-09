@@ -192,7 +192,11 @@ const useRequest = () => {
     filters: string[];
   }): Promise<{ message: string; actionId: number; status: string }> => {
     const response = await Request.post("/hubspot/start-fetch", data);
-    return response.data as { message: string; actionId: number; status: string };
+    return response.data as {
+      message: string;
+      actionId: number;
+      status: string;
+    };
   };
 
   const getHubSpotProperties = async (apiKey: string): Promise<string[]> => {
@@ -200,15 +204,25 @@ const useRequest = () => {
       const response = await Request.get(
         `/hubspot/properties?apiKey=${encodeURIComponent(apiKey)}`
       );
-      
+
       // Handle the actual response structure from HubSpot API
       const responseData = response.data;
-      
+
       // HubSpot API returns: { results: [{ name, label, ... }, ...] }
-      if (responseData && typeof responseData === 'object' && 'results' in responseData && Array.isArray(responseData.results)) {
+      if (
+        responseData &&
+        typeof responseData === "object" &&
+        "results" in responseData &&
+        Array.isArray(responseData.results)
+      ) {
         // Extract property names from the HubSpot API response structure
         return responseData.results.map((property: any) => property.name);
-      } else if (responseData && typeof responseData === 'object' && 'success' in responseData && 'properties' in responseData) {
+      } else if (
+        responseData &&
+        typeof responseData === "object" &&
+        "success" in responseData &&
+        "properties" in responseData
+      ) {
         // Handle custom wrapped response format if backend changes
         const properties = (responseData as any).properties;
         if (Array.isArray(properties)) {
@@ -218,31 +232,43 @@ const useRequest = () => {
         // Fallback for simple array response
         return responseData;
       }
-      
-      console.error('Unexpected response format:', responseData);
+
+      console.error("Unexpected response format:", responseData);
       throw new Error(
         "Invalid response format: expected HubSpot properties response"
       );
     } catch (error: any) {
-      console.error('Error fetching HubSpot properties:', error);
+      console.error("Error fetching HubSpot properties:", error);
       throw new Error(error?.message || "Failed to fetch HubSpot properties");
     }
   };
 
-  const getHubSpotPropertiesWithDetails = async (apiKey: string): Promise<HubSpotProperty[]> => {
+  const getHubSpotPropertiesWithDetails = async (
+    apiKey: string
+  ): Promise<HubSpotProperty[]> => {
     try {
       const response = await Request.get(
         `/hubspot/properties?apiKey=${encodeURIComponent(apiKey)}`
       );
-      
+
       // Handle the actual response structure from HubSpot API
       const responseData = response.data;
-      
+
       // HubSpot API returns: { results: [{ name, label, ... }, ...] }
-      if (responseData && typeof responseData === 'object' && 'results' in responseData && Array.isArray(responseData.results)) {
+      if (
+        responseData &&
+        typeof responseData === "object" &&
+        "results" in responseData &&
+        Array.isArray(responseData.results)
+      ) {
         // Return the full property objects from the HubSpot API response
         return responseData.results;
-      } else if (responseData && typeof responseData === 'object' && 'success' in responseData && 'properties' in responseData) {
+      } else if (
+        responseData &&
+        typeof responseData === "object" &&
+        "success" in responseData &&
+        "properties" in responseData
+      ) {
         // Handle custom wrapped response format if backend changes
         const properties = (responseData as any).properties;
         if (Array.isArray(properties)) {
@@ -252,14 +278,16 @@ const useRequest = () => {
         // Fallback for array of property objects
         return responseData;
       }
-      
-      console.error('Unexpected response format:', responseData);
+
+      console.error("Unexpected response format:", responseData);
       throw new Error(
         "Invalid response format: expected HubSpot properties response"
       );
     } catch (error: any) {
-      console.error('Error fetching HubSpot properties with details:', error);
-      throw new Error(error?.message || "Failed to fetch HubSpot properties with details");
+      console.error("Error fetching HubSpot properties with details:", error);
+      throw new Error(
+        error?.message || "Failed to fetch HubSpot properties with details"
+      );
     }
   };
 

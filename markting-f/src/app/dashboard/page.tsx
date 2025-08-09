@@ -542,7 +542,7 @@ export default function DashboardPage() {
                                         />
                                     </div>
                                 </div>
-                                
+
                                 {/* Duplicate Filters Component */}
                                 <DuplicateFilters
                                     filterType={filterType}
@@ -559,7 +559,7 @@ export default function DashboardPage() {
                                     setCustomPropsSearch={setCustomPropsSearch}
                                     apiKey={formData.apiKey}
                                 />
-                                
+
                                 <div className="flex justify-end space-x-3">
                                     <button
                                         type="button"

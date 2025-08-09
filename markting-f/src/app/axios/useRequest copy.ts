@@ -135,7 +135,11 @@ const useRequest = () => {
     filters: string[];
   }): Promise<{ message: string; actionId: number; status: string }> => {
     const response = await Request.post("/hubspot/start-fetch", data);
-    return response.data as { message: string; actionId: number; status: string };
+    return response.data as {
+      message: string;
+      actionId: number;
+      status: string;
+    };
   };
 
   const getDuplicates = async (params: {

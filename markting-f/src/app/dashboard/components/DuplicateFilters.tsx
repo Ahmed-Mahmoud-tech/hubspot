@@ -49,7 +49,7 @@ export default function DuplicateFilters({
 }: DuplicateFiltersProps) {
     // Add state for tracking which condition is expanded
     const [expandedConditionId, setExpandedConditionId] = useState<string | null>(null);
-    
+
     // Filter checkbox handlers
     const handleFilterChange = (key: string) => {
         let updated;
@@ -125,15 +125,13 @@ export default function DuplicateFilters({
                                 onChange={(e) => setFilterType(e.target.value as 'default' | 'custom')}
                                 className="sr-only"
                             />
-                            <div className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                                filterType === 'default' 
-                                    ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-200' 
+                            <div className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${filterType === 'default'
+                                    ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-200'
                                     : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                            }`}>
+                                }`}>
                                 <div className="flex items-center gap-3">
-                                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
-                                        filterType === 'default' ? 'border-indigo-500 bg-indigo-500' : 'border-gray-300'
-                                    }`}>
+                                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${filterType === 'default' ? 'border-indigo-500 bg-indigo-500' : 'border-gray-300'
+                                        }`}>
                                         {filterType === 'default' && (
                                             <div className="w-2 h-2 bg-white rounded-full"></div>
                                         )}
@@ -156,17 +154,15 @@ export default function DuplicateFilters({
                                 disabled={!apiKey}
                                 className="sr-only"
                             />
-                            <div className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                                !apiKey 
+                            <div className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${!apiKey
                                     ? 'border-gray-200 bg-gray-50 cursor-not-allowed opacity-60'
-                                    : filterType === 'custom' 
-                                        ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-200' 
+                                    : filterType === 'custom'
+                                        ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-200'
                                         : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                            }`}>
+                                }`}>
                                 <div className="flex items-center gap-3">
-                                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
-                                        filterType === 'custom' ? 'border-indigo-500 bg-indigo-500' : 'border-gray-300'
-                                    }`}>
+                                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${filterType === 'custom' ? 'border-indigo-500 bg-indigo-500' : 'border-gray-300'
+                                        }`}>
                                         {filterType === 'custom' && (
                                             <div className="w-2 h-2 bg-white rounded-full"></div>
                                         )}
@@ -206,17 +202,15 @@ export default function DuplicateFilters({
                                         onChange={() => handleFilterChange(opt.key)}
                                         className="sr-only"
                                     />
-                                    <div className={`p-4 rounded-lg border cursor-pointer transition-all ${
-                                        selectedFilters.includes(opt.key)
+                                    <div className={`p-4 rounded-lg border cursor-pointer transition-all ${selectedFilters.includes(opt.key)
                                             ? 'border-indigo-500 bg-indigo-50 ring-1 ring-indigo-200'
                                             : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                                    }`}>
+                                        }`}>
                                         <div className="flex items-start gap-3">
-                                            <div className={`w-5 h-5 rounded border-2 flex items-center justify-center mt-0.5 ${
-                                                selectedFilters.includes(opt.key) 
-                                                    ? 'border-indigo-500 bg-indigo-500' 
+                                            <div className={`w-5 h-5 rounded border-2 flex items-center justify-center mt-0.5 ${selectedFilters.includes(opt.key)
+                                                    ? 'border-indigo-500 bg-indigo-500'
                                                     : 'border-gray-300'
-                                            }`}>
+                                                }`}>
                                                 {selectedFilters.includes(opt.key) && (
                                                     <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
                                                         <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
