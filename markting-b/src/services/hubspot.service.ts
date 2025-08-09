@@ -1548,4 +1548,25 @@ export class HubSpotService {
       );
     }
   }
+
+  async getAllProperties(apiKey: string): Promise<any> {
+    try {
+      const url = 'https://api.hubapi.com/crm/v3/properties/contacts';
+      const response = await axios.get(url, {
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      return response.data;
+    } catch (error) {
+      this.logger.error(
+        'Failed to fetch all properties from HubSpot:',
+        error.response?.data || error.message,
+      );
+      throw new BadRequestException(
+        `Failed to fetch properties from HubSpot: ${error.response?.data?.message || error.message}`,
+      );
+    }
+  }
 }

@@ -405,4 +405,10 @@ export class HubSpotController {
       updateContactDto.fields,
     );
   }
+
+  @Get('properties')
+  @UseGuards(JwtAuthGuard)
+  async getAllProperties(@Request() req: any, @Query('apiKey') apiKey: string) {
+    return this.hubspotService.getAllProperties(apiKey);
+  }
 }

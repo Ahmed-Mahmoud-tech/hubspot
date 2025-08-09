@@ -133,9 +133,9 @@ const useRequest = () => {
     name: string;
     apiKey: string;
     filters: string[];
-  }): Promise<{ message: string }> => {
+  }): Promise<{ message: string; actionId: number; status: string }> => {
     const response = await Request.post("/hubspot/start-fetch", data);
-    return response.data as { message: string };
+    return response.data as { message: string; actionId: number; status: string };
   };
 
   const getDuplicates = async (params: {

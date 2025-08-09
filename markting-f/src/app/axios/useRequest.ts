@@ -45,6 +45,29 @@ export interface ResetPasswordData {
   password: string;
 }
 
+export interface HubSpotPropertyOption {
+  label: string;
+  value: string;
+  description?: string;
+  displayOrder: number;
+  hidden: boolean;
+}
+
+export interface HubSpotProperty {
+  name: string;
+  label: string;
+  description: string;
+  type: string;
+  fieldType: string;
+  options: HubSpotPropertyOption[];
+  groupName: string;
+}
+
+export interface HubSpotPropertiesResponse {
+  success: boolean;
+  properties: HubSpotProperty[];
+}
+
 const useRequest = () => {
   // Get latest action for a given apiKey
   const getLatestAction = async (apiKey: string) => {
@@ -167,9 +190,77 @@ const useRequest = () => {
     name: string;
     apiKey: string;
     filters: string[];
-  }): Promise<{ message: string }> => {
+  }): Promise<{ message: string; actionId: number; status: string }> => {
     const response = await Request.post("/hubspot/start-fetch", data);
-    return response.data as { message: string };
+    return response.data as { message: string; actionId: number; status: string };
+  };
+
+  const getHubSpotProperties = async (apiKey: string): Promise<string[]> => {
+    try {
+      const response = await Request.get(
+        `/hubspot/properties?apiKey=${encodeURIComponent(apiKey)}`
+      );
+      
+      // Handle the actual response structure from HubSpot API
+      const responseData = response.data;
+      
+      // HubSpot API returns: { results: [{ name, label, ... }, ...] }
+      if (responseData && typeof responseData === 'object' && 'results' in responseData && Array.isArray(responseData.results)) {
+        // Extract property names from the HubSpot API response structure
+        return responseData.results.map((property: any) => property.name);
+      } else if (responseData && typeof responseData === 'object' && 'success' in responseData && 'properties' in responseData) {
+        // Handle custom wrapped response format if backend changes
+        const properties = (responseData as any).properties;
+        if (Array.isArray(properties)) {
+          return properties.map((property: any) => property.name);
+        }
+      } else if (Array.isArray(responseData)) {
+        // Fallback for simple array response
+        return responseData;
+      }
+      
+      console.error('Unexpected response format:', responseData);
+      throw new Error(
+        "Invalid response format: expected HubSpot properties response"
+      );
+    } catch (error: any) {
+      console.error('Error fetching HubSpot properties:', error);
+      throw new Error(error?.message || "Failed to fetch HubSpot properties");
+    }
+  };
+
+  const getHubSpotPropertiesWithDetails = async (apiKey: string): Promise<HubSpotProperty[]> => {
+    try {
+      const response = await Request.get(
+        `/hubspot/properties?apiKey=${encodeURIComponent(apiKey)}`
+      );
+      
+      // Handle the actual response structure from HubSpot API
+      const responseData = response.data;
+      
+      // HubSpot API returns: { results: [{ name, label, ... }, ...] }
+      if (responseData && typeof responseData === 'object' && 'results' in responseData && Array.isArray(responseData.results)) {
+        // Return the full property objects from the HubSpot API response
+        return responseData.results;
+      } else if (responseData && typeof responseData === 'object' && 'success' in responseData && 'properties' in responseData) {
+        // Handle custom wrapped response format if backend changes
+        const properties = (responseData as any).properties;
+        if (Array.isArray(properties)) {
+          return properties;
+        }
+      } else if (Array.isArray(responseData)) {
+        // Fallback for array of property objects
+        return responseData;
+      }
+      
+      console.error('Unexpected response format:', responseData);
+      throw new Error(
+        "Invalid response format: expected HubSpot properties response"
+      );
+    } catch (error: any) {
+      console.error('Error fetching HubSpot properties with details:', error);
+      throw new Error(error?.message || "Failed to fetch HubSpot properties with details");
+    }
   };
 
   const getDuplicates = async (params: {
@@ -322,6 +413,8 @@ const useRequest = () => {
     getUserBalance,
     calculateUpgradePrice,
     startHubSpotFetch,
+    getHubSpotProperties,
+    getHubSpotPropertiesWithDetails,
     getDuplicates,
     submitMerge,
     updateContact,

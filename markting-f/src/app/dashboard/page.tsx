@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { PlanModal } from '@/app/plan';
 import { useRouter } from 'next/navigation';
 import { getCookie, deleteCookie } from 'cookies-next';
 import { toast } from 'react-toastify';
 import useRequest, { type User } from '@/app/axios/useRequest';
 import { LogOut, User as UserIcon, BarChart3, Plus, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
+import DuplicateFilters from './components/DuplicateFilters';
 
 interface Action {
     id: number;
@@ -74,18 +75,27 @@ export default function DashboardPage() {
     const [removingActionId, setRemovingActionId] = useState<number | null>(null);
 
     // Duplicate filter state for integration
-    const filterOptions = [
-        { key: 'phone', label: 'Phone' },
-        { key: 'first_last_name', label: 'First & Last Name' },
-        { key: 'first_name_phone', label: 'First Name & Phone' },
-        { key: 'first_last_name_company', label: 'First & Last Name & Company' },
-    ];
-    const [selectedFilters, setSelectedFilters] = useState<string[]>(filterOptions.map(f => f.key)); // default: all selected
+    const [selectedFilters, setSelectedFilters] = useState<string[]>(['phone', 'first_last_name', 'first_name_phone', 'first_last_name_company']); // default: all selected
     const [selectAll, setSelectAll] = useState(true);
 
-    const { getProfile, getActions, startHubSpotFetch, finalDeleteActionById, getUserPlan } = useRequest();
+    // Filter type selection
+    const [filterType, setFilterType] = useState<'default' | 'custom'>('default');
 
-    const checkAuth = useCallback(async () => {
+    // Custom properties state
+    const [customProperties, setCustomProperties] = useState<string[]>([]); // all available properties
+    const [customPropsLoading, setCustomPropsLoading] = useState(false);
+    const [customPropsSearch, setCustomPropsSearch] = useState('');
+
+    // Condition builder state
+    interface Condition {
+        id: string;
+        properties: string[];
+    }
+    const [conditions, setConditions] = useState<Condition[]>([{ id: Date.now().toString(), properties: [] }]);
+
+    const { getProfile, getActions, startHubSpotFetch, finalDeleteActionById, getUserPlan, getHubSpotProperties } = useRequest();
+
+    const checkAuth = async () => {
         try {
             const token = getCookie('auth_token');
             if (!token) {
@@ -115,13 +125,14 @@ export default function DashboardPage() {
         } finally {
             setIsLoading(false);
         }
-    }, [router]);
+    };
 
     useEffect(() => {
         checkAuth();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    const fetchActions = useCallback(async (page: number = 1) => {
+    const fetchActions = async (page: number = 1) => {
         try {
             setActionsLoading(true);
             const response = await getActions({ page, limit: itemsPerPage }) as ActionsResponse;
@@ -166,12 +177,13 @@ export default function DashboardPage() {
         } finally {
             setActionsLoading(false);
         }
-    }, []);
+    };
 
     useEffect(() => {
         if (user) {
             fetchActions(1);
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user]);
 
     const handlePageChange = (page: number) => {
@@ -180,51 +192,84 @@ export default function DashboardPage() {
         }
     };
 
-    // Filter checkbox handlers
-    const handleFilterChange = (key: string) => {
-        let updated;
-        if (selectedFilters.includes(key)) {
-            updated = selectedFilters.filter(f => f !== key);
-        } else {
-            updated = [...selectedFilters, key];
-        }
-        setSelectedFilters(updated);
-        setSelectAll(updated.length === filterOptions.length);
-    };
-
-    const handleSelectAll = () => {
-        if (selectAll) {
-            setSelectedFilters([]);
-            setSelectAll(false);
-        } else {
-            setSelectedFilters(filterOptions.map(f => f.key));
-            setSelectAll(true);
+    // Fetch custom properties for API key
+    const fetchCustomProperties = async (apiKey: string) => {
+        setCustomPropsLoading(true);
+        try {
+            const properties = await getHubSpotProperties(apiKey);
+            setCustomProperties(properties);
+        } catch (error) {
+            console.error('Error fetching properties:', error);
+            setCustomProperties([]);
+        } finally {
+            setCustomPropsLoading(false);
         }
     };
 
-    const handleFormSubmit = async (e: React.FormEvent) => {
+    // When API key changes, fetch custom properties and clear conditions
+    useEffect(() => {
+        setConditions([{ id: Date.now().toString(), properties: [] }]);
+        setCustomProperties([]);
+        if (formData.apiKey && filterType === 'custom') {
+            fetchCustomProperties(formData.apiKey);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [formData.apiKey, filterType]); const handleFormSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsSubmitting(true);
 
         try {
-            // Always include hidden filter for same emails
-            const filtersToSend = [...selectedFilters, 'same_email'];
+            let filtersToSend: string[];
+
+            if (filterType === 'default') {
+                // Always include hidden filter for same emails
+                filtersToSend = [...selectedFilters, 'same_email'];
+            } else {
+                // Custom filters: build from conditions
+                filtersToSend = ['same_email']; // Always include same email
+                conditions.forEach((condition, index) => {
+                    if (condition.properties.length > 0) {
+                        filtersToSend.push(`condition_${index}:${condition.properties.join(',')}`);
+                    }
+                });
+            }
+
             const result = await startHubSpotFetch({
                 ...formData,
                 filters: filtersToSend,
             });
-            toast.success(result.message);
+
+            // Handle the response properly
+            if (result && result.message) {
+                toast.success(result.message);
+                console.log('Integration started with action ID:', result.actionId, 'Status:', result.status);
+            } else {
+                toast.success('HubSpot integration started successfully');
+            }
+
             setShowForm(false);
             setFormData({ name: '', apiKey: '' });
-            setSelectedFilters(filterOptions.map(f => f.key));
+            setSelectedFilters(['phone', 'first_last_name', 'first_name_phone', 'first_last_name_company']);
             setSelectAll(true);
+            setConditions([{ id: Date.now().toString(), properties: [] }]);
+            setCustomProperties([]);
+            setFilterType('default');
             // Refresh actions list
             fetchActions(currentPage);
             // Navigate to duplicates page
             router.push(`/duplicates?apiKey=${encodeURIComponent(formData.apiKey)}`);
         } catch (error: any) {
             console.error('Error starting HubSpot integration:', error);
-            toast.error(error?.response?.data?.message || 'Failed to start HubSpot integration');
+
+            // Enhanced error handling
+            let errorMessage = 'Failed to start HubSpot integration';
+            if (error?.response?.data?.message) {
+                errorMessage = error.response.data.message;
+            } else if (error?.message) {
+                errorMessage = error.message;
+            }
+
+            toast.error(errorMessage);
         } finally {
             setIsSubmitting(false);
         }
@@ -497,31 +542,24 @@ export default function DashboardPage() {
                                         />
                                     </div>
                                 </div>
-                                {/* Duplicate Filter Selection */}
-                                <div className="bg-white rounded-lg shadow p-4 mt-2">
-                                    <h4 className="text-md font-semibold text-gray-900 mb-2">Duplicate Filters</h4>
-                                    <div className="flex flex-col gap-2">
-                                        <label className="flex items-center gap-2">
-                                            <input
-                                                type="checkbox"
-                                                checked={selectAll}
-                                                onChange={handleSelectAll}
-                                            />
-                                            <span className="font-medium">Select All</span>
-                                        </label>
-                                        {filterOptions.map(opt => (
-                                            <label key={opt.key} className="flex items-center gap-2 pl-4">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={selectedFilters.includes(opt.key)}
-                                                    onChange={() => handleFilterChange(opt.key)}
-                                                />
-                                                {opt.label}
-                                            </label>
-                                        ))}
-                                        <span className="text-xs text-gray-500 pl-4">(Same emails are always included)</span>
-                                    </div>
-                                </div>
+                                
+                                {/* Duplicate Filters Component */}
+                                <DuplicateFilters
+                                    filterType={filterType}
+                                    setFilterType={setFilterType}
+                                    selectedFilters={selectedFilters}
+                                    setSelectedFilters={setSelectedFilters}
+                                    selectAll={selectAll}
+                                    setSelectAll={setSelectAll}
+                                    conditions={conditions}
+                                    setConditions={setConditions}
+                                    customProperties={customProperties}
+                                    customPropsLoading={customPropsLoading}
+                                    customPropsSearch={customPropsSearch}
+                                    setCustomPropsSearch={setCustomPropsSearch}
+                                    apiKey={formData.apiKey}
+                                />
+                                
                                 <div className="flex justify-end space-x-3">
                                     <button
                                         type="button"
@@ -532,8 +570,11 @@ export default function DashboardPage() {
                                     </button>
                                     <button
                                         type="submit"
-                                        disabled={isSubmitting || selectedFilters.length === 0}
-                                        className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 disabled:opacity-50"
+                                        disabled={isSubmitting ||
+                                            (filterType === 'default' && selectedFilters.length === 0) ||
+                                            (filterType === 'custom' && conditions.every(c => c.properties.length === 0))
+                                        }
+                                        className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
                                         {isSubmitting ? 'Starting...' : 'Start Integration'}
                                     </button>
