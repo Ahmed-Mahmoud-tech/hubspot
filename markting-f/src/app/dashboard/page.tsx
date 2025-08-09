@@ -7,6 +7,7 @@ import { getCookie, deleteCookie } from 'cookies-next';
 import { toast } from 'react-toastify';
 import useRequest, { type User } from '@/app/axios/useRequest';
 import { LogOut, User as UserIcon, BarChart3, Plus, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
+import DynamicFieldSelector from '../components/DynamicFieldSelector';
 
 interface Action {
     id: number;
@@ -17,6 +18,12 @@ interface Action {
     api_key: string;
     excel_link?: string;
     created_at: string;
+}
+
+interface FieldCondition {
+    id: string;
+    name: string;
+    fields: string[];
 }
 
 interface ActionsResponse {
@@ -73,17 +80,20 @@ export default function DashboardPage() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [removingActionId, setRemovingActionId] = useState<number | null>(null);
 
-    // Duplicate filter state for integration
+    // Dynamic field conditions state
+    const [fieldConditions, setFieldConditions] = useState<FieldCondition[]>([]);
+
+    // Keep old filter options as fallback
     const filterOptions = [
+        { key: 'firstname', label: 'First Name' },
+        { key: 'lastname', label: 'Last Name' },
+        { key: 'company', label: 'Company' },
+        { key: 'jobtitle', label: 'Job Title' },
         { key: 'phone', label: 'Phone' },
         { key: 'first_last_name', label: 'First & Last Name' },
-        { key: 'first_name_phone', label: 'First Name & Phone' },
-        { key: 'first_last_name_company', label: 'First & Last Name & Company' },
     ];
-    const [selectedFilters, setSelectedFilters] = useState<string[]>(filterOptions.map(f => f.key)); // default: all selected
-    const [selectAll, setSelectAll] = useState(true);
 
-    const { getProfile, getActions, startHubSpotFetch, finalDeleteActionById, getUserPlan } = useRequest();
+    const { getProfile, getActions, startHubSpotFetch, finalDeleteActionById, getUserPlan, startDynamicFieldDuplicates } = useRequest();
 
     const checkAuth = useCallback(async () => {
         try {
@@ -180,51 +190,38 @@ export default function DashboardPage() {
         }
     };
 
-    // Filter checkbox handlers
-    const handleFilterChange = (key: string) => {
-        let updated;
-        if (selectedFilters.includes(key)) {
-            updated = selectedFilters.filter(f => f !== key);
-        } else {
-            updated = [...selectedFilters, key];
-        }
-        setSelectedFilters(updated);
-        setSelectAll(updated.length === filterOptions.length);
-    };
-
-    const handleSelectAll = () => {
-        if (selectAll) {
-            setSelectedFilters([]);
-            setSelectAll(false);
-        } else {
-            setSelectedFilters(filterOptions.map(f => f.key));
-            setSelectAll(true);
-        }
-    };
-
     const handleFormSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsSubmitting(true);
 
         try {
-            // Always include hidden filter for same emails
-            const filtersToSend = [...selectedFilters, 'same_email'];
-            const result = await startHubSpotFetch({
-                ...formData,
-                filters: filtersToSend,
-            });
-            toast.success(result.message);
-            setShowForm(false);
-            setFormData({ name: '', apiKey: '' });
-            setSelectedFilters(filterOptions.map(f => f.key));
-            setSelectAll(true);
-            // Refresh actions list
-            fetchActions(currentPage);
-            // Navigate to duplicates page
-            router.push(`/duplicates?apiKey=${encodeURIComponent(formData.apiKey)}`);
+            if (fieldConditions.length === 0) {
+                toast.error('Please add at least one field condition for duplicate detection');
+                return;
+            }
+
+            // Use the new dynamic field detection endpoint
+            const result = await startDynamicFieldDuplicates({
+                name: formData.name,
+                apiKey: formData.apiKey,
+                conditions: fieldConditions,
+            }) as any;
+
+            if (result.success) {
+                toast.success(result.message);
+                setShowForm(false);
+                setFormData({ name: '', apiKey: '' });
+                setFieldConditions([]);
+                // Refresh actions list
+                fetchActions(currentPage);
+                // Navigate to duplicates page
+                router.push(`/duplicates?apiKey=${encodeURIComponent(formData.apiKey)}`);
+            } else {
+                throw new Error(result.message || 'Failed to start dynamic field detection');
+            }
         } catch (error: any) {
             console.error('Error starting HubSpot integration:', error);
-            toast.error(error?.response?.data?.message || 'Failed to start HubSpot integration');
+            toast.error(error?.message || 'Failed to start HubSpot integration');
         } finally {
             setIsSubmitting(false);
         }
@@ -499,28 +496,13 @@ export default function DashboardPage() {
                                 </div>
                                 {/* Duplicate Filter Selection */}
                                 <div className="bg-white rounded-lg shadow p-4 mt-2">
-                                    <h4 className="text-md font-semibold text-gray-900 mb-2">Duplicate Filters</h4>
-                                    <div className="flex flex-col gap-2">
-                                        <label className="flex items-center gap-2">
-                                            <input
-                                                type="checkbox"
-                                                checked={selectAll}
-                                                onChange={handleSelectAll}
-                                            />
-                                            <span className="font-medium">Select All</span>
-                                        </label>
-                                        {filterOptions.map(opt => (
-                                            <label key={opt.key} className="flex items-center gap-2 pl-4">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={selectedFilters.includes(opt.key)}
-                                                    onChange={() => handleFilterChange(opt.key)}
-                                                />
-                                                {opt.label}
-                                            </label>
-                                        ))}
-                                        <span className="text-xs text-gray-500 pl-4">(Same emails are always included)</span>
-                                    </div>
+                                    <h4 className="text-md font-semibold text-gray-900 mb-2">Duplicate Detection Fields</h4>
+                                    <DynamicFieldSelector
+                                        selectedConditions={fieldConditions}
+                                        onConditionsChange={setFieldConditions}
+                                        fallbackFilterOptions={filterOptions}
+                                        apiKey={formData.apiKey}
+                                    />
                                 </div>
                                 <div className="flex justify-end space-x-3">
                                     <button
@@ -532,7 +514,7 @@ export default function DashboardPage() {
                                     </button>
                                     <button
                                         type="submit"
-                                        disabled={isSubmitting || selectedFilters.length === 0}
+                                        disabled={isSubmitting || fieldConditions.length === 0}
                                         className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 disabled:opacity-50"
                                     >
                                         {isSubmitting ? 'Starting...' : 'Start Integration'}

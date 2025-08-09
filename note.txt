@@ -1,1 +1,9 @@
 new fields
+
+
+please read the app front and back because you will do major change
+
+i need to add option to user to select fields that need to compare
+we are add some example we need it fixed but we need to make user create dynamic condition by get all properties in his hubspot  then get all fields and can also search and can select from them and can add two fields or more in one condition like we add first & last name
+and during fetching i need to set the new fields in the contact table and if error when fetching use cleanUpUserData function
+but after that you must be add those fields in duplicate page cards and handle it in frontend and backend

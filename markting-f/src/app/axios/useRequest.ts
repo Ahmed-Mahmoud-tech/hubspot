@@ -84,8 +84,8 @@ const useRequest = () => {
 
     const url =
       params && (params.page || params.limit)
-        ? `/hubspot/actions?${queryParams.toString()}`
-        : "/hubspot/actions";
+        ? `/hubspot/actions-public?${queryParams.toString()}`
+        : "/hubspot/actions-public";
 
     const response = await Request.get(url);
     return response.data;
@@ -304,7 +304,40 @@ const useRequest = () => {
     return response.data;
   };
 
-  // ...existing code...
+  const getGroupedProperties = async (apiKey?: string) => {
+    const params = apiKey ? `?apiKey=${encodeURIComponent(apiKey)}` : "";
+    const response = await Request.get(
+      `/hubspot-properties/contact-properties/grouped${params}`
+    );
+    return response.data;
+  };
+
+  const searchProperties = async ({
+    term,
+    apiKey,
+  }: {
+    term: string;
+    apiKey?: string;
+  }) => {
+    const params = [`term=${encodeURIComponent(term)}`];
+    if (apiKey) params.push(`apiKey=${encodeURIComponent(apiKey)}`);
+    const response = await Request.get(
+      `/hubspot-properties/contact-properties/search?${params.join("&")}`
+    );
+    return response.data;
+  };
+
+  const startDynamicFieldDuplicates = async (data: {
+    name: string;
+    apiKey: string;
+    conditions: any[];
+  }) => {
+    const response = await Request.post(
+      "/hubspot/dynamic-field-duplicates",
+      data
+    );
+    return response.data;
+  };
 
   return {
     createStripeCheckoutSession,
@@ -339,6 +372,9 @@ const useRequest = () => {
     deleteActionById,
     finalDeleteActionById,
     createUserPlan,
+    getGroupedProperties,
+    searchProperties,
+    startDynamicFieldDuplicates,
   };
 };
 

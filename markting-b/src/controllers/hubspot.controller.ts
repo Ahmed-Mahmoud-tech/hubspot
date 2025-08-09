@@ -15,6 +15,7 @@ import {
 } from '@nestjs/common';
 import { HubSpotService } from '../services/hubspot.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { Public } from '../auth/public.decorator';
 import {
   StartHubSpotFetchDto,
   GetDuplicatesDto,
@@ -125,6 +126,40 @@ export class HubSpotController {
     };
   }
 
+  @Get('actions-public')
+  @Public()
+  async getPublicActions(@Query() query: any) {
+    // Get page and limit from query params, default to 1 and 5
+    const page = query.page ? parseInt(query.page, 10) : 1;
+    const limit = query.limit ? parseInt(query.limit, 10) : 5;
+
+    // For public access, we'll get all actions since we don't have user authentication
+    // In a real implementation, you might want to filter by some other criteria
+    const { actions, total } = await this.hubspotService.getAllActionsPaginated(
+      page,
+      limit,
+    );
+
+    return {
+      data: actions.map((action) => ({
+        id: action.id,
+        name: action.name,
+        process_name: action.process_name,
+        status: action.status,
+        count: action.count,
+        api_key: action.api_key,
+        excel_link: action.excel_link,
+        created_at: action.created_at,
+      })),
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
   @Get('matching')
   async getMatchingGroups(
     @Request() req: any,
@@ -200,6 +235,65 @@ export class HubSpotController {
       return {
         success: false,
         message: 'Duplicate detection failed',
+        error: error.message,
+      };
+    }
+  }
+
+  @Post('dynamic-field-duplicates')
+  @Public()
+  async findDynamicFieldDuplicates(
+    @Body()
+    body: {
+      name: string;
+      apiKey: string;
+      conditions: Array<{ id: string; name: string; fields: string[] }>;
+    },
+  ) {
+    if (!body.apiKey) {
+      return {
+        success: false,
+        message: 'HubSpot API key is required',
+      };
+    }
+
+    if (!body.name) {
+      return {
+        success: false,
+        message: 'Integration name is required',
+      };
+    }
+
+    if (!body.conditions || !Array.isArray(body.conditions)) {
+      return {
+        success: false,
+        message: 'Invalid conditions provided',
+      };
+    }
+
+    try {
+      // For now, we'll use a default user ID (1) since we removed authentication
+      // In a real implementation, you might want to handle user identification differently
+      const userId = 1;
+
+      // Use the new dynamic field detection method
+      const result = await this.hubspotService.findDynamicFieldDuplicates(
+        userId,
+        body.apiKey,
+        body.conditions,
+        body.name,
+      );
+
+      return {
+        success: true,
+        message: result.message,
+        actionId: result.action.id,
+        status: result.action.status,
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        message: 'Dynamic field duplicate detection failed',
         error: error.message,
       };
     }

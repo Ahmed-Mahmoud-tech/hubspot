@@ -4,6 +4,12 @@ import { Repository } from 'typeorm';
 import { Matching } from '../entities/matching.entity';
 import { ContactService } from './contact.service';
 
+interface FieldCondition {
+  id: string;
+  name: string;
+  fields: string[];
+}
+
 @Injectable()
 export class DuplicateDetectionService {
   // Find duplicates by first & last name
@@ -300,5 +306,208 @@ export class DuplicateDetectionService {
     this.logger.log(
       `Cleared existing matching data for user ${userId} with API key ${apiKey}`,
     );
+  }
+
+  /**
+   * Find duplicates based on dynamic field conditions
+   */
+  async findDynamicFieldDuplicates(
+    apiKey: string,
+    userId: number,
+    conditions: FieldCondition[],
+  ): Promise<void> {
+    this.logger.log('Starting dynamic field duplicate detection...');
+
+    const duplicateGroups: number[][] = [];
+    const processedContacts = new Set<number>();
+
+    for (const condition of conditions) {
+      if (condition.fields.length === 0) {
+        this.logger.warn(
+          `Skipping condition "${condition.name}" - no fields selected`,
+        );
+        continue;
+      }
+
+      this.logger.log(
+        `Processing condition: "${condition.name}" with fields: ${condition.fields.join(', ')}`,
+      );
+
+      try {
+        const duplicates = await this.findDuplicatesByFields(
+          apiKey,
+          userId,
+          condition.fields,
+        );
+
+        for (const group of duplicates) {
+          const contactIds = group.contact_ids;
+          const unprocessedIds = contactIds.filter(
+            (id: number) => !processedContacts.has(id),
+          );
+
+          if (unprocessedIds.length > 1) {
+            duplicateGroups.push(unprocessedIds);
+            unprocessedIds.forEach((id: number) => processedContacts.add(id));
+            this.logger.log(
+              `Found duplicate group for condition "${condition.name}": ${unprocessedIds.length} contacts`,
+            );
+          }
+        }
+      } catch (error: any) {
+        this.logger.error(
+          `Error processing condition "${condition.name}":`,
+          error.message,
+        );
+      }
+    }
+
+    // Save duplicate groups to database
+    if (duplicateGroups.length > 0) {
+      this.logger.log(
+        `Saving ${duplicateGroups.length} duplicate groups to database...`,
+      );
+      await this.saveDuplicateGroups(duplicateGroups, apiKey, userId);
+      this.logger.log(
+        'Dynamic field duplicate detection completed successfully',
+      );
+    } else {
+      this.logger.log('No duplicates found with the specified conditions');
+    }
+  }
+
+  /**
+   * Find duplicates by a specific set of fields using dynamic property queries
+   */
+  private async findDuplicatesByFields(
+    apiKey: string,
+    userId: number,
+    fields: string[],
+  ): Promise<any[]> {
+    // Map frontend field names to database column names
+    const fieldMapping: Record<string, string> = {
+      email: 'email',
+      firstname: 'first_name',
+      lastname: 'last_name',
+      phone: 'phone',
+      company: 'company',
+    };
+
+    // Separate static fields from dynamic properties
+    const staticFields = fields.filter((field) => fieldMapping[field]);
+    const dynamicFields = fields.filter((field) => !fieldMapping[field]);
+
+    if (staticFields.length > 0 && dynamicFields.length === 0) {
+      // Use existing static field query optimization
+      return this.findDuplicatesByStaticFields(
+        apiKey,
+        userId,
+        staticFields,
+        fieldMapping,
+      );
+    } else if (dynamicFields.length > 0) {
+      // Use JSON query for dynamic properties
+      return this.findDuplicatesByDynamicProperties(apiKey, userId, fields);
+    }
+
+    return [];
+  }
+
+  /**
+   * Find duplicates using static database columns
+   */
+  private async findDuplicatesByStaticFields(
+    apiKey: string,
+    userId: number,
+    fields: string[],
+    fieldMapping: Record<string, string>,
+  ): Promise<any[]> {
+    const selectFields = fields.map((field) => fieldMapping[field]);
+    const whereConditions = selectFields.map(
+      (field) => `${field} IS NOT NULL AND ${field} != ''`,
+    );
+
+    const query = `
+      SELECT ${selectFields.join(', ')}, array_agg(id) as contact_ids, count(*) as count
+      FROM contacts
+      WHERE "api_key" = $1 AND "user_id" = $2
+        AND ${whereConditions.join(' AND ')}
+      GROUP BY ${selectFields.join(', ')}
+      HAVING count(*) > 1
+    `;
+
+    return this.matchingRepository.query(query, [apiKey, userId]);
+  }
+
+  /**
+   * Find duplicates using dynamic properties stored in JSON
+   */
+  private async findDuplicatesByDynamicProperties(
+    apiKey: string,
+    userId: number,
+    fields: string[],
+  ): Promise<any[]> {
+    this.logger.log(`Finding duplicates for fields: ${fields.join(', ')}`);
+    
+    // For dynamic properties, we need to parse the JSON and compare values
+    // This is more complex but allows for any HubSpot property comparison
+    const contacts = await this.matchingRepository.query(
+      `SELECT id, properties FROM contacts WHERE "api_key" = $1 AND "user_id" = $2 AND properties IS NOT NULL`,
+      [apiKey, userId],
+    );
+
+    this.logger.log(
+      `Found ${contacts.length} contacts with properties for duplicate detection`,
+    );
+
+    const duplicateMap = new Map<string, number[]>();
+
+    for (const contact of contacts) {
+      try {
+        const properties = JSON.parse(contact.properties || '{}');
+
+        // Create a comparison key from the specified fields
+        const values = fields.map((field) => {
+          const value = properties[field];
+          return value && value !== ''
+            ? String(value).toLowerCase().trim()
+            : null;
+        });
+
+        // Skip if any required field is missing or empty
+        if (values.some((value) => value === null)) {
+          continue;
+        }
+
+        const comparisonKey = values.join('|');
+
+        if (!duplicateMap.has(comparisonKey)) {
+          duplicateMap.set(comparisonKey, []);
+        }
+        duplicateMap.get(comparisonKey)!.push(contact.id);
+      } catch (error) {
+        this.logger.warn(
+          `Failed to parse properties for contact ${contact.id}`,
+        );
+      }
+    }
+
+    // Return only groups with more than one contact
+    const duplicateGroups = Array.from(duplicateMap.entries())
+      .filter(([, contactIds]) => contactIds.length > 1)
+      .map(([key, contact_ids]) => ({
+        comparison_key: key,
+        contact_ids,
+        count: contact_ids.length,
+      }));
+
+    this.logger.log(`Found ${duplicateGroups.length} duplicate groups`);
+    duplicateGroups.forEach((group, index) => {
+      this.logger.log(
+        `Group ${index + 1}: ${group.count} contacts with key "${group.comparison_key}"`,
+      );
+    });
+
+    return duplicateGroups;
   }
 }

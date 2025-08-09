@@ -32,6 +32,8 @@ export class ContactService {
     apiKey: string,
     userId: number,
   ): Promise<void> {
+    this.logger.log(`Saving ${hubspotContacts.length} contacts from HubSpot`);
+    
     const contactEntities = hubspotContacts.map((hsContact) => ({
       hubspotId: hsContact.id,
       email: hsContact.properties.email || undefined,
@@ -47,12 +49,23 @@ export class ContactService {
       lastModifiedDate: hsContact.properties.lastmodifieddate
         ? new Date(hsContact.properties.lastmodifieddate)
         : undefined,
+      // Store all properties as JSON for dynamic field detection
+      properties: JSON.stringify(hsContact.properties),
       apiKey,
       user: { id: userId },
     }));
 
+    // Log a sample of the data being saved
+    if (contactEntities.length > 0) {
+      this.logger.log(
+        'Sample contact properties:',
+        JSON.stringify(JSON.parse(contactEntities[0].properties), null, 2),
+      );
+    }
+
     // Use save with upsert option to handle potential duplicates
     await this.contactRepository.save(contactEntities, { chunk: 50 });
+    this.logger.log(`Successfully saved ${contactEntities.length} contacts`);
   }
 
   async getContactCount(userId: number, apiKey: string): Promise<number> {
@@ -105,6 +118,16 @@ export class ContactService {
   async deleteContactsByApiKey(apiKey: string): Promise<void> {
     await this.contactRepository.delete({ apiKey });
     this.logger.log(`Deleted all contacts for API key ${apiKey}`);
+  }
+
+  async clearContactsByApiKey(userId: number, apiKey: string): Promise<void> {
+    await this.contactRepository.delete({
+      user: { id: userId },
+      apiKey,
+    });
+    this.logger.log(
+      `Cleared all contacts for user ${userId} and API key ${apiKey}`,
+    );
   }
 
   async getContactsForDuplicateAnalysis(

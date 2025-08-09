@@ -435,6 +435,29 @@ export class HubSpotService {
     return { actions, total };
   }
 
+  async getAllActionsPaginated(
+    page: number,
+    limit: number,
+  ): Promise<{ actions: Action[]; total: number }> {
+    const [actions, total] = await this.actionRepository.findAndCount({
+      where: {
+        status: In([
+          ActionStatus.START,
+          ActionStatus.FETCHING,
+          ActionStatus.MANUALLY_MERGE,
+          ActionStatus.UPDATE_HUBSPOT,
+          ActionStatus.FINISHED,
+          ActionStatus.ERROR,
+          ActionStatus.RETRYING,
+        ]),
+      },
+      order: { created_at: 'DESC' },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+    return { actions, total };
+  }
+
   async getMatchingGroups(userId: number, apiKey?: string) {
     return this.matchingService.getMatchingGroups(userId, apiKey);
   }
@@ -1545,6 +1568,196 @@ export class HubSpotService {
       );
       throw new BadRequestException(
         `Failed to update contact in HubSpot: ${error.response?.data?.message || error.message}`,
+      );
+    }
+  }
+
+  /**
+   * Find duplicates using dynamic field conditions
+   */
+  async findDynamicFieldDuplicates(
+    userId: number,
+    apiKey: string,
+    conditions: Array<{ id: string; name: string; fields: string[] }>,
+    integrationName?: string,
+  ): Promise<{ action: any; message: string }> {
+    this.logger.log('Starting dynamic field duplicate detection...');
+
+    // Validate API key first
+    try {
+      await this.hubspotApiService.validateApiKey(apiKey);
+      this.logger.log('API key validation successful');
+    } catch (error) {
+      this.logger.error('API key validation failed:', error.message);
+      throw new BadRequestException(
+        'Invalid API key or HubSpot API error. Please check your HubSpot API key and try again.',
+      );
+    }
+
+    // Create initial action record
+    const action = this.actionRepository.create({
+      name: integrationName || 'Dynamic Field Detection',
+      api_key: apiKey,
+      count: 0,
+      status: ActionStatus.START,
+      process_name: 'fetching',
+      user_id: userId,
+    });
+
+    const savedAction = await this.actionRepository.save(action);
+
+    try {
+      // Update status to filtering
+      await this.actionRepository.update(savedAction.id, {
+        process_name: 'filtering',
+      });
+
+      // Extract all unique property names from conditions
+      const dynamicProperties = new Set<string>();
+      conditions.forEach((condition) => {
+        condition.fields.forEach((field) => {
+          // Add non-standard fields to the set of dynamic properties to fetch
+          if (
+            !['email', 'firstname', 'lastname', 'phone', 'company'].includes(
+              field,
+            )
+          ) {
+            dynamicProperties.add(field);
+          }
+        });
+      });
+
+      const propertyNames = Array.from(dynamicProperties);
+
+      // Fetch fresh data from HubSpot with the required properties
+      if (propertyNames.length > 0) {
+        this.logger.log(
+          `Fetching fresh data from HubSpot with properties: ${propertyNames.join(', ')}`,
+        );
+        await this.fetchAndStoreContactsWithProperties(
+          userId,
+          apiKey,
+          propertyNames,
+        );
+      } else {
+        this.logger.log(
+          'Using standard properties only, fetching fresh data from HubSpot',
+        );
+        await this.fetchAndStoreContactsWithProperties(userId, apiKey, []);
+      }
+
+      // Clear existing matches first
+      await this.duplicateDetectionService.clearExistingMatches(userId, apiKey);
+
+      // Run dynamic field duplicate detection
+      await this.duplicateDetectionService.findDynamicFieldDuplicates(
+        apiKey,
+        userId,
+        conditions,
+      );
+
+      // Update action status to manually merge (ready for review)
+      await this.actionRepository.update(savedAction.id, {
+        process_name: 'manually merge',
+        status: ActionStatus.MANUALLY_MERGE,
+      });
+
+      // Get final contact count
+      const contactCount = await this.contactService.getContactCount(
+        userId,
+        apiKey,
+      );
+      await this.actionRepository.update(savedAction.id, {
+        count: contactCount,
+      });
+
+      this.logger.log(
+        'Dynamic field duplicate detection completed successfully',
+      );
+      this.logger.log(`Total contacts processed: ${contactCount}`);
+
+      // Check if any duplicates were found
+      const duplicateGroups = await this.matchingService.getMatchingGroups(
+        userId,
+        apiKey,
+      );
+      this.logger.log(`Duplicate groups found: ${duplicateGroups.length}`);
+
+      return {
+        action: savedAction,
+        message: 'Dynamic field duplicate detection completed successfully',
+      };
+    } catch (error: any) {
+      // Update action status to error
+      await this.actionRepository.update(savedAction.id, {
+        process_name: 'error',
+        status: ActionStatus.ERROR,
+      });
+
+      this.logger.error(
+        'Error in dynamic field duplicate detection:',
+        error.message,
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Fetch and store contacts with specific properties from HubSpot
+   */
+  private async fetchAndStoreContactsWithProperties(
+    userId: number,
+    apiKey: string,
+    propertyNames: string[],
+  ): Promise<void> {
+    this.logger.log(
+      'Starting to fetch contacts with dynamic properties from HubSpot...',
+    );
+
+    let after: string | undefined;
+    let totalContacts = 0;
+
+    try {
+      do {
+        const response =
+          await this.hubspotApiService.fetchContactsWithProperties(
+            apiKey,
+            propertyNames,
+            after,
+            100,
+          );
+
+        if (response.results && response.results.length > 0) {
+          // Clear existing contacts for this user and API key before saving new data
+          if (totalContacts === 0) {
+            await this.contactService.clearContactsByApiKey(userId, apiKey);
+          }
+
+          await this.contactService.saveContacts(
+            response.results,
+            apiKey,
+            userId,
+          );
+
+          totalContacts += response.results.length;
+          this.logger.log(
+            `Fetched and saved ${totalContacts} contacts so far...`,
+          );
+        }
+
+        after = response.paging?.next?.after;
+      } while (after);
+
+      this.logger.log(
+        `Completed fetching ${totalContacts} contacts with dynamic properties`,
+      );
+    } catch (error: any) {
+      this.logger.error(
+        'Error fetching contacts with properties:',
+        error.message,
+      );
+      throw new Error(
+        `Failed to fetch contacts from HubSpot: ${error.message}`,
       );
     }
   }

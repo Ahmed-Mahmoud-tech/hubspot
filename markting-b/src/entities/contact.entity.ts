@@ -47,6 +47,9 @@ export class Contact {
   @Column({ name: 'api_key' })
   apiKey: string;
 
+  @Column({ name: 'properties', type: 'text', nullable: true })
+  properties?: string; // JSON string containing all HubSpot properties
+
   @ManyToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })
   user: User;

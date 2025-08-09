@@ -6,6 +6,10 @@ const noAuthRoutes = [
   "/auth/forgot-password",
   "/auth/reset-password",
   "/auth/verify-email",
+  "/hubspot/actions-public",
+  "/hubspot/dynamic-field-duplicates",
+  "/api/hubspot/grouped-properties",
+  "/api/hubspot/search-properties",
 ];
 const baseURL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 const nextUrl = process.env.NEXT_PUBLIC_NEXT_URL || "http://localhost:3000/";

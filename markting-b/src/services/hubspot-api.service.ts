@@ -150,6 +150,58 @@ export class HubSpotApiService {
     return data;
   }
 
+  /**
+   * Fetch contacts with specific properties for dynamic field detection
+   */
+  async fetchContactsWithProperties(
+    apiKey: string,
+    propertyNames: string[],
+    after?: string,
+    limit: number = 100,
+  ): Promise<HubSpotListResponse> {
+    // Always include basic properties plus the requested ones
+    const baseProperties = [
+      'email',
+      'firstname',
+      'lastname',
+      'phone',
+      'company',
+      'createdate',
+      'lastmodifieddate',
+      'hs_object_id',
+      'hs_additional_emails',
+    ];
+
+    // Combine base properties with requested dynamic properties
+    const allProperties = [...new Set([...baseProperties, ...propertyNames])];
+
+    const params: any = {
+      limit,
+      properties: allProperties,
+    };
+
+    if (after) {
+      params.after = after;
+    }
+
+    const url = 'https://api.hubapi.com/crm/v3/objects/contacts';
+    const response = await this.makeHubSpotAPIRequest(url, apiKey, params);
+    const data = response.data as HubSpotListResponse;
+
+    // Process results to ensure hs_additional_emails is accessible
+    if (data.results) {
+      data.results = data.results.map((contact) => {
+        if (contact.properties && contact.properties.hs_additional_emails) {
+          contact.hs_additional_emails =
+            contact.properties.hs_additional_emails;
+        }
+        return contact;
+      });
+    }
+
+    return data;
+  }
+
   async updateHubSpotContact(
     hubspotId: string,
     apiKey: string,
