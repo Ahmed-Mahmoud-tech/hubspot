@@ -11,9 +11,6 @@ const useApi = () => {
   const axiosObject = {
     baseURL,
   };
-  // const translations = useTranslations();
-  // const t = typeof window === 'undefined' ? (x: string) => x : translations;
-  // const token = await myCookie('auth_token');
 
   const mainInstance = axios.create(axiosObject);
   mainInstance.interceptors.request.use(

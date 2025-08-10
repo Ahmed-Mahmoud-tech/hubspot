@@ -1,6 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { toast } from 'react-toastify';
 
 export default function CheckEmailPage() {
   const router = useRouter();
@@ -47,7 +48,7 @@ export default function CheckEmailPage() {
             <button
               onClick={() => {
                 // TODO: Implement resend verification email
-                alert('Resend functionality coming soon');
+                toast.info('Resend functionality coming soon');
               }}
               className="text-sm font-medium text-indigo-600 hover:text-indigo-500"
             >

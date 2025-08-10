@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, Suspense } from 'react';
+import { toast } from 'react-toastify';
 import { useSearchParams } from 'next/navigation';
 import useRequest from '@/app/axios/useRequest';
 
@@ -271,22 +272,22 @@ function DuplicatesPageContent() {
         setSelectedGroup(group);
         // PLAN VALIDATION
         if (!userPlan) {
-            alert('User plan not loaded. Please refresh and try again.');
+            toast.error('User plan not loaded. Please refresh and try again.');
             return;
         }
         if (userPlan.planType === 'free' && userPlan.mergeGroupsUsed >= freeMergeGroupLimit) {
-            alert(`Free plan limit reached: You can only merge up to ${freeMergeGroupLimit} groups. Upgrade your plan to continue.`);
+            toast.warn(`Free plan limit reached: You can only merge up to ${freeMergeGroupLimit} groups. Upgrade your plan to continue.`);
             return;
         }
         if (userPlan.planType === 'paid' && userPlan.contactLimit && userPlan.contactCount >= userPlan.contactLimit) {
-            alert('Paid plan contact limit reached. Please upgrade your plan to add more contacts.');
+            toast.warn('Paid plan contact limit reached. Please upgrade your plan to add more contacts.');
             return;
         }
 
         // Check if a contact is selected for this group
         const selectedContactId = selectedContactForTwoGroup[group.id];
         if (!selectedContactId) {
-            alert('Please select a primary contact before merging.');
+            toast.info('Please select a primary contact before merging.');
             return;
         }
 
@@ -306,7 +307,7 @@ function DuplicatesPageContent() {
 
         const selectedContactId = selectedContactForTwoGroup[selectedGroup.id];
         if (!selectedContactId) {
-            alert('No primary contact selected');
+            toast.info('No primary contact selected');
             return;
         }
 
@@ -314,7 +315,7 @@ function DuplicatesPageContent() {
         const primaryContactIndex = selectedGroup.group.findIndex(c => c.id === selectedContactId);
         const primaryContact = selectedGroup.group[primaryContactIndex];
         if (!primaryContact) {
-            alert('Primary contact not found');
+            toast.error('Primary contact not found');
             return;
         }
 
@@ -388,17 +389,17 @@ function DuplicatesPageContent() {
             const result = response.data as { success: boolean; message: string; mergeId?: number; details?: any };
 
             if (result && result.success) {
-                alert(`✅ ${result.message}\n\n⚠️ Remember to click "Finish Process" to complete the merges in HubSpot.`);
+                toast.success(`✅ ${result.message}\n\n⚠️ Remember to click "Finish Process" to complete the merges in HubSpot.`);
                 // Clear selection for this group
                 setSelectedContactForTwoGroup(prev => ({ ...prev, [selectedGroup.id]: null }));
                 // Refresh duplicates list
                 await fetchDuplicates(currentPage);
             } else {
-                alert('❌ Merge failed. Please try again.');
+                toast.error('❌ Merge failed. Please try again.');
             }
         } catch (error: any) {
             console.error('Error during field selection merge:', error);
-            alert('❌ Error processing merge. Please try again.\n\nError details: ' + (error?.message || error?.toString()));
+            toast.error('❌ Error processing merge. Please try again.\n\nError details: ' + (error?.message || error?.toString()));
         }
 
         setIsFieldSelectionModalOpen(false);
@@ -407,63 +408,17 @@ function DuplicatesPageContent() {
     const handleFinishProcess = async () => {
         try {
             if (!apiKey) {
-                alert('Missing API key.');
+                toast.error('Missing API key.');
                 return;
             }
             await finishProcess({ apiKey });
             router.push('/dashboard');
         } catch (error) {
-            alert('❌ Error finishing process. Please try again.');
+            toast.error('❌ Error finishing process. Please try again.');
             console.error('Error finishing process:', error);
         }
     }
-    // const handleFinishProcess = async () => {
-    //     try {
 
-
-    //         // Start processing and progress tracking
-    //         setIsProcessing(true);
-
-    //         // Start the finish process (non-blocking)
-    //         const finishPromise = finishProcess();
-
-    //         // Start polling for progress
-    //         const progressInterval = setInterval(async () => {
-    //             try {
-    //                 const response = await getProcessProgress();
-    //                 const progress = response.data as ProcessProgress;
-    //                 setProcessingProgress(progress);
-
-    //                 if (progress.isComplete) {
-    //                     clearInterval(progressInterval);
-    //                     setIsProcessing(false);
-    //                 }
-    //             } catch (error) {
-    //                 console.error('Error fetching progress:', error);
-    //             }
-    //         }, 2000); // Poll every 2 seconds
-
-    //         // Wait for the process to complete
-    //         const finishResponse = await finishPromise;
-    //         const result = finishResponse.data as { message: string; excelUrl: string };
-
-    //         // Clean up
-    //         clearInterval(progressInterval);
-    //         setIsProcessing(false);
-
-    //         alert(`✅ Process completed successfully!\n\n📊 Excel file: ${result.excelUrl}\n\nAll duplicates have been merged, modified contacts updated, and removed contacts processed.`);
-
-    //         // Redirect to dashboard
-    //         router.push('/dashboard');
-    //     } catch (error) {
-    //         setIsProcessing(false);
-    //         console.error('Error finishing process:', error);
-    //         alert('❌ Error finishing process. Please try again.\n\nError details: ' + (error as Error).message);
-    //     }
-    // };
-    // PLAN ENFORCEMENT LOGIC
-    // Use count from processStatus (getLatestAction().data.data.count) if available
-    // (removed duplicate declaration)
     useEffect(() => {
         const showPlanModal =
             !userPlan ||
@@ -600,12 +555,12 @@ function DuplicatesPageContent() {
                                 // Direct merge logic: use current selected primary, no popup
                                 const selectedContactId = selectedContactForTwoGroup[group.id];
                                 if (!selectedContactId) {
-                                    alert('Please select a primary contact before merging.');
+                                    toast.info('Please select a primary contact before merging.');
                                     return;
                                 }
                                 const primaryContact = group.group.find(c => c.id === selectedContactId);
                                 if (!primaryContact) {
-                                    alert('Primary contact not found');
+                                    toast.error('Primary contact not found');
                                     return;
                                 }
                                 const secondaryContacts = group.group.filter(c => c.id !== selectedContactId);
@@ -620,15 +575,14 @@ function DuplicatesPageContent() {
                                     const response = await mergeContacts(mergeData);
                                     const result = response.data as { success: boolean; message: string; mergeId?: number; details?: any };
                                     if (result && result.success) {
-                                        alert(`✅ ${result.message}\n\n⚠️ Remember to click \"Finish Process\" to complete the merges in HubSpot.`);
                                         setSelectedContactForTwoGroup(prev => ({ ...prev, [group.id]: null }));
                                         await fetchDuplicates(currentPage);
                                     } else {
-                                        alert('❌ Merge failed. Please try again.');
+                                        toast.error('❌ Merge failed. Please try again.');
                                     }
                                 } catch (error: any) {
                                     console.error('Error during direct merge:', error);
-                                    alert('❌ Error processing merge. Please try again.\n\nError details: ' + (error?.message || error?.toString()));
+                                    toast.error('❌ Error processing merge. Please try again.\n\nError details: ' + (error?.message || error?.toString()));
                                 }
                             }}
                             onRefresh={() => fetchDuplicates(currentPage)}
