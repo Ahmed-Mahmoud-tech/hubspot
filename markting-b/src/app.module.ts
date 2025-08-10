@@ -54,6 +54,10 @@ import { CorsMiddleware } from './middleware/cors.middleware';
         ],
         synchronize: process.env.NODE_ENV === 'development',
         logging: process.env.NODE_ENV === 'development',
+        ssl:
+          configService.get('DATABASE_SSLMODE') === 'require'
+            ? { rejectUnauthorized: false }
+            : false,
       }),
       inject: [ConfigService],
     }),
