@@ -26,6 +26,7 @@ import {
   BatchMergeContactsDto,
   ResetMergeByGroupDto,
   DeleteActionDto,
+  UpdateContactDto,
 } from '../dto/hubspot.dto';
 
 @Controller('hubspot')
@@ -390,10 +391,10 @@ export class HubSpotController {
   }
 
   @Post('update-contact')
+  @UseGuards(JwtAuthGuard)
   async updateContact(
     @Request() req: any,
-    @Body()
-    updateContactDto: { contactId: string; apiKey: string; fields: any },
+    @Body() updateContactDto: UpdateContactDto,
   ) {
     const userId = req.user.id as number;
     return this.hubspotService.updateContactInHubSpot(

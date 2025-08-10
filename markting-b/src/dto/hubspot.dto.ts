@@ -170,3 +170,17 @@ export class DeleteActionDto {
   @IsNotEmpty()
   apiKey: string;
 }
+
+export class UpdateContactDto {
+  @IsString()
+  @IsNotEmpty()
+  contactId: string;
+
+  @IsString()
+  @IsNotEmpty()
+  apiKey: string;
+
+  @IsObject()
+  @IsNotEmpty()
+  fields: Record<string, any>;
+}

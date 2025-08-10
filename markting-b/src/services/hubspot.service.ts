@@ -1513,66 +1513,104 @@ export class HubSpotService {
     fields: any,
   ): Promise<any> {
     try {
-      // Call HubSpot API to update the contact
-      const response = await axios.patch(
-        `https://api.hubapi.com/crm/v3/objects/contacts/${contactId}`,
-        {
-          properties: fields,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${apiKey}`,
-            'Content-Type': 'application/json',
-          },
-        },
+      this.logger.log(`[updateContactInHubSpot] User ID: ${userId}`);
+      this.logger.log(`[updateContactInHubSpot] Contact ID: ${contactId}`);
+      this.logger.log(
+        `[updateContactInHubSpot] API Key: ${apiKey ? 'provided' : 'missing'}`,
+      );
+      this.logger.log(
+        `[updateContactInHubSpot] Fields:`,
+        JSON.stringify(fields, null, 2),
       );
 
+      // Check if all properties exist, create missing ones
+      await this.ensurePropertiesExist(apiKey, Object.keys(fields));
+
+      // Call HubSpot API to update the contact with retry logic
+      const response = await this.updateContactWithRetry(
+        contactId,
+        apiKey,
+        fields,
+      );
+
+      this.logger.log(`HubSpot API update successful for contact ${contactId}`);
+
       // After updating HubSpot, update the local contact table
-      // Separate standard properties from other properties
-      const standardProps: any = {};
-      const otherProps: any = {};
+      try {
+        // Separate standard properties from other properties
+        const standardProps: any = {};
+        const otherProps: any = {};
 
-      // Standard property mappings
-      if (fields.firstname !== undefined)
-        standardProps.firstName = fields.firstname;
-      if (fields.lastname !== undefined)
-        standardProps.lastName = fields.lastname;
-      if (fields.phone !== undefined) standardProps.phone = fields.phone;
-      if (fields.company !== undefined) standardProps.company = fields.company;
-      if (fields.email !== undefined) standardProps.email = fields.email;
-      if (fields.hs_additional_emails !== undefined)
-        standardProps.hs_additional_emails = fields.hs_additional_emails;
+        // Standard property mappings
+        if (fields.firstname !== undefined)
+          standardProps.firstName = fields.firstname;
+        if (fields.lastname !== undefined)
+          standardProps.lastName = fields.lastname;
+        if (fields.phone !== undefined) standardProps.phone = fields.phone;
+        if (fields.company !== undefined)
+          standardProps.company = fields.company;
+        if (fields.email !== undefined) standardProps.email = fields.email;
+        if (fields.hs_additional_emails !== undefined)
+          standardProps.hs_additional_emails = fields.hs_additional_emails;
 
-      // Extract other properties (non-standard ones)
-      const standardFieldNames = [
-        'firstname',
-        'lastname',
-        'phone',
-        'company',
-        'email',
-        'hs_additional_emails',
-      ];
-      Object.entries(fields).forEach(([key, value]) => {
-        if (!standardFieldNames.includes(key) && value !== undefined) {
-          otherProps[key] = value;
+        // Extract other properties (non-standard ones)
+        const standardFieldNames = [
+          'firstname',
+          'lastname',
+          'phone',
+          'company',
+          'email',
+          'hs_additional_emails',
+        ];
+        Object.entries(fields).forEach(([key, value]) => {
+          if (!standardFieldNames.includes(key) && value !== undefined) {
+            otherProps[key] = value;
+          }
+        });
+
+        this.logger.log(`Standard props:`, standardProps);
+        this.logger.log(`Other props:`, otherProps);
+
+        // Get current other properties and merge with new ones
+        const currentContact =
+          await this.contactService.getContactByHubspotId(contactId);
+
+        if (!currentContact) {
+          this.logger.warn(`Contact ${contactId} not found in local database`);
+          return response.data;
         }
-      });
 
-      // Get current other properties and merge with new ones
-      const currentContact =
-        await this.contactService.getContactByHubspotId(contactId);
-      const currentOtherProperties = currentContact?.otherProperties || {};
-      const mergedOtherProperties = {
-        ...currentOtherProperties,
-        ...otherProps,
-      };
+        const currentOtherProperties = currentContact?.otherProperties || {};
+        const mergedOtherProperties = {
+          ...currentOtherProperties,
+          ...otherProps,
+        };
 
-      await this.contactService.updateContactByHubspotId(contactId, {
-        ...standardProps,
-        ...(Object.keys(mergedOtherProperties).length > 0 && {
-          otherProperties: mergedOtherProperties,
-        }),
-      });
+        // Prepare update object
+        const updateData: any = { ...standardProps };
+        if (Object.keys(mergedOtherProperties).length > 0) {
+          updateData.otherProperties = mergedOtherProperties;
+        }
+
+        this.logger.log(`Update data for local DB:`, updateData);
+
+        // Only update if there's something to update
+        if (Object.keys(updateData).length > 0) {
+          await this.contactService.updateContactByHubspotId(
+            contactId,
+            updateData,
+          );
+          this.logger.log(
+            `Local database updated successfully for contact ${contactId}`,
+          );
+        }
+      } catch (dbError) {
+        this.logger.error(
+          `Failed to update local database for contact ${contactId}:`,
+          dbError,
+        );
+        // Don't throw here - HubSpot update was successful
+      }
 
       this.logger.log(
         `Successfully updated contact ${contactId} in HubSpot and local DB`,
@@ -1608,5 +1646,199 @@ export class HubSpotService {
         `Failed to fetch properties from HubSpot: ${error.response?.data?.message || error.message}`,
       );
     }
+  }
+
+  async ensurePropertiesExist(
+    apiKey: string,
+    propertyNames: string[],
+  ): Promise<void> {
+    try {
+      this.logger.log(
+        `[ensurePropertiesExist] Checking properties: ${propertyNames.join(', ')}`,
+      );
+
+      // Get all existing properties from HubSpot
+      const response = await axios.get(
+        'https://api.hubapi.com/crm/v3/properties/contacts',
+        {
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+          },
+        },
+      );
+
+      const existingProperties = response.data.results.map(
+        (prop: any) => prop.name,
+      );
+      this.logger.log(
+        `[ensurePropertiesExist] Found ${existingProperties.length} existing properties`,
+      );
+
+      // Standard HubSpot properties that we don't need to create
+      const standardProperties = [
+        'firstname',
+        'lastname',
+        'email',
+        'phone',
+        'company',
+        'hs_additional_emails',
+        'createdate',
+        'lastmodifieddate',
+      ];
+
+      // Check which properties need to be created
+      const missingProperties = propertyNames.filter(
+        (prop) =>
+          !existingProperties.includes(prop) &&
+          !standardProperties.includes(prop),
+      );
+
+      if (missingProperties.length > 0) {
+        this.logger.log(
+          `[ensurePropertiesExist] Creating missing properties: ${missingProperties.join(', ')}`,
+        );
+
+        // Create missing properties
+        for (const propertyName of missingProperties) {
+          try {
+            await this.createCustomProperty(apiKey, propertyName);
+            this.logger.log(
+              `[ensurePropertiesExist] Successfully created property: ${propertyName}`,
+            );
+          } catch (createError) {
+            this.logger.error(
+              `[ensurePropertiesExist] Failed to create property ${propertyName}:`,
+              createError.response?.data || createError.message,
+            );
+            // Continue with other properties even if one fails
+          }
+        }
+      } else {
+        this.logger.log(`[ensurePropertiesExist] All properties already exist`);
+      }
+    } catch (error) {
+      this.logger.error(
+        `[ensurePropertiesExist] Failed to check properties:`,
+        error.response?.data || error.message,
+      );
+      // If we can't check properties, it might be an auth issue, but we can still try to update
+      this.logger.warn(
+        `[ensurePropertiesExist] Continuing with update despite property check failure`,
+      );
+    }
+  }
+
+  async createCustomProperty(
+    apiKey: string,
+    propertyName: string,
+  ): Promise<void> {
+    const propertyData = {
+      name: propertyName,
+      label: propertyName.charAt(0).toUpperCase() + propertyName.slice(1), // Capitalize first letter
+      type: 'string',
+      fieldType: 'text',
+      groupName: 'contactinformation',
+      description: `Custom property: ${propertyName}`,
+      formField: true,
+      displayOrder: -1,
+      hasUniqueValue: false,
+    };
+
+    await axios.post(
+      'https://api.hubapi.com/crm/v3/properties/contacts',
+      propertyData,
+      {
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+      },
+    );
+  }
+
+  async updateContactWithRetry(
+    contactId: string,
+    apiKey: string,
+    fields: any,
+    maxRetries: number = 3,
+  ): Promise<any> {
+    let lastError: any;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        this.logger.log(
+          `[updateContactWithRetry] Attempt ${attempt}/${maxRetries} for contact ${contactId}`,
+        );
+
+        const response = await axios.patch(
+          `https://api.hubapi.com/crm/v3/objects/contacts/${contactId}`,
+          { properties: fields },
+          {
+            headers: {
+              Authorization: `Bearer ${apiKey}`,
+              'Content-Type': 'application/json',
+            },
+          },
+        );
+
+        this.logger.log(
+          `[updateContactWithRetry] Successfully updated contact ${contactId} on attempt ${attempt}`,
+        );
+        return response.data;
+      } catch (error) {
+        lastError = error;
+        this.logger.error(
+          `[updateContactWithRetry] Attempt ${attempt} failed:`,
+          error.response?.data || error.message,
+        );
+
+        // Check if it's a property-related error
+        if (
+          error.response?.data?.category === 'VALIDATION_ERROR' &&
+          attempt < maxRetries
+        ) {
+          const errorMessage = error.response.data.message || '';
+          if (
+            errorMessage.includes('Property') &&
+            errorMessage.includes('does not exist')
+          ) {
+            this.logger.log(
+              `[updateContactWithRetry] Property error detected, trying to create missing properties`,
+            );
+            // Extract property name from error and try to create it
+            const propertyMatch = errorMessage.match(/Property "([^"]+)"/);
+            if (propertyMatch) {
+              const missingProperty = propertyMatch[1];
+              try {
+                await this.createCustomProperty(apiKey, missingProperty);
+                this.logger.log(
+                  `[updateContactWithRetry] Created missing property: ${missingProperty}`,
+                );
+                continue; // Retry the update
+              } catch (createError) {
+                this.logger.error(
+                  `[updateContactWithRetry] Failed to create property ${missingProperty}:`,
+                  createError.response?.data || createError.message,
+                );
+              }
+            }
+          }
+        }
+
+        // If it's the last attempt or not a retryable error, break
+        if (
+          attempt === maxRetries ||
+          error.response?.data?.category === 'INVALID_AUTHENTICATION'
+        ) {
+          break;
+        }
+
+        // Wait before retrying
+        await new Promise((resolve) => setTimeout(resolve, 1000 * attempt));
+      }
+    }
+
+    throw lastError;
   }
 }
