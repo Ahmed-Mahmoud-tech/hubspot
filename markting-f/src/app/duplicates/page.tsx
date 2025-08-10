@@ -389,7 +389,7 @@ function DuplicatesPageContent() {
             const result = response.data as { success: boolean; message: string; mergeId?: number; details?: any };
 
             if (result && result.success) {
-                toast.success(`✅ ${result.message}\n\n⚠️ Remember to click "Finish Process" to complete the merges in HubSpot.`);
+                toast.success(`✅ ${result.message}`);
                 // Clear selection for this group
                 setSelectedContactForTwoGroup(prev => ({ ...prev, [selectedGroup.id]: null }));
                 // Refresh duplicates list

@@ -10,7 +10,7 @@ import useRequest from '@/app/axios/useRequest';
 
 function EditContactPageContent() {
     const searchParams = useSearchParams();
-    const { isAuthenticated } = useRequest();
+    const { isAuthenticated, submitMerge } = useRequest();
     const [isLoading, setIsLoading] = useState(false);
     const [resultMessage, setResultMessage] = useState('');
 
@@ -49,46 +49,33 @@ function EditContactPageContent() {
         setResultMessage('');
 
         try {
-            const response = await fetch('http://localhost:8000/hubspot/submit-merge', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`,
-                },
-                body: JSON.stringify(contactData),
-            });
+            const result = await submitMerge(contactData) as any;
 
-            const result = await response.json();
+            setResultMessage(`✅ Success: ${result.message}`);
+            console.log('Merge details:', result.details);
 
-            if (response.ok) {
-                setResultMessage(`✅ Success: ${result.message}`);
-                console.log('Merge details:', result.details);
+            // Display HubSpot operation results
+            if (result.details?.hubspotOperations) {
+                const operations = result.details.hubspotOperations;
+                let hubspotMsg = '';
 
-                // Display HubSpot operation results
-                if (result.details?.hubspotOperations) {
-                    const operations = result.details.hubspotOperations;
-                    let hubspotMsg = '';
-
-                    if (operations.updateResult?.success) {
-                        hubspotMsg += '✅ Contact updated in HubSpot successfully\n';
-                    } else if (operations.updateResult?.error) {
-                        hubspotMsg += `❌ Failed to update contact in HubSpot: ${operations.updateResult.error}\n`;
-                    }
-
-                    operations.deleteResults?.forEach((deleteResult: any) => {
-                        if (deleteResult.success) {
-                            hubspotMsg += `✅ Contact ${deleteResult.hubspotId} deleted from HubSpot\n`;
-                        } else {
-                            hubspotMsg += `❌ Failed to delete contact ${deleteResult.hubspotId}: ${deleteResult.error}\n`;
-                        }
-                    });
-
-                    if (hubspotMsg) {
-                        setResultMessage(prev => prev + '\n\nHubSpot Operations:\n' + hubspotMsg);
-                    }
+                if (operations.updateResult?.success) {
+                    hubspotMsg += '✅ Contact updated in HubSpot successfully\n';
+                } else if (operations.updateResult?.error) {
+                    hubspotMsg += `❌ Failed to update contact in HubSpot: ${operations.updateResult.error}\n`;
                 }
-            } else {
-                setResultMessage(`❌ Error: ${result.message || 'Failed to merge contacts'}`);
+
+                operations.deleteResults?.forEach((deleteResult: any) => {
+                    if (deleteResult.success) {
+                        hubspotMsg += `✅ Contact ${deleteResult.hubspotId} deleted from HubSpot\n`;
+                    } else {
+                        hubspotMsg += `❌ Failed to delete contact ${deleteResult.hubspotId}: ${deleteResult.error}\n`;
+                    }
+                });
+
+                if (hubspotMsg) {
+                    setResultMessage(prev => prev + '\n\nHubSpot Operations:\n' + hubspotMsg);
+                }
             }
         } catch (error: any) {
             console.error('Error submitting merge:', error);
