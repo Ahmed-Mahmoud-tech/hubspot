@@ -1,9 +1,15 @@
 "use client"
-import { useEffect, useState } from 'react';
+
+import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import useRequest from '@/app/axios/useRequest';
 
-export default function PaymentSuccessPage() {
+
+function Loading() {
+  return <div>Loading...</div>;
+}
+
+function PaymentSuccessPageContent() {
   const { verifyStripeSession } = useRequest();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -58,4 +64,12 @@ export default function PaymentSuccessPage() {
     );
   }
   return null;
+}
+
+export default function PaymentSuccessPage() {
+  return (
+    <Suspense fallback={<Loading />}>
+      <PaymentSuccessPageContent />
+    </Suspense>
+  );
 }
