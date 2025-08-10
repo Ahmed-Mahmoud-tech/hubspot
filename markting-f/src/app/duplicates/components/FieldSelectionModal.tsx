@@ -82,7 +82,7 @@ export default function FieldSelectionModal({
     const getAllOtherProperties = () => {
         const allContacts = [primaryContact, ...secondaryContacts];
         const allOtherProperties: Record<string, Set<string>> = {};
-        
+
         allContacts.forEach(contact => {
             if (contact.otherProperties) {
                 Object.entries(contact.otherProperties).forEach(([key, value]) => {
@@ -101,7 +101,7 @@ export default function FieldSelectionModal({
         Object.entries(allOtherProperties).forEach(([key, valueSet]) => {
             result[key] = Array.from(valueSet);
         });
-        
+
         return result;
     };
 

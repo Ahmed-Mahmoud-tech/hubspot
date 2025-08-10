@@ -214,7 +214,28 @@ export default function DashboardPage() {
             fetchCustomProperties(formData.apiKey);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [formData.apiKey, filterType]); const handleFormSubmit = async (e: React.FormEvent) => {
+    }, [formData.apiKey, filterType]);
+
+    const transformDefaultFilters = (filters: string[]): string[] => {
+        const filterMapping: { [key: string]: string } = {
+            'phone': 'condition_1:phone',
+            'first_last_name': 'condition_2:firstname,lastname',
+            'first_name_phone': 'condition_3:firstname,phone',
+            'first_last_name_company': 'condition_4:firstname,lastname,company'
+        };
+
+        const transformedFilters = ['same_email']; // Always include same_email first
+
+        filters.forEach(filter => {
+            if (filter !== 'same_email' && filterMapping[filter]) {
+                transformedFilters.push(filterMapping[filter]);
+            }
+        });
+
+        return transformedFilters;
+    };
+
+    const handleFormSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsSubmitting(true);
 
@@ -222,8 +243,8 @@ export default function DashboardPage() {
             let filtersToSend: string[];
 
             if (filterType === 'default') {
-                // Always include hidden filter for same emails
-                filtersToSend = [...selectedFilters, 'same_email'];
+                // Transform default filters to new format
+                filtersToSend = transformDefaultFilters([...selectedFilters, 'same_email']);
             } else {
                 // Custom filters: build from conditions
                 filtersToSend = ['same_email']; // Always include same email
@@ -437,7 +458,7 @@ export default function DashboardPage() {
                 </div>
                 {/* Plan Details Section */}
 
-                {plan?.is_paid_plan && (
+                {/* {plan?.is_paid_plan && (
                     <div className="bg-white shadow-lg rounded-xl mb-8">
                         <div className="px-8 py-6 border-b border-blue-100 flex items-center justify-between">
                             <div className="flex items-center gap-3">
@@ -492,7 +513,7 @@ export default function DashboardPage() {
 
                         </div>
                     </div>
-                )}
+                )} */}
 
                 {/* Actions Section */}
                 {/* HubSpot Integrations Section */}
