@@ -25,12 +25,13 @@ export function PlanModal({ apiKey, open, onClose, userId, plan, contactCount }:
     // If plan is null, fallback to free plan for UI, but show correct message
     const [localPlan, setLocalPlan] = useState({ type: 'free', mergeGroupsUsed: 0, contactCount: initialContactCount });
     // Add input state for contact count (for paid plan), always not less than stripeCountLimit
-    const [inputContactCount, setInputContactCount] = useState(() => Math.max(initialContactCount + dividedContactPerMonth, stripeCountLimit));
+    const [inputContactCount, setInputContactCount] = useState(() => Math.max(initialContactCount, stripeCountLimit));
     const [error, setError] = useState('');
     const [billingType, setBillingType] = useState<'monthly' | 'yearly'>('monthly');
     const [upgradeInfo, setUpgradeInfo] = useState<any>(null);
     const [userBalance, setUserBalance] = useState<any>(null);
     const modalRef = useRef<HTMLDivElement>(null);
+    console.log(initialContactCount, dividedContactPerMonth, stripeCountLimit);
 
 
     // Move moreThanMonth above useEffect to avoid initialization error
@@ -81,10 +82,10 @@ export function PlanModal({ apiKey, open, onClose, userId, plan, contactCount }:
                 mergeGroupsUsed: plan.mergeGroupsUsed || 0,
                 contactCount: plan.contactCount || initialContactCount,
             });
-            setInputContactCount(Math.max((plan.contactCount || initialContactCount) + dividedContactPerMonth, stripeCountLimit));
+            setInputContactCount(Math.max((plan.contactCount || initialContactCount), stripeCountLimit));
         } else {
             setLocalPlan({ type: 'free', mergeGroupsUsed: 0, contactCount: contactCount || initialContactCount });
-            setInputContactCount(Math.max((contactCount || initialContactCount) + dividedContactPerMonth, stripeCountLimit));
+            setInputContactCount(Math.max((contactCount || initialContactCount), stripeCountLimit));
         }
 
         // If monthly is disabled, set billingType to yearly
@@ -181,13 +182,24 @@ export function PlanModal({ apiKey, open, onClose, userId, plan, contactCount }:
             >
                 <div className="max-w-4xl w-full mx-auto p-8 bg-white rounded-xl shadow-lg border border-gray-200 relative animate-fade-in">
                     <button className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-2xl font-bold" onClick={onClose}>&times;</button>
-                    <h1 className="text-3xl font-bold text-[var(--foreground)] mb-2 text-center">Contact Merge Plans</h1>
-                    <p className="text-gray-500 mb-2 text-center">Choose the best plan for your needs. Upgrade anytime for more features.</p>
-                    {/* <div className="mb-4 text-center">
-                        <span className={`text-md font-semibold ${showUpgrade ? 'text-red-600' : 'text-green-600'}`}>{infoMessage}</span>
-                    </div> */}
-                    <div className="text-md text-blue-500 text-center mb-3">
-                        💡 For paid plans: <span className="font-semibold text-4xl text-black">$1</span> lets you fetch <span className="font-semibold text-xl">2,000</span> contacts (monthly) or <span className="font-semibold text-xl">4,000</span> contacts (yearly).
+                    <div className="mb-8 flex flex-col items-center">
+                        <h1 className="text-3xl font-bold text-gray-900 mb-2 text-center">Contact Merge Plans</h1>
+                        <p className="text-gray-500 mb-4 text-center max-w-xl">Choose the best plan for your needs. Upgrade anytime for more features.</p>
+                        <div className="w-full flex justify-center">
+                            <div className="rounded-lg border border-gray-200 bg-gray-50 px-6 py-4 flex flex-col items-center shadow-sm">
+                                <span className="text-gray-700 text-base mb-1 flex items-center">
+                                    <span className="mr-2">💡</span>For paid plans:
+                                </span>
+                                <span className="flex items-center gap-2 mt-1">
+                                    <span className="font-bold text-2xl text-gray-900">$1</span>
+                                    <span className="text-gray-700 text-base">lets you fetch</span>
+                                    <span className="font-semibold text-lg text-gray-800">2,000</span>
+                                    <span className="text-gray-700 text-base">(monthly) or</span>
+                                    <span className="font-semibold text-lg text-gray-800">4,000</span>
+                                    <span className="text-gray-700 text-base">(yearly)</span>
+                                </span>
+                            </div>
+                        </div>
                     </div>
                     <div className='flex flex-col md:flex-row gap-4 justify-center'>
                         {/* <div className="flex flex-col gap-3">
@@ -250,16 +262,16 @@ export function PlanModal({ apiKey, open, onClose, userId, plan, contactCount }:
                             )}
                         </div> */}
                         <div
-                            className={`mb-4 ${(!plan || plan.planType !== 'paid') ? 'grid grid-cols-1 md:grid-cols-2 gap-4' : 'flex justify-center'}`}
+                            className={`mb-4 flex justify-center`}
+                        // className={`mb-4 ${(!plan || plan.planType !== 'paid') ? 'grid grid-cols-1 md:grid-cols-2 gap-4' : 'flex justify-center'}`}
                         >
                             {/* Free Plan Card: Only show if not paid plan */}
-                            {(!plan || plan.planType !== 'paid') && (
+                            {/* {(!plan || plan.planType !== 'paid') && (
                                 <div className="bg-gradient-to-br from-blue-50 via-blue-25 to-white border-2 border-blue-200 rounded-2xl p-3 flex flex-col items-center shadow-xl hover:shadow-2xl transition-all duration-300 relative text-xs">
                                     <div className="absolute top-2 right-2">
                                         <span className="bg-gradient-to-r from-blue-500 to-blue-600 text-white text-[10px] px-2 py-1 rounded-full font-bold shadow">Current Plan</span>
                                     </div>
-                                    {/* Enhanced Shield icon for Free Plan */}
-                                    <div className="bg-blue-100 rounded-full p-1 mb-1 shadow-inner">
+                                     <div className="bg-blue-100 rounded-full p-1 mb-1 shadow-inner">
                                         <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3l8 4v5c0 5.25-3.5 9.75-8 11-4.5-1.25-8-5.75-8-11V7l8-4z" />
                                         </svg>
@@ -291,7 +303,7 @@ export function PlanModal({ apiKey, open, onClose, userId, plan, contactCount }:
                                         <span className="text-blue-600 font-semibold bg-blue-50 px-2 py-1 rounded-full text-xs">Active Plan</span>
                                     </div>
                                 </div>
-                            )}
+                            )} */}
                             {/* Paid Plan Card */}
                             <div className="min-w-[340px] relative bg-gradient-to-br from-yellow-100 via-yellow-50 to-white border-2 border-yellow-300 rounded-2xl p-6 flex flex-col items-center shadow-xl hover:shadow-2xl transition-all duration-300 min-w-[240px] max-w-md w-full text-xs">
                                 <div className="absolute top-2 right-2 flex items-center gap-1">
