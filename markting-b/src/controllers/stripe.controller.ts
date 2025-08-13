@@ -21,9 +21,7 @@ export class StripeController {
     private readonly planService: PlanService,
   ) {
     const secretKey = this.configService.get<string>('STRIPE_SECRET_KEY');
-    stripe = new Stripe(secretKey!, {
-      apiVersion: '2025-06-30.basil',
-    });
+    stripe = new Stripe(secretKey!);
   }
 
   @Post('verify-session')
