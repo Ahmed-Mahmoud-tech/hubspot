@@ -1,12 +1,21 @@
 import { Injectable, NestMiddleware } from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
+// Use process.env directly, dotenv is loaded by NestJS automatically
 
 @Injectable()
 export class CorsMiddleware implements NestMiddleware {
   use(req: Request, res: Response, next: NextFunction) {
     // Set CORS headers
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header('Access-Control-Allow-Credentials', 'true');
+    const frontendUrl = process.env.FRONTEND_URL || '';
+    console.log(frontendUrl, '999999999999');
+
+    const allowCredentials = true;
+    if (allowCredentials && frontendUrl) {
+      res.header('Access-Control-Allow-Origin', frontendUrl);
+      res.header('Access-Control-Allow-Credentials', 'true');
+    } else {
+      res.header('Access-Control-Allow-Origin', '*');
+    }
     res.header(
       'Access-Control-Allow-Methods',
       'GET,HEAD,OPTIONS,POST,PUT,DELETE,PATCH',
