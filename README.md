@@ -2,8 +2,20 @@
 
 A full-stack application that connects to HubSpot CRM, fetches contact data, identifies duplicates, and allows users to manually merge them before syncing changes back to HubSpot.
 
+## 🆕 New: OAuth 2.0 Integration
+
+### Secure HubSpot Authentication
+- **OAuth 2.0 Flow**: Connect your HubSpot account securely without API keys
+- **Automatic Token Management**: Handles token refresh automatically  
+- **Better Security**: No need to store or manage API keys manually
+- **Seamless Experience**: One-click connection to your HubSpot account
+- **Fallback Support**: Still supports API keys for users who prefer them
+
+See [HUBSPOT_OAUTH_INTEGRATION.md](./HUBSPOT_OAUTH_INTEGRATION.md) for detailed setup instructions.
+
 ## Features
 
+- ✅ **New: HubSpot OAuth 2.0 Authentication** (Secure, no API keys needed)
 - ✅ User Authentication (Registration, Email Verification, Password Reset)
 - ✅ HubSpot API Integration (Fetch contacts in batches)
 - ✅ Duplicate Detection (Email, Phone, or Name + Company matching)

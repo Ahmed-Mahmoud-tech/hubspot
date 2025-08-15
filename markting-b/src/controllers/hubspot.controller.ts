@@ -14,9 +14,11 @@ import {
   Delete,
 } from '@nestjs/common';
 import { HubSpotService } from '../services/hubspot.service';
+import { HubSpotConnectionService } from '../services/hubspot-connection.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import {
   StartHubSpotFetchDto,
+  StartHubSpotOAuthFetchDto,
   GetDuplicatesDto,
   SubmitMergeDto,
   FinishProcessDto,
@@ -33,6 +35,7 @@ import {
 export class HubSpotController {
   constructor(
     private readonly hubspotService: HubSpotService,
+    private readonly hubspotConnectionService: HubSpotConnectionService,
     @InjectRepository(Action)
     private readonly actionRepo: Repository<Action>,
   ) {}
@@ -53,6 +56,42 @@ export class HubSpotController {
       actionId: result.action.id,
       status: result.action.status,
     };
+  }
+
+  @Post('start-fetch-oauth')
+  async startFetchOAuth(
+    @Request() req: any,
+    @Body() startHubSpotOAuthFetchDto: StartHubSpotOAuthFetchDto,
+  ) {
+    const userId = req.user.id as number;
+
+    try {
+      // Get the user's access token
+      const accessToken =
+        await this.hubspotConnectionService.getValidAccessToken(userId);
+
+      // Create the regular DTO with the access token as API key
+      const fetchDto: StartHubSpotFetchDto = {
+        name: startHubSpotOAuthFetchDto.name,
+        apiKey: accessToken,
+        filters: startHubSpotOAuthFetchDto.filters,
+      };
+
+      const result = await this.hubspotService.startFetch(userId, fetchDto);
+
+      return {
+        message: result.message,
+        actionId: result.action.id,
+        status: result.action.status,
+      };
+    } catch (error) {
+      return {
+        error: error.message,
+        requiresAuth:
+          error.message.includes('No active HubSpot connection') ||
+          error.message.includes('HubSpot connection is invalid'),
+      };
+    }
   }
 
   @Get('actions/:actionId')
@@ -408,5 +447,26 @@ export class HubSpotController {
   @UseGuards(JwtAuthGuard)
   async getAllProperties(@Request() req: any, @Query('apiKey') apiKey: string) {
     return this.hubspotService.getAllProperties(apiKey);
+  }
+
+  @Get('properties-oauth')
+  @UseGuards(JwtAuthGuard)
+  async getAllPropertiesOAuth(@Request() req: any) {
+    const userId = req.user.id as number;
+    
+    try {
+      // Get the user's access token
+      const accessToken =
+        await this.hubspotConnectionService.getValidAccessToken(userId);
+      
+      return this.hubspotService.getAllProperties(accessToken);
+    } catch (error) {
+      return {
+        error: error.message,
+        requiresAuth:
+          error.message.includes('No active HubSpot connection') ||
+          error.message.includes('HubSpot connection is invalid'),
+      };
+    }
   }
 }

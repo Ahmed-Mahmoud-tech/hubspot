@@ -8,6 +8,7 @@ import { toast } from 'react-toastify';
 import useRequest, { type User } from '@/app/axios/useRequest';
 import { LogOut, User as UserIcon, BarChart3, Plus, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 import DuplicateFilters from './components/DuplicateFilters';
+import HubSpotOAuth from './components/HubSpotOAuth';
 
 interface Action {
     id: number;
@@ -58,6 +59,7 @@ export default function DashboardPage() {
     const [actions, setActions] = useState<Action[]>([]);
     const [actionsLoading, setActionsLoading] = useState(true);
     const [showForm, setShowForm] = useState(false);
+    const [hubspotConnected, setHubspotConnected] = useState(false);
 
     // Pagination state
     const [currentPage, setCurrentPage] = useState(1);
@@ -93,7 +95,7 @@ export default function DashboardPage() {
     }
     const [conditions, setConditions] = useState<Condition[]>([{ id: Date.now().toString(), properties: [] }]);
 
-    const { getProfile, getActions, startHubSpotFetch, finalDeleteActionById, getUserPlan, getHubSpotProperties } = useRequest();
+    const { getProfile, getActions, startHubSpotFetch, startHubSpotOAuthFetch, finalDeleteActionById, getUserPlan, getHubSpotProperties, getHubSpotPropertiesOAuth } = useRequest();
 
     const checkAuth = async () => {
         try {
@@ -192,11 +194,19 @@ export default function DashboardPage() {
         }
     };
 
-    // Fetch custom properties for API key
-    const fetchCustomProperties = async (apiKey: string) => {
+    // Fetch custom properties for API key or OAuth
+    const fetchCustomProperties = async (apiKey?: string) => {
         setCustomPropsLoading(true);
         try {
-            const properties = await getHubSpotProperties(apiKey);
+            let properties;
+            if (hubspotConnected) {
+                properties = await getHubSpotPropertiesOAuth();
+            } else if (apiKey) {
+                properties = await getHubSpotProperties(apiKey);
+            } else {
+                setCustomProperties([]);
+                return;
+            }
             setCustomProperties(properties);
         } catch (error) {
             console.error('Error fetching properties:', error);
@@ -206,15 +216,19 @@ export default function DashboardPage() {
         }
     };
 
-    // When API key changes, fetch custom properties and clear conditions
+    // When API key changes or OAuth connection changes, fetch custom properties and clear conditions
     useEffect(() => {
         setConditions([{ id: Date.now().toString(), properties: [] }]);
         setCustomProperties([]);
-        if (formData.apiKey && filterType === 'custom') {
-            fetchCustomProperties(formData.apiKey);
+        if (filterType === 'custom') {
+            if (hubspotConnected) {
+                fetchCustomProperties();
+            } else if (formData.apiKey) {
+                fetchCustomProperties(formData.apiKey);
+            }
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [formData.apiKey, filterType]);
+    }, [formData.apiKey, filterType, hubspotConnected]);
 
     const transformDefaultFilters = (filters: string[]): string[] => {
         const filterMapping: { [key: string]: string } = {
@@ -255,10 +269,20 @@ export default function DashboardPage() {
                 });
             }
 
-            const result = await startHubSpotFetch({
-                ...formData,
-                filters: filtersToSend,
-            });
+            let result;
+            
+            // Use OAuth if connected, otherwise use API key
+            if (hubspotConnected) {
+                result = await startHubSpotOAuthFetch({
+                    name: formData.name,
+                    filters: filtersToSend,
+                });
+            } else {
+                result = await startHubSpotFetch({
+                    ...formData,
+                    filters: filtersToSend,
+                });
+            }
 
             // Handle the response properly
             if (result && result.message) {
@@ -277,12 +301,20 @@ export default function DashboardPage() {
             setFilterType('default');
             // Refresh actions list
             fetchActions(currentPage);
-            // Navigate to duplicates page
-            router.push(`/duplicates?apiKey=${encodeURIComponent(formData.apiKey)}`);
+            // Navigate to duplicates page - use OAuth or API key based on connection
+            const navigateUrl = hubspotConnected 
+                ? '/duplicates'
+                : `/duplicates?apiKey=${encodeURIComponent(formData.apiKey)}`;
+            router.push(navigateUrl);
         } catch (error: any) {
             console.error('Error starting HubSpot integration:', error);
 
-            // Enhanced error handling
+            // Enhanced error handling for OAuth
+            if (error?.requiresAuth) {
+                toast.error('Please connect your HubSpot account first');
+                return;
+            }
+
             let errorMessage = 'Failed to start HubSpot integration';
             if (error?.response?.data?.message) {
                 errorMessage = error.response.data.message;
@@ -516,6 +548,9 @@ export default function DashboardPage() {
                 )} */}
 
                 {/* Actions Section */}
+                {/* HubSpot Connection Section */}
+                <HubSpotOAuth onConnectionChange={setHubspotConnected} />
+
                 {/* HubSpot Integrations Section */}
                 <div className="bg-white shadow rounded-lg">
                     <div className="px-6 py-4 border-b border-gray-200">
@@ -549,20 +584,38 @@ export default function DashboardPage() {
                                             placeholder="Enter integration name"
                                         />
                                     </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                                            HubSpot API Key
-                                        </label>
-                                        <input
-                                            type="password"
-                                            value={formData.apiKey}
-                                            onChange={(e) => setFormData(prev => ({ ...prev, apiKey: e.target.value }))}
-                                            required
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                                            placeholder="Enter your HubSpot API key"
-                                        />
-                                    </div>
+                                    {!hubspotConnected && (
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                HubSpot API Key
+                                            </label>
+                                            <input
+                                                type="password"
+                                                value={formData.apiKey}
+                                                onChange={(e) => setFormData(prev => ({ ...prev, apiKey: e.target.value }))}
+                                                required={!hubspotConnected}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                                placeholder="Enter your HubSpot API key"
+                                            />
+                                        </div>
+                                    )}
                                 </div>
+
+                                {hubspotConnected && (
+                                    <div className="bg-green-50 border border-green-200 rounded-md p-3">
+                                        <p className="text-sm text-green-700">
+                                            ✓ Using your connected HubSpot account for this integration
+                                        </p>
+                                    </div>
+                                )}
+
+                                {!hubspotConnected && (
+                                    <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+                                        <p className="text-sm text-blue-700">
+                                            💡 <strong>Tip:</strong> Connect your HubSpot account above for a more secure experience without API keys
+                                        </p>
+                                    </div>
+                                )}
 
                                 {/* Duplicate Filters Component */}
                                 <DuplicateFilters
@@ -578,7 +631,7 @@ export default function DashboardPage() {
                                     customPropsLoading={customPropsLoading}
                                     customPropsSearch={customPropsSearch}
                                     setCustomPropsSearch={setCustomPropsSearch}
-                                    apiKey={formData.apiKey}
+                                    apiKey={hubspotConnected ? '' : formData.apiKey}
                                 />
 
                                 <div className="flex justify-end space-x-3">
@@ -593,7 +646,8 @@ export default function DashboardPage() {
                                         type="submit"
                                         disabled={isSubmitting ||
                                             (filterType === 'default' && selectedFilters.length === 0) ||
-                                            (filterType === 'custom' && conditions.every(c => c.properties.length === 0))
+                                            (filterType === 'custom' && conditions.every(c => c.properties.length === 0)) ||
+                                            (!hubspotConnected && !formData.apiKey)
                                         }
                                         className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
                                     >

@@ -423,6 +423,73 @@ const useRequest = () => {
     return response.data;
   };
 
+  // OAuth HubSpot integration methods
+  const startHubSpotOAuthFetch = async (data: {
+    name: string;
+    filters: string[];
+  }): Promise<{ message: string; actionId: number; status: string }> => {
+    const response = await Request.post("/hubspot/start-fetch-oauth", data);
+    return response.data as {
+      message: string;
+      actionId: number;
+      status: string;
+    };
+  };
+
+  const getHubSpotOAuthStatus = async () => {
+    const response = await Request.get("/hubspot/oauth/status");
+    return response.data as {
+      success: boolean;
+      connected: boolean;
+      accountName?: string;
+      portalId?: number;
+      lastUsed?: string;
+    };
+  };
+
+  const disconnectHubSpot = async () => {
+    const response = await Request.get("/hubspot/oauth/disconnect");
+    return response.data as {
+      success: boolean;
+      message: string;
+    };
+  };
+
+  const initiateHubSpotOAuth = async () => {
+    const response = await Request.get("/hubspot/oauth/authorize");
+    return response.data as {
+      success: boolean;
+      authUrl?: string;
+      message?: string;
+    };
+  };
+
+  const getHubSpotPropertiesOAuth = async (): Promise<string[]> => {
+    try {
+      const response = await Request.get("/hubspot/properties-oauth");
+
+      const responseData = response.data;
+
+      if (
+        responseData &&
+        typeof responseData === "object" &&
+        "results" in responseData &&
+        Array.isArray(responseData.results)
+      ) {
+        return responseData.results.map((property: any) => property.name);
+      } else if (Array.isArray(responseData)) {
+        return responseData;
+      }
+
+      throw new Error(
+        "Invalid response format: expected HubSpot properties response"
+      );
+    } catch (error: any) {
+      console.error("Error fetching HubSpot properties:", error);
+      throw new Error(error?.message || "Failed to fetch HubSpot properties");
+    }
+  };
+
   // ...existing code...
 
   return {
@@ -441,7 +508,12 @@ const useRequest = () => {
     getUserBalance,
     calculateUpgradePrice,
     startHubSpotFetch,
+    startHubSpotOAuthFetch,
+    getHubSpotOAuthStatus,
+    disconnectHubSpot,
+    initiateHubSpotOAuth,
     getHubSpotProperties,
+    getHubSpotPropertiesOAuth,
     getHubSpotPropertiesWithDetails,
     getDuplicates,
     submitMerge,

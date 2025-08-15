@@ -23,6 +23,7 @@ import { Matching } from './entities/matching.entity';
 import { Modified } from './entities/modified.entity';
 import { Remove } from './entities/remove.entity';
 import { Merging } from './entities/merging.entity';
+import { HubSpotConnection } from './entities/hubspot-connection.entity';
 import { CorsMiddleware } from './middleware/cors.middleware';
 
 @Module({
@@ -51,6 +52,7 @@ import { CorsMiddleware } from './middleware/cors.middleware';
           Merging,
           UserPlan,
           Payment,
+          HubSpotConnection,
         ],
         synchronize: process.env.NODE_ENV === 'development',
         logging: process.env.NODE_ENV === 'development',

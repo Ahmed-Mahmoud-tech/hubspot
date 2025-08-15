@@ -29,6 +29,18 @@ export class StartHubSpotFetchDto {
   filters?: string[];
 }
 
+export class StartHubSpotOAuthFetchDto {
+  @IsString()
+  @IsNotEmpty()
+  @Length(1, 100)
+  name: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  filters?: string[];
+}
+
 export class GetDuplicatesDto {
   @IsOptional()
   @IsString()
