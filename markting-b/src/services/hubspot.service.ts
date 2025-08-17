@@ -72,6 +72,8 @@ export class HubSpotService {
   ): Promise<{ message: string; action: Action }> {
     try {
       const { name, apiKey, filters } = startHubSpotFetchDto;
+      console.log(startHubSpotFetchDto, '5555555555555555');
+
       this.logger.log(
         `Starting fetch for user ${userId} with API key ${apiKey.substring(0, 10)}...`,
       );

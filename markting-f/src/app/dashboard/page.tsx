@@ -270,7 +270,7 @@ export default function DashboardPage() {
             }
 
             let result;
-            
+
             // Use OAuth if connected, otherwise use API key
             if (hubspotConnected) {
                 result = await startHubSpotOAuthFetch({
@@ -301,10 +301,27 @@ export default function DashboardPage() {
             setFilterType('default');
             // Refresh actions list
             fetchActions(currentPage);
-            // Navigate to duplicates page - use OAuth or API key based on connection
-            const navigateUrl = hubspotConnected 
-                ? '/duplicates'
-                : `/duplicates?apiKey=${encodeURIComponent(formData.apiKey)}`;
+
+            // Navigate to duplicates page with API key
+            // For OAuth flow, we need to get the actual API key from the created action
+            // For API key flow, we can use the form data
+            let apiKeyForNavigation = formData.apiKey;
+            if (hubspotConnected && result && result.actionId) {
+                // For OAuth flow, fetch the action to get the actual API key (access token)
+                try {
+                    const refreshedActions = await getActions({ page: 1, limit: 10 }) as ActionsResponse;
+                    const currentAction = refreshedActions.data?.find(action => action.id === result.actionId);
+                    if (currentAction && currentAction.api_key) {
+                        apiKeyForNavigation = currentAction.api_key;
+                    }
+                } catch (error) {
+                    console.warn('Failed to fetch action for navigation:', error);
+                }
+            }
+
+            const navigateUrl = apiKeyForNavigation
+                ? `/duplicates?apiKey=${encodeURIComponent(apiKeyForNavigation)}`
+                : '/duplicates';
             router.push(navigateUrl);
         } catch (error: any) {
             console.error('Error starting HubSpot integration:', error);
@@ -552,7 +569,7 @@ export default function DashboardPage() {
                 <HubSpotOAuth onConnectionChange={setHubspotConnected} />
 
                 {/* HubSpot Integrations Section */}
-                <div className="bg-white shadow rounded-lg">
+                {hubspotConnected && <div className="bg-white shadow rounded-lg">
                     <div className="px-6 py-4 border-b border-gray-200">
                         <div className="flex justify-between items-center">
                             <h3 className="text-lg font-medium text-gray-900">HubSpot Integrations</h3>
@@ -584,7 +601,7 @@ export default function DashboardPage() {
                                             placeholder="Enter integration name"
                                         />
                                     </div>
-                                    {!hubspotConnected && (
+                                    {/* {!hubspotConnected && (
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700 mb-1">
                                                 HubSpot API Key
@@ -598,7 +615,7 @@ export default function DashboardPage() {
                                                 placeholder="Enter your HubSpot API key"
                                             />
                                         </div>
-                                    )}
+                                    )} */}
                                 </div>
 
                                 {hubspotConnected && (
@@ -796,7 +813,7 @@ export default function DashboardPage() {
                             </div>
                         )}
                     </div>
-                </div>
+                </div>}
 
 
             </main>

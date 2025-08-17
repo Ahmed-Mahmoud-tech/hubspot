@@ -78,6 +78,7 @@ export class MatchingService {
       limit = 10,
       includeMerged = true,
     } = getDuplicatesDto;
+    console.log(getDuplicatesDto, '666666666666666666');
 
     // Build where condition for matching groups
     const whereCondition: Record<string, any> = { userId };

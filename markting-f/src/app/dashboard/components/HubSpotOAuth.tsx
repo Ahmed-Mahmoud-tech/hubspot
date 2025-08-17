@@ -30,9 +30,7 @@ export default function HubSpotOAuth({ onConnectionChange }: HubSpotOAuthProps) 
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
-  const { initiateHubSpotOAuth } = useRequest();
-
-  const { getHubSpotOAuthStatus, disconnectHubSpot } = useRequest();
+  const { getHubSpotOAuthStatus, disconnectHubSpot, getCurrentUser } = useRequest();
 
   const checkConnectionStatus = async () => {
     try {
@@ -124,22 +122,21 @@ export default function HubSpotOAuth({ onConnectionChange }: HubSpotOAuthProps) 
         return;
       }
 
-      // Use useRequest to initiate OAuth (should be implemented in useRequest)
-      const result = await initiateHubSpotOAuth();
-      if (result && result.authUrl) {
-        window.location.href = result.authUrl;
-      } else {
-        // Fallback: redirect to the OAuth endpoint directly
-        window.location.href = `${baseURL}/hubspot/oauth/authorize`;
+      // Get user ID from current user
+      const currentUser = getCurrentUser();
+      if (!currentUser?.id) {
+        toast.error('Unable to get user information. Please try logging in again.');
+        router.push('/login');
+        return;
       }
+
+      // DIRECT REDIRECT - NO AJAX/FETCH CALLS
+      // This avoids CORS issues completely
+      window.location.href = `${baseURL}/hubspot/oauth/authorize?user_id=${currentUser.id}`;
+
     } catch (error: any) {
       console.error('Error initiating HubSpot connection:', error);
-      if (error.message?.includes('401')) {
-        toast.error('Authentication required. Please log in again.');
-        router.push('/login');
-      } else {
-        toast.error('Failed to initiate HubSpot connection. Please try again.');
-      }
+      toast.error('Failed to initiate HubSpot connection. Please try again.');
       setConnecting(false);
     }
   };

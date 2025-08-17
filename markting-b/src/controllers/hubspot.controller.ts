@@ -453,12 +453,12 @@ export class HubSpotController {
   @UseGuards(JwtAuthGuard)
   async getAllPropertiesOAuth(@Request() req: any) {
     const userId = req.user.id as number;
-    
+
     try {
       // Get the user's access token
       const accessToken =
         await this.hubspotConnectionService.getValidAccessToken(userId);
-      
+
       return this.hubspotService.getAllProperties(accessToken);
     } catch (error) {
       return {

@@ -7,6 +7,7 @@ import {
   Request,
   BadRequestException,
   InternalServerErrorException,
+  Header,
 } from '@nestjs/common';
 import { Response } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -32,22 +33,48 @@ export class HubSpotOAuthController {
   }
 
   /**
-   * Initiate HubSpot OAuth flow
+   * Generate OAuth URL without authentication (for testing)
    */
-  @Get('authorize')
-  @UseGuards(JwtAuthGuard)
-  async authorize(@Request() req: any, @Res() res: Response) {
-    const userId = req.user.id as number;
+  @Get('auth-url')
+  async generateAuthUrl(@Query('user_id') userId: string) {
+    if (!userId) {
+      throw new BadRequestException('user_id query parameter is required');
+    }
 
     try {
-      const { authUrl, state } =
-        this.hubspotOAuthService.generateAuthUrl(userId);
+      const { authUrl, state } = this.hubspotOAuthService.generateAuthUrl(
+        parseInt(userId, 10),
+      );
 
-      // Store state in session or temporary storage for validation
-      // For now, we'll include it in the redirect URL for the frontend to handle
-      const frontendRedirect = `${process.env.FRONTEND_URL || 'http://localhost:3001'}/dashboard?hubspot_auth=initiated&state=${encodeURIComponent(state)}`;
+      return {
+        success: true,
+        authUrl,
+        state,
+        instructions: 'Visit the authUrl in your browser to start OAuth flow',
+      };
+    } catch (error) {
+      throw new InternalServerErrorException(
+        `Failed to generate auth URL: ${error.message}`,
+      );
+    }
+  }
 
-      // Redirect to HubSpot OAuth page
+  /**
+   * Initiate HubSpot OAuth flow - NO AUTHENTICATION REQUIRED
+   * Frontend calls this with user_id as query param
+   */
+  @Get('authorize')
+  async authorize(@Query('user_id') userId: string, @Res() res: Response) {
+    if (!userId) {
+      throw new BadRequestException('user_id query parameter is required');
+    }
+
+    try {
+      const { authUrl } = this.hubspotOAuthService.generateAuthUrl(
+        parseInt(userId, 10),
+      );
+
+      // Direct redirect to HubSpot - NO CORS issues
       res.redirect(authUrl);
     } catch (error) {
       throw new InternalServerErrorException(
@@ -63,15 +90,24 @@ export class HubSpotOAuthController {
   async callback(
     @Query('code') code: string,
     @Query('state') state: string,
+    @Query('error') error: string,
+    @Query('error_description') errorDescription: string,
     @Res() res: Response,
   ) {
+    // Handle OAuth errors from HubSpot
+    if (error) {
+      console.error('HubSpot OAuth Error:', error, errorDescription);
+      const errorRedirect = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/dashboard?hubspot_auth=error&message=${encodeURIComponent(errorDescription || error)}`;
+      return res.redirect(errorRedirect);
+    }
+
     if (!code) {
-      const errorRedirect = `${process.env.FRONTEND_URL || 'http://localhost:3001'}/dashboard?hubspot_auth=error&message=${encodeURIComponent('Authorization code not provided')}`;
+      const errorRedirect = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/dashboard?hubspot_auth=error&message=${encodeURIComponent('Authorization code not provided')}`;
       return res.redirect(errorRedirect);
     }
 
     if (!state) {
-      const errorRedirect = `${process.env.FRONTEND_URL || 'http://localhost:3001'}/dashboard?hubspot_auth=error&message=${encodeURIComponent('State parameter missing')}`;
+      const errorRedirect = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/dashboard?hubspot_auth=error&message=${encodeURIComponent('State parameter missing')}`;
       return res.redirect(errorRedirect);
     }
 
@@ -109,10 +145,10 @@ export class HubSpotOAuthController {
       );
 
       // Redirect to frontend with success
-      const successRedirect = `${process.env.FRONTEND_URL || 'http://localhost:3001'}/dashboard?hubspot_auth=success&account=${encodeURIComponent((accountInfo as any)?.accountName || 'HubSpot Account')}`;
+      const successRedirect = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/dashboard?hubspot_auth=success&account=${encodeURIComponent((accountInfo as any)?.accountName || 'HubSpot Account')}`;
       res.redirect(successRedirect);
     } catch (error) {
-      const errorRedirect = `${process.env.FRONTEND_URL || 'http://localhost:3001'}/dashboard?hubspot_auth=error&message=${encodeURIComponent(error.message)}`;
+      const errorRedirect = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/dashboard?hubspot_auth=error&message=${encodeURIComponent(error.message)}`;
       res.redirect(errorRedirect);
     }
   }

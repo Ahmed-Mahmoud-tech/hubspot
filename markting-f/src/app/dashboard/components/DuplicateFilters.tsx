@@ -126,8 +126,8 @@ export default function DuplicateFilters({
                                 className="sr-only"
                             />
                             <div className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${filterType === 'default'
-                                    ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-200'
-                                    : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                                ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-200'
+                                : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                                 }`}>
                                 <div className="flex items-center gap-3">
                                     <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${filterType === 'default' ? 'border-indigo-500 bg-indigo-500' : 'border-gray-300'
@@ -151,14 +151,17 @@ export default function DuplicateFilters({
                                 value="custom"
                                 checked={filterType === 'custom'}
                                 onChange={(e) => setFilterType(e.target.value as 'default' | 'custom')}
-                                disabled={!apiKey}
+                                // disabled={!apiKey}
                                 className="sr-only"
                             />
-                            <div className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${!apiKey
-                                    ? 'border-gray-200 bg-gray-50 cursor-not-allowed opacity-60'
-                                    : filterType === 'custom'
-                                        ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-200'
-                                        : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                            <div className={`p-4 rounded-lg border-2 cursor-pointer transition-all
+                             ${
+                                //  !apiKey
+                                //     ? 'border-gray-200 bg-gray-50 cursor-not-allowed opacity-60'
+                                //     : 
+                                filterType === 'custom'
+                                    ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-200'
+                                    : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                                 }`}>
                                 <div className="flex items-center gap-3">
                                     <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${filterType === 'custom' ? 'border-indigo-500 bg-indigo-500' : 'border-gray-300'
@@ -170,7 +173,7 @@ export default function DuplicateFilters({
                                     <div>
                                         <div className="font-medium text-gray-900">Custom Properties</div>
                                         <div className="text-sm text-gray-600">
-                                            {!apiKey ? 'Enter API key to enable' : 'Use HubSpot custom properties'}
+                                            Use HubSpot custom properties
                                         </div>
                                     </div>
                                 </div>
@@ -203,13 +206,13 @@ export default function DuplicateFilters({
                                         className="sr-only"
                                     />
                                     <div className={`p-4 rounded-lg border cursor-pointer transition-all ${selectedFilters.includes(opt.key)
-                                            ? 'border-indigo-500 bg-indigo-50 ring-1 ring-indigo-200'
-                                            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                                        ? 'border-indigo-500 bg-indigo-50 ring-1 ring-indigo-200'
+                                        : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                                         }`}>
                                         <div className="flex items-start gap-3">
                                             <div className={`w-5 h-5 rounded border-2 flex items-center justify-center mt-0.5 ${selectedFilters.includes(opt.key)
-                                                    ? 'border-indigo-500 bg-indigo-500'
-                                                    : 'border-gray-300'
+                                                ? 'border-indigo-500 bg-indigo-500'
+                                                : 'border-gray-300'
                                                 }`}>
                                                 {selectedFilters.includes(opt.key) && (
                                                     <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
@@ -244,7 +247,7 @@ export default function DuplicateFilters({
                 )}
 
                 {/* Custom Properties Condition Builder */}
-                {filterType === 'custom' && apiKey && (
+                {filterType === 'custom' && ( //  && apiKey
                     <div className="space-y-6">
                         <div className="flex items-center justify-between">
                             <h5 className="font-medium text-gray-900">Custom Conditions</h5>
