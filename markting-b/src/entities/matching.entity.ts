@@ -4,10 +4,8 @@ import {
   Column,
   CreateDateColumn,
   UpdateDateColumn,
-  ManyToOne,
   Index,
 } from 'typeorm';
-import { User } from './user.entity';
 
 @Entity('matching')
 @Index(['userId'])
@@ -21,9 +19,6 @@ export class Matching {
 
   @Column({ name: 'api_key' })
   apiKey: string;
-
-  @ManyToOne(() => User, { onDelete: 'CASCADE' })
-  user: User;
 
   @Column({ name: 'user_id' })
   userId: number;

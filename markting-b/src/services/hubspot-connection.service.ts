@@ -109,10 +109,7 @@ export class HubSpotConnectionService {
         this.logger.log(`Successfully refreshed token for user ${userId}`);
         return newTokens.access_token;
       } catch (error) {
-        this.logger.error(
-          `Failed to refresh token for user ${userId}:`,
-          error,
-        );
+        this.logger.error(`Failed to refresh token for user ${userId}:`, error);
         // Mark connection as inactive
         await this.connectionRepository.update(connection.id, {
           isActive: false,
