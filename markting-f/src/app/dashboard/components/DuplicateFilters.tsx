@@ -26,7 +26,7 @@ interface DuplicateFiltersProps {
 }
 
 const filterOptions = [
-    { key: 'phone', label: 'Phone', description: 'Match contacts with same phone number' },
+    { key: 'phone', label: 'Phone Duplicates', description: 'Match contacts with same phone number' },
     { key: 'first_last_name', label: 'First & Last Name', description: 'Match contacts with same first and last name' },
     { key: 'first_name_phone', label: 'First Name & Phone', description: 'Match contacts with same first name and phone' },
     { key: 'first_last_name_company', label: 'First & Last Name & Company', description: 'Match contacts with same name and company' },
@@ -171,9 +171,9 @@ export default function DuplicateFilters({
                                         )}
                                     </div>
                                     <div>
-                                        <div className="font-medium text-gray-900">Custom Properties</div>
+                                        <div className="font-medium text-gray-900">Custom Rule</div>
                                         <div className="text-sm text-gray-600">
-                                            Use HubSpot custom properties
+                                            Set your own duplicates rules
                                         </div>
                                     </div>
                                 </div>
@@ -354,10 +354,14 @@ export default function DuplicateFilters({
                                             <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
                                                 <p className="text-sm text-blue-800 font-medium">Selected Properties:</p>
                                                 <div className="mt-2 flex flex-wrap gap-1">
-                                                    {condition.properties.map(prop => (
-                                                        <span key={prop} className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-800">
-                                                            {prop}
-                                                        </span>
+
+                                                    {condition.properties.map((prop, index) => (
+                                                        <>
+                                                            {index > 0 && <span>+</span>}
+                                                            <span key={prop} className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-800">
+                                                                {prop}
+                                                            </span>
+                                                        </>
                                                     ))}
                                                 </div>
                                             </div>

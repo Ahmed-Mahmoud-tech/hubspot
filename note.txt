@@ -1,1 +1,3 @@
-new fields
+if user has old fetch duplication link not has the apikey 
+
+add the merge all button 

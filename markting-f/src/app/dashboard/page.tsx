@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Image from 'next/image';
 import { PlanModal } from '@/app/plan';
 import { useRouter } from 'next/navigation';
 import { getCookie, deleteCookie } from 'cookies-next';
@@ -9,7 +10,7 @@ import useRequest, { type User } from '@/app/axios/useRequest';
 import { LogOut, User as UserIcon, BarChart3, Plus, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 import DuplicateFilters from './components/DuplicateFilters';
 import HubSpotOAuth from './components/HubSpotOAuth';
-
+import logo from '../../../public/assets/images/logo.png';
 interface Action {
     id: number;
     name: string;
@@ -420,9 +421,9 @@ export default function DashboardPage() {
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex justify-between items-center h-16">
                         <div className="flex items-center">
-                            <BarChart3 className="h-8 w-8 text-indigo-600 mr-3" />
+                            <Image src={logo} alt="Clear Root" width={70} height={56} />
                             <h1 className="text-xl font-semibold text-gray-900">
-                                HubSpot Duplicate Management
+                                Clear Root
                             </h1>
                         </div>
 
@@ -578,7 +579,7 @@ export default function DashboardPage() {
                                 className="cursor-pointer inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                             >
                                 <Plus className="h-4 w-4 mr-1" />
-                                New Integration
+                                New Scan
                             </button>
                         </div>
                     </div>
@@ -590,7 +591,7 @@ export default function DashboardPage() {
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                                            Integration Name
+                                            Scan Name
                                         </label>
                                         <input
                                             type="text"
@@ -598,7 +599,7 @@ export default function DashboardPage() {
                                             onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                                             required
                                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                                            placeholder="Enter integration name"
+                                            placeholder="Enter scan name"
                                         />
                                     </div>
                                     {/* {!hubspotConnected && (

@@ -68,7 +68,7 @@ function ResetPasswordContent() {
                 token,
                 password: data.password,
             };
-            
+
             const result = await resetPassword(resetData);
             toast.success(result.message);
             setIsSuccess(true);
@@ -83,7 +83,7 @@ function ResetPasswordContent() {
 
     const getPasswordStrength = (password: string) => {
         if (!password) return { strength: 0, label: '', color: '' };
-        
+
         let strength = 0;
         if (password.length >= 8) strength++;
         if (/[a-z]/.test(password)) strength++;
@@ -93,7 +93,7 @@ function ResetPasswordContent() {
 
         const labels = ['Very Weak', 'Weak', 'Fair', 'Good', 'Strong'];
         const colors = ['bg-red-500', 'bg-orange-500', 'bg-yellow-500', 'bg-blue-500', 'bg-green-500'];
-        
+
         return {
             strength,
             label: labels[strength - 1] || '',
@@ -126,7 +126,7 @@ function ResetPasswordContent() {
                             >
                                 Request New Reset Link
                             </Link>
-                            
+
                             <Link
                                 href="/login"
                                 className="block w-full text-center text-gray-600 hover:text-gray-500 font-medium py-3"
@@ -229,7 +229,7 @@ function ResetPasswordContent() {
                                     )}
                                 </button>
                             </div>
-                            
+
                             {/* Password Strength Indicator */}
                             {password && (
                                 <div className="mt-2">
@@ -237,11 +237,10 @@ function ResetPasswordContent() {
                                         {[1, 2, 3, 4, 5].map((level) => (
                                             <div
                                                 key={level}
-                                                className={`h-2 w-full mr-1 last:mr-0 rounded ${
-                                                    level <= passwordStrength.strength
+                                                className={`h-2 w-full mr-1 last:mr-0 rounded ${level <= passwordStrength.strength
                                                         ? passwordStrength.color
                                                         : 'bg-gray-200'
-                                                }`}
+                                                    }`}
                                             />
                                         ))}
                                     </div>
@@ -250,7 +249,7 @@ function ResetPasswordContent() {
                                     </p>
                                 </div>
                             )}
-                            
+
                             {errors.password && (
                                 <p className="mt-2 text-sm text-red-600">{errors.password.message}</p>
                             )}

@@ -82,7 +82,7 @@ export default function ForgotPasswordPage() {
                             >
                                 Try Another Email
                             </button>
-                            
+
                             <Link
                                 href="/login"
                                 className="block w-full text-center text-indigo-600 hover:text-indigo-500 font-medium py-3"
