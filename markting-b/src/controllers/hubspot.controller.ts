@@ -28,6 +28,7 @@ import {
   BatchMergeContactsDto,
   ResetMergeByGroupDto,
   DeleteActionDto,
+  BulkMergeGroupsDto,
 } from '../dto/hubspot.dto';
 
 @Controller('hubspot')
@@ -347,6 +348,16 @@ export class HubSpotController {
       userId,
       batchMergeContactsDto,
     );
+  }
+
+  @Post('bulk-merge-groups')
+  @UseGuards(JwtAuthGuard)
+  async bulkMergeGroups(
+    @Request() req: any,
+    @Body() bulkMergeGroupsDto: BulkMergeGroupsDto,
+  ) {
+    const userId = req.user.id as number;
+    return this.hubspotService.bulkMergeGroups(userId, bulkMergeGroupsDto);
   }
 
   @Put('reset-merge-group')

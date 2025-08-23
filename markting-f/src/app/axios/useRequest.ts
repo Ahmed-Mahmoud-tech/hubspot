@@ -88,6 +88,10 @@ const useRequest = () => {
     return await Request.post(`/hubspot/merge-contacts`, data);
   };
 
+  const bulkMergeGroups = async (data: any) => {
+    return await Request.post(`/hubspot/bulk-merge-groups`, data);
+  };
+
   const resetMergeByGroup = async (groupId: number) => {
     return await Request.post(`/hubspot/reset-merge-by-group`, { groupId });
   };
@@ -537,6 +541,7 @@ const useRequest = () => {
     resetMerge,
     removeContact,
     mergeContacts,
+    bulkMergeGroups,
     resetMergeByGroup,
     resetAllPendingMerges,
     finishProcess,

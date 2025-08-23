@@ -9,6 +9,7 @@ import {
   IsObject,
   IsArray,
   IsBoolean,
+  ValidateNested,
 } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
 
@@ -195,4 +196,15 @@ export class UpdateContactDto {
   @IsObject()
   @IsNotEmpty()
   fields: Record<string, any>;
+}
+
+export class BulkMergeGroupsDto {
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => BatchMergeContactsDto)
+  groups: BatchMergeContactsDto[];
+
+  @IsString()
+  @IsNotEmpty()
+  apiKey: string;
 }

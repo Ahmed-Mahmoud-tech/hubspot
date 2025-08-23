@@ -12,6 +12,8 @@ import FieldSelectionModal from './components/FieldSelectionModal';
 import { useRouter } from 'next/navigation';
 import { PlanModal } from '@/app/plan';
 import { freeContactLimit, freeMergeGroupLimit } from '@/constant/main';
+import { useAppDispatch, useAppSelector } from '@/redux/hooks';
+import { setSelectedContact, clearSelectionsByGroupIds, clearAllSelections } from '@/redux/slices/duplicatesSlice';
 
 interface Contact {
     id: number;
@@ -40,17 +42,6 @@ interface DuplicateGroup {
     group: Contact[];
 }
 
-interface ProcessProgress {
-    currentStep: string;
-    progress: number;
-    totalGroups: number;
-    processedGroups: number;
-    currentBatch: number;
-    totalBatches: number;
-    isComplete: boolean;
-    error?: string;
-}
-
 interface ProcessStatusData {
     id: number;
     name: string;
@@ -64,8 +55,10 @@ interface ProcessStatusData {
 function DuplicatesPageContent() {
     const searchParams = useSearchParams();
     const apiKey = searchParams?.get('apiKey') || '';
-    const { getDuplicates, finishProcess, getActions, isAuthenticated, mergeContacts, getUserPlan, getLatestAction, createUserPlan, updateContact } = useRequest();
+    const { getDuplicates, finishProcess, getActions, isAuthenticated, mergeContacts, getUserPlan, getLatestAction, createUserPlan, updateContact, bulkMergeGroups } = useRequest();
     const router = useRouter();
+    const dispatch = useAppDispatch();
+    const selectedContactForTwoGroup = useAppSelector(state => state.duplicates.selectedContactForTwoGroup);
 
     const [duplicates, setDuplicates] = useState<DuplicateGroup[]>([]);
     const [processStatus, setProcessStatus] = useState<ProcessStatusData | null>(null);
@@ -74,19 +67,7 @@ function DuplicatesPageContent() {
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [isFieldSelectionModalOpen, setIsFieldSelectionModalOpen] = useState(false);
-    const [selectedContactForTwoGroup, setSelectedContactForTwoGroup] = useState<{ [groupId: number]: number | null }>({});
-
-    // Progress tracking state
-    const [isProcessing, setIsProcessing] = useState(false);
-    const [processingProgress, setProcessingProgress] = useState<ProcessProgress>({
-        currentStep: '',
-        progress: 0,
-        totalGroups: 0,
-        processedGroups: 0,
-        currentBatch: 0,
-        totalBatches: 0,
-        isComplete: false,
-    });
+    const [isBulkMerging, setIsBulkMerging] = useState(false);
 
     const [userPlan, setUserPlan] = useState<any | null>(null);
     const [showPlanModal, setShowPlanModal] = useState(false);
@@ -296,10 +277,213 @@ function DuplicatesPageContent() {
     };
 
     const handleContactSelect = (groupId: number, contactId: number) => {
-        setSelectedContactForTwoGroup(prev => ({
-            ...prev,
-            [groupId]: prev[groupId] === contactId ? null : contactId // Toggle selection
+        dispatch(setSelectedContact({
+            groupId,
+            contactId: selectedContactForTwoGroup[groupId] === contactId ? null : contactId
         }));
+    };
+
+    const handleBulkMergeAll = async () => {
+        // Get all selected groups from Redux (across all pages)
+        const selectedGroupIds = Object.keys(selectedContactForTwoGroup).map(Number);
+
+        if (selectedGroupIds.length === 0) {
+            toast.info('Please select primary contacts for the groups you want to merge.');
+            return;
+        }
+
+        // PLAN VALIDATION
+        if (!userPlan) {
+            toast.error('User plan not loaded. Please refresh and try again.');
+            return;
+        }
+
+        const mergeCount = selectedGroupIds.length;
+        if (userPlan.planType === 'free' && (userPlan.mergeGroupsUsed + mergeCount) > freeMergeGroupLimit) {
+            toast.warn(`Free plan limit exceeded: You can only merge up to ${freeMergeGroupLimit} groups total. You have ${userPlan.mergeGroupsUsed} used and are trying to merge ${mergeCount} more.`);
+            return;
+        }
+
+        if (userPlan.planType === 'paid' && userPlan.contactLimit && userPlan.contactCount >= userPlan.contactLimit) {
+            toast.warn('Paid plan contact limit reached. Please upgrade your plan to add more contacts.');
+            return;
+        }
+
+        setIsBulkMerging(true);
+
+        try {
+            toast.info(`Starting merge of ${selectedGroupIds.length} groups across all pages...`);
+
+            // Fetch all groups across all pages to get complete group data
+            const allSelectedGroups: any[] = [];
+            let currentPageNum = 1;
+            let hasMorePages = true;
+
+            while (hasMorePages && allSelectedGroups.length < selectedGroupIds.length) {
+                const pageResponse = await getDuplicates({
+                    apiKey,
+                    page: currentPageNum,
+                    limit: limit,
+                }) as any;
+
+                const pageGroups = pageResponse.data || [];
+                const selectedGroupsOnThisPage = pageGroups.filter((group: any) => selectedGroupIds.includes(group.id));
+                allSelectedGroups.push(...selectedGroupsOnThisPage);
+
+                hasMorePages = currentPageNum < pageResponse.totalPages;
+                currentPageNum++;
+            }
+
+            if (allSelectedGroups.length === 0) {
+                toast.error('No matching groups found. The selected groups may have been merged already.');
+                return;
+            }
+
+            // Prepare bulk merge payload - same as handleBulkMerge
+            const bulkMergePayload = {
+                groups: allSelectedGroups.map((group: any) => {
+                    const selectedContactId = selectedContactForTwoGroup[group.id];
+                    const primaryContact = group.group.find((c: any) => c.id === selectedContactId);
+                    const secondaryContacts = group.group.filter((c: any) => c.id !== selectedContactId);
+
+                    return {
+                        groupId: group.id,
+                        primaryAccountId: primaryContact.hubspotId,
+                        secondaryAccountIds: secondaryContacts.map((c: any) => c.hubspotId),
+                        apiKey,
+                    };
+                }).filter((group: any) => group.primaryAccountId && group.secondaryAccountIds.length > 0), // Filter out invalid groups
+                apiKey,
+            };
+
+            console.log('🔄 BULK MERGE ALL - Sending bulk merge request:', bulkMergePayload);
+
+            const response = await bulkMergeGroups(bulkMergePayload);
+            console.log('✅ BULK MERGE ALL - Bulk merge response:', response);
+            const result = response.data as {
+                success?: boolean;
+                message?: string;
+                results?: Array<{ groupId: number, success: boolean, message?: string, error?: string }>;
+                summary?: { total: number, successful: number, failed: number }
+            };
+
+            if (result && result.success && result.summary) {
+                const successfulResults = result.results?.filter(r => r.success) || [];
+                const successfulGroupIds = successfulResults.map(r => r.groupId);
+
+                toast.success(`✅ Merge completed: ${result.summary.successful} successful, ${result.summary.failed} failed`);
+
+                // Clear primary contact selections for successfully merged groups using Redux
+                if (successfulGroupIds.length > 0) {
+                    dispatch(clearSelectionsByGroupIds(successfulGroupIds));
+                }
+
+                // Refresh duplicates list
+                await fetchDuplicates(currentPage);
+            } else {
+                console.error('❌ BULK MERGE ALL - Merge failed, result:', result);
+                toast.error(`❌ Bulk merge failed: ${result?.message || 'Unknown error'}`);
+            }
+        } catch (error: any) {
+            console.error('❌ BULK MERGE ALL - Error during bulk merge:', error);
+            toast.error('❌ Error processing bulk merge. Please try again.\n\nError details: ' + (error?.message || error?.toString()));
+        } finally {
+            setIsBulkMerging(false);
+        }
+    };
+
+    const handleBulkMerge = async () => {
+        // Get groups on current page that have a primary contact selected
+        const groupsWithPrimarySelection = duplicates.filter(group => selectedContactForTwoGroup[group.id]);
+
+        if (groupsWithPrimarySelection.length === 0) {
+            const totalSelected = Object.keys(selectedContactForTwoGroup).length;
+            if (totalSelected > 0) {
+                toast.info('No selected groups found on the current page. Use "Merge All Selected" to merge groups from all pages.');
+            } else {
+                toast.info('Please select primary contacts for the groups you want to merge.');
+            }
+            return;
+        }
+
+        // PLAN VALIDATION
+        if (!userPlan) {
+            toast.error('User plan not loaded. Please refresh and try again.');
+            return;
+        }
+
+        const mergeCount = groupsWithPrimarySelection.length;
+        if (userPlan.planType === 'free' && (userPlan.mergeGroupsUsed + mergeCount) > freeMergeGroupLimit) {
+            toast.warn(`Free plan limit exceeded: You can only merge up to ${freeMergeGroupLimit} groups total. You have ${userPlan.mergeGroupsUsed} used and are trying to merge ${mergeCount} more.`);
+            return;
+        }
+
+        if (userPlan.planType === 'paid' && userPlan.contactLimit && userPlan.contactCount >= userPlan.contactLimit) {
+            toast.warn('Paid plan contact limit reached. Please upgrade your plan to add more contacts.');
+            return;
+        }
+
+        setIsBulkMerging(true);
+
+        try {
+            toast.info(`Starting merge of ${groupsWithPrimarySelection.length} groups on current page...`);
+
+            // Prepare bulk merge payload
+            const bulkMergePayload = {
+                groups: groupsWithPrimarySelection.map((group: any) => {
+                    const selectedContactId = selectedContactForTwoGroup[group.id];
+                    const primaryContact = group.group.find((c: any) => c.id === selectedContactId);
+                    const secondaryContacts = group.group.filter((c: any) => c.id !== selectedContactId);
+
+                    return {
+                        groupId: group.id,
+                        primaryAccountId: primaryContact.hubspotId,
+                        secondaryAccountIds: secondaryContacts.map((c: any) => c.hubspotId),
+                        apiKey,
+                    };
+                }).filter((group: any) => group.primaryAccountId && group.secondaryAccountIds.length > 0), // Filter out invalid groups
+                apiKey,
+            };
+
+            console.log('🔄 BULK MERGE CURRENT - Sending bulk merge request:', bulkMergePayload);
+
+            try {
+                const response = await bulkMergeGroups(bulkMergePayload);
+                console.log('✅ BULK MERGE CURRENT - Bulk merge response:', response);
+                const result = response.data as {
+                    success?: boolean;
+                    message?: string;
+                    results?: Array<{ groupId: number, success: boolean, message?: string, error?: string }>;
+                    summary?: { total: number, successful: number, failed: number }
+                };
+
+                if (result && result.success && result.summary) {
+                    const successfulResults = result.results?.filter(r => r.success) || [];
+                    const successfulGroupIds = successfulResults.map(r => r.groupId);
+
+                    toast.success(`✅ Merge completed: ${result.summary.successful} successful, ${result.summary.failed} failed`);
+
+                    // Clear primary contact selections for successfully merged groups using Redux
+                    if (successfulGroupIds.length > 0) {
+                        dispatch(clearSelectionsByGroupIds(successfulGroupIds));
+                    }
+
+                    // Refresh duplicates list
+                    await fetchDuplicates(currentPage);
+                } else {
+                    console.error('❌ BULK MERGE CURRENT - Merge failed, result:', result);
+                    toast.error(`❌ Bulk merge failed: ${result?.message || 'Unknown error'}`);
+                }
+            } catch (error: any) {
+                console.error('❌ BULK MERGE CURRENT - Error during bulk merge:', error);
+                toast.error('❌ Error processing bulk merge. Please try again.\n\nError details: ' + (error?.message || error?.toString()));
+            }
+        } catch (error: any) {
+            console.error('Error during bulk merge:', error);
+            toast.error('❌ Error processing bulk merge. Please try again.\n\nError details: ' + (error?.message || error?.toString()));
+        } finally {
+            setIsBulkMerging(false);
+        }
     };
 
     const handleFieldSelectionConfirm = async (updatedPrimaryData: any) => {
@@ -376,27 +560,42 @@ function DuplicatesPageContent() {
 
             // Step 2: Perform the merge with the updated/current primary contact
             const secondaryContacts = selectedGroup.group.filter(c => c.id !== selectedContactId);
-            const secondaryContactIds = secondaryContacts.map(c => c.hubspotId);
 
-            const mergeData = {
-                groupId: selectedGroup.id,
-                primaryAccountId: updatedContactId, // Use the potentially updated ID
-                secondaryAccountId: secondaryContactIds,
-                apiKey,
-            };
+            // Process each secondary contact individually
+            let currentPrimaryId = updatedContactId;
 
-            const response = await mergeContacts(mergeData);
-            const result = response.data as { success: boolean; message: string; mergeId?: number; details?: any };
+            for (const secondaryContact of secondaryContacts) {
+                const mergeData = {
+                    groupId: selectedGroup.id,
+                    primaryAccountId: currentPrimaryId,
+                    secondaryAccountId: secondaryContact.hubspotId, // Single contact, not array
+                    apiKey,
+                };
 
-            if (result && result.success) {
-                toast.success(`✅ ${result.message}`);
-                // Clear selection for this group
-                setSelectedContactForTwoGroup(prev => ({ ...prev, [selectedGroup.id]: null }));
-                // Refresh duplicates list
-                await fetchDuplicates(currentPage);
-            } else {
-                toast.error('❌ Merge failed. Please try again.');
+                console.log('🔄 SINGLE MERGE - Sending merge request:', mergeData);
+                const response = await mergeContacts(mergeData);
+                console.log('✅ SINGLE MERGE - Merge response:', response);
+                const result = response.data as { success: boolean; message: string; mergeId?: number; details?: any };
+
+                if (result && result.success) {
+                    console.log('✅ SINGLE MERGE - Merge successful, result:', result);
+                    // Update current primary ID if HubSpot returns a new merged ID
+                    if (result.details?.id) {
+                        currentPrimaryId = result.details.id;
+                    }
+                } else {
+                    console.error('❌ SINGLE MERGE - Merge failed, result:', result);
+                    toast.error('❌ Merge failed. Please try again.');
+                    setIsFieldSelectionModalOpen(false);
+                    return;
+                }
             }
+
+            toast.success(`✅ Successfully merged all contacts in group`);
+            // Clear selection for this group using Redux
+            dispatch(setSelectedContact({ groupId: selectedGroup.id, contactId: null }));
+            // Refresh duplicates list
+            await fetchDuplicates(currentPage);
         } catch (error: any) {
             console.error('Error during field selection merge:', error);
             toast.error('❌ Error processing merge. Please try again.\n\nError details: ' + (error?.message || error?.toString()));
@@ -426,7 +625,7 @@ function DuplicatesPageContent() {
             (userPlan.planType === 'paid' && userPlan.paymentStatus !== 'active');
         setShowPlanModal(showPlanModal);
 
-    }, [isProcessing, processStatus, userPlan]);
+    }, [processStatus, userPlan]);
 
     if (isLoading) {
         return (
@@ -490,55 +689,72 @@ function DuplicatesPageContent() {
                     onFinish={handleFinishProcess}
                 />
 
-                {isProcessing && (
-                    <div className="mb-8 bg-white rounded-lg shadow p-6">
-                        <h2 className="text-lg font-semibold text-gray-900 mb-4">Processing...</h2>
-
-                        {/* Current Step */}
-                        <div className="mb-2">
-                            <p className="text-sm text-gray-600">{processingProgress.currentStep}</p>
-                        </div>
-
-                        {/* Progress Bar */}
-                        <div className="mb-4">
-                            <div className="flex justify-between text-xs text-gray-500 mb-1">
-                                <span>Progress</span>
-                                <span>{processingProgress.progress.toFixed(1)}%</span>
-                            </div>
-                            <div className="w-full bg-gray-200 rounded-full h-2">
-                                <div
-                                    className="bg-blue-500 h-2 rounded-full transition-all duration-300 ease-out"
-                                    style={{ width: `${processingProgress.progress}%` }}
-                                ></div>
-                            </div>
-                        </div>
-
-                        {/* Detailed Progress Info */}
-                        {processingProgress.totalGroups > 0 && (
-                            <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
-                                <div>
-                                    <span className="font-medium">Groups:</span> {processingProgress.processedGroups} / {processingProgress.totalGroups}
-                                </div>
-                                {processingProgress.totalBatches > 0 && (
-                                    <div>
-                                        <span className="font-medium">Batch:</span> {processingProgress.currentBatch} / {processingProgress.totalBatches}
-                                    </div>
-                                )}
-                            </div>
-                        )}
-
-                        {/* Error Display */}
-                        {processingProgress.error && (
-                            <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md">
-                                <p className="text-sm text-red-600">{processingProgress.error}</p>
-                            </div>
-                        )}
-                    </div>
-                )}
-
                 {/* Duplicates List */}
                 {processStatus?.process_name === 'manually merge' && (
                     <>
+                        {/* Bulk Merge Controls */}
+                        {duplicates.length > 0 && (
+                            <div className="mb-6 bg-white rounded-lg shadow p-6">
+                                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                                    <div className="flex items-center gap-4">
+                                        <h3 className="text-lg font-semibold text-gray-900">Bulk Actions</h3>
+                                        <div className="text-sm text-gray-600">
+                                            {(() => {
+                                                const totalSelected = Object.keys(selectedContactForTwoGroup).length;
+                                                const currentPageSelected = duplicates.filter(group => selectedContactForTwoGroup[group.id]).length;
+                                                return totalSelected > 0
+                                                    ? `${totalSelected} group${totalSelected === 1 ? '' : 's'} selected total (${currentPageSelected} on this page)`
+                                                    : 'Select primary contacts to enable bulk merge';
+                                            })()}
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            className="px-4 py-2 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition"
+                                            onClick={() => dispatch(clearAllSelections())}
+                                            disabled={isBulkMerging || Object.keys(selectedContactForTwoGroup).length === 0}
+                                        >
+                                            Clear All Selections
+                                        </button>
+                                        <button
+                                            className={`px-4 py-2 text-sm font-semibold rounded transition ${duplicates.filter(group => selectedContactForTwoGroup[group.id]).length === 0 || isBulkMerging
+                                                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                                : 'bg-blue-600 text-white hover:bg-blue-700'
+                                                }`}
+                                            onClick={handleBulkMerge}
+                                            disabled={duplicates.filter(group => selectedContactForTwoGroup[group.id]).length === 0 || isBulkMerging}
+                                        >
+                                            {isBulkMerging ? (
+                                                <span className="flex items-center gap-2">
+                                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                                    Merging...
+                                                </span>
+                                            ) : (
+                                                `Merge Current Page (${duplicates.filter(group => selectedContactForTwoGroup[group.id]).length})`
+                                            )}
+                                        </button>
+                                        <button
+                                            className={`px-6 py-2 text-sm font-semibold rounded transition ${Object.keys(selectedContactForTwoGroup).length === 0 || isBulkMerging
+                                                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                                : 'bg-green-600 text-white hover:bg-green-700'
+                                                }`}
+                                            onClick={handleBulkMergeAll}
+                                            disabled={Object.keys(selectedContactForTwoGroup).length === 0 || isBulkMerging}
+                                        >
+                                            {isBulkMerging ? (
+                                                <span className="flex items-center gap-2">
+                                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                                    Merging...
+                                                </span>
+                                            ) : (
+                                                `Merge All Selected (${Object.keys(selectedContactForTwoGroup).length})`
+                                            )}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
                         <DuplicatesList
                             duplicates={duplicates}
                             currentPage={currentPage}
@@ -549,7 +765,7 @@ function DuplicatesPageContent() {
                             }}
                             onMergeClick={handleMergeClick}
                             onDirectMergeClick={async (group) => {
-                                // Direct merge logic: use current selected primary, no popup
+                                // Direct merge logic: use exact same logic as handleFieldSelectionConfirm
                                 const selectedContactId = selectedContactForTwoGroup[group.id];
                                 if (!selectedContactId) {
                                     toast.info('Please select a primary contact before merging.');
@@ -561,18 +777,36 @@ function DuplicatesPageContent() {
                                     return;
                                 }
                                 const secondaryContacts = group.group.filter(c => c.id !== selectedContactId);
-                                const secondaryContactIds = secondaryContacts.map(c => c.hubspotId);
-                                const mergeData = {
-                                    groupId: group.id,
-                                    primaryAccountId: primaryContact.hubspotId,
-                                    secondaryAccountId: secondaryContactIds,
-                                    apiKey,
-                                };
+
                                 try {
-                                    const response = await mergeContacts(mergeData);
-                                    const result = response.data as { success: boolean; message: string; mergeId?: number; details?: any };
-                                    if (result && result.success) {
-                                        setSelectedContactForTwoGroup(prev => ({ ...prev, [group.id]: null }));
+                                    // Use same logic as handleFieldSelectionConfirm: process each secondary contact individually
+                                    let groupSuccess = true;
+                                    let currentPrimaryId = primaryContact.hubspotId;
+
+                                    for (const secondaryContact of secondaryContacts) {
+                                        const mergeData = {
+                                            groupId: group.id,
+                                            primaryAccountId: currentPrimaryId,
+                                            secondaryAccountId: secondaryContact.hubspotId, // Single contact like in handleFieldSelectionConfirm
+                                            apiKey,
+                                        };
+
+                                        const response = await mergeContacts(mergeData);
+                                        const result = response.data as { success: boolean; message: string; mergeId?: number; details?: any };
+
+                                        if (result && result.success) {
+                                            // Update current primary ID if HubSpot returns a new merged ID
+                                            if (result.details?.id) {
+                                                currentPrimaryId = result.details.id;
+                                            }
+                                        } else {
+                                            groupSuccess = false;
+                                            break;
+                                        }
+                                    }
+
+                                    if (groupSuccess) {
+                                        dispatch(setSelectedContact({ groupId: group.id, contactId: null }));
                                         await fetchDuplicates(currentPage);
                                     } else {
                                         toast.error('❌ Merge failed. Please try again.');

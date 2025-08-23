@@ -27,6 +27,7 @@ import {
   MergeContactsDto,
   BatchMergeContactsDto,
   ResetMergeByGroupDto,
+  BulkMergeGroupsDto,
 } from '../dto/hubspot.dto';
 import axios from 'axios';
 import { freeContactLimit } from 'src/constant/main';
@@ -1186,6 +1187,76 @@ export class HubSpotService {
       userId,
       batchMergeContactsDto,
     );
+  }
+
+  async bulkMergeGroups(
+    userId: number,
+    bulkMergeGroupsDto: { groups: Array<any>; apiKey: string },
+  ) {
+    const { groups, apiKey } = bulkMergeGroupsDto;
+
+    const results: Array<{
+      groupId: number;
+      success: boolean;
+      message?: string;
+      error?: string;
+    }> = [];
+
+    this.logger.log(
+      `Starting bulk merge for ${groups.length} groups for user ${userId}`,
+    );
+
+    // Process each group sequentially to avoid overwhelming HubSpot API
+    for (const group of groups) {
+      try {
+        this.logger.log(`Processing group ${group.groupId}`);
+
+        // Pass the entire group to mergeContacts and let it handle multiple secondary contacts
+        const result = await this.mergingService.mergeContacts(userId, {
+          groupId: group.groupId,
+          primaryAccountId: group.primaryAccountId,
+          secondaryAccountId: group.secondaryAccountIds, // Pass the array directly
+          apiKey: group.apiKey,
+        });
+
+        results.push({
+          groupId: group.groupId,
+          success: true,
+          message: `Successfully merged group ${group.groupId}`,
+        });
+
+        this.logger.log(`Successfully processed group ${group.groupId}`);
+
+        // Add a small delay between groups to be gentle on HubSpot API
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      } catch (error) {
+        this.logger.error(`Error processing group ${group.groupId}:`, error);
+
+        results.push({
+          groupId: group.groupId,
+          success: false,
+          error: error.message || 'Unknown error occurred',
+        });
+      }
+    }
+
+    const successCount = results.filter((r) => r.success).length;
+    const failureCount = results.length - successCount;
+
+    this.logger.log(
+      `Bulk merge completed: ${successCount} successful, ${failureCount} failed`,
+    );
+
+    return {
+      success: true,
+      message: `Processed ${groups.length} groups: ${successCount} successful, ${failureCount} failed`,
+      results,
+      summary: {
+        total: groups.length,
+        successful: successCount,
+        failed: failureCount,
+      },
+    };
   }
 
   /**

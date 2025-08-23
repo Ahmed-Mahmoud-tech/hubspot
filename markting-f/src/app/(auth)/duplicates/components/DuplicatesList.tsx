@@ -29,6 +29,8 @@ interface DuplicatesListProps {
     onRefresh: () => void;
     selectedContactForTwoGroup: { [groupId: number]: number | null };
     onContactSelect: (groupId: number, contactId: number) => void;
+    selectedGroups?: Set<number>;
+    onGroupSelect?: (groupId: number, isSelected: boolean) => void;
     limit?: number; // Optional limit prop to control items per page
 }
 
@@ -42,6 +44,8 @@ export default function DuplicatesList({
     onRefresh,
     selectedContactForTwoGroup,
     onContactSelect,
+    selectedGroups = new Set(),
+    onGroupSelect,
     limit
 }: DuplicatesListProps) {
     // Helper function to format date
@@ -136,6 +140,17 @@ export default function DuplicatesList({
                             <div className="flex-1">
                                 <div className="flex items-center mb-6 justify-between flex-wrap gap-2">
                                     <div className="flex items-center">
+                                        {onGroupSelect && (
+                                            <div className="mr-3">
+                                                <input
+                                                    type="checkbox"
+                                                    id={`group-${duplicateGroup.id}`}
+                                                    checked={selectedGroups.has(duplicateGroup.id)}
+                                                    onChange={(e) => onGroupSelect(duplicateGroup.id, e.target.checked)}
+                                                    className="w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                                                />
+                                            </div>
+                                        )}
                                         <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-sm mr-3">
                                             {currentPage > 1 ? (currentPage - 1) * (limit ?? 10) + index + 1 : index + 1}
                                         </div>
@@ -229,7 +244,7 @@ export default function DuplicatesList({
                                                         )}
 
                                                         {/* Display other properties (only non-null/non-undefined) */}
-                                                        {contact.otherProperties && Object.entries(contact.otherProperties).filter(([_, value]) => value != null && value !== '').length > 0 && (
+                                                        {contact.otherProperties && Object.entries(contact.otherProperties).filter(([, value]) => value != null && value !== '').length > 0 && (
                                                             <div className="space-y-1">
                                                                 <div className="flex items-center space-x-2">
                                                                     <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -239,7 +254,7 @@ export default function DuplicatesList({
                                                                 </div>
                                                                 <div className="pl-6 space-y-1">
                                                                     {Object.entries(contact.otherProperties)
-                                                                        .filter(([_, value]) => value != null && value !== '')
+                                                                        .filter(([, value]) => value != null && value !== '')
                                                                         .slice(0, 3)
                                                                         .map(([key, value]) => (
                                                                             <div key={key} className="flex items-start space-x-2">
@@ -251,9 +266,9 @@ export default function DuplicatesList({
                                                                                 </span>
                                                                             </div>
                                                                         ))}
-                                                                    {Object.entries(contact.otherProperties).filter(([_, value]) => value != null && value !== '').length > 3 && (
+                                                                    {Object.entries(contact.otherProperties).filter(([, value]) => value != null && value !== '').length > 3 && (
                                                                         <p className="text-xs text-gray-400 italic">
-                                                                            +{Object.entries(contact.otherProperties).filter(([_, value]) => value != null && value !== '').length - 3} more properties
+                                                                            +{Object.entries(contact.otherProperties).filter(([, value]) => value != null && value !== '').length - 3} more properties
                                                                         </p>
                                                                     )}
                                                                 </div>
