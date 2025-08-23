@@ -1,16 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Image from 'next/image';
 import { PlanModal } from '@/app/plan';
 import { useRouter } from 'next/navigation';
 import { getCookie, deleteCookie } from 'cookies-next';
 import { toast } from 'react-toastify';
 import useRequest, { type User } from '@/app/axios/useRequest';
-import { LogOut, User as UserIcon, BarChart3, Plus, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 import DuplicateFilters from './components/DuplicateFilters';
 import HubSpotOAuth from './components/HubSpotOAuth';
-import logo from '../../../public/assets/images/logo.png';
 interface Action {
     id: number;
     name: string;
@@ -395,13 +393,6 @@ export default function DashboardPage() {
         }
     };
 
-    const handleLogout = () => {
-        deleteCookie('auth_token');
-        deleteCookie('user');
-        toast.success('Logged out successfully');
-        router.push('/login');
-    };
-
     if (isLoading) {
         return (
             <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -415,38 +406,7 @@ export default function DashboardPage() {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50">
-            {/* Header */}
-            <header className="bg-white shadow-sm border-b border-gray-200">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="flex justify-between items-center h-16">
-                        <div className="flex items-center">
-                            <Image src={logo} alt="Clear Root" width={70} height={56} />
-                            <h1 className="text-xl font-semibold text-gray-900">
-                                Clear Root
-                            </h1>
-                        </div>
-
-                        <div className="flex items-center space-x-4">
-                            <div className="flex items-center space-x-2">
-                                <UserIcon className="h-5 w-5 text-gray-500" />
-                                <span className="text-sm text-gray-700">
-                                    {user.first_name} {user.last_name}
-                                </span>
-                            </div>
-
-                            <button
-                                onClick={handleLogout}
-                                className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                            >
-                                <LogOut className="h-4 w-4 mr-1" />
-                                Logout
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </header>
-
+        <>
             {/* Main Content */}
             <main className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
                 {/* Welcome Section */}
@@ -508,11 +468,11 @@ export default function DashboardPage() {
                 </div>
                 {/* Plan Details Section */}
 
-                {/* {plan?.is_paid_plan && (
+                {plan?.is_paid_plan && (
                     <div className="bg-white shadow-lg rounded-xl mb-8">
                         <div className="px-8 py-6 border-b border-blue-100 flex items-center justify-between">
                             <div className="flex items-center gap-3">
-                                <BarChart3 className="h-6 w-6 text-indigo-600" />
+                                {/* <BarChart3 className="h-6 w-6 text-indigo-600" /> */}
                                 <h3 className="text-lg font-semibold text-gray-900">Plan Details</h3>
                             </div>
                             <button
@@ -563,7 +523,7 @@ export default function DashboardPage() {
 
                         </div>
                     </div>
-                )} */}
+                )}
 
                 {/* Actions Section */}
                 {/* HubSpot Connection Section */}
@@ -575,7 +535,14 @@ export default function DashboardPage() {
                         <div className="flex justify-between items-center">
                             <h3 className="text-lg font-medium text-gray-900">HubSpot Integrations</h3>
                             <button
-                                onClick={() => setShowForm(!showForm)}
+                                onClick={() => {
+                                    const hasManuallyMerge = actions.some(action => action.process_name === 'manually merge');
+                                    if (hasManuallyMerge) {
+                                        toast.warning('You have a scan in progress. Please finish or remove it before starting a new scan.');
+                                        return;
+                                    }
+                                    setShowForm(!showForm);
+                                }}
                                 className="cursor-pointer inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                             >
                                 <Plus className="h-4 w-4 mr-1" />
@@ -827,6 +794,6 @@ export default function DashboardPage() {
                 plan={plan}
                 contactCount={plan?.contactCount || 0}
             />
-        </div>
+        </>
     );
 }

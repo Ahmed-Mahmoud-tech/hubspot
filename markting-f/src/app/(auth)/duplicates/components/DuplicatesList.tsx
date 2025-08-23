@@ -108,7 +108,7 @@ export default function DuplicatesList({
             <div className="px-6 py-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-blue-100">
                 <div className="flex items-center justify-between">
                     <div>
-                        <h2 className="text-xl font-semibold text-gray-900">Duplicate Groups</h2>
+                        <div className="flex items-center"> <h2 className="text-xl font-semibold text-gray-900">Duplicate Groups</h2> <span className="text-sm text-gray-700 ml-2">- Please select the primary contact.</span></div>
                         <p className="mt-1 text-sm text-gray-600">
                             Found <span className="font-medium text-blue-600">{duplicates.length}</span> duplicate groups to review
                         </p>
@@ -227,7 +227,7 @@ export default function DuplicatesList({
                                                                 <p className="text-sm text-gray-600">{contact.company}</p>
                                                             </div>
                                                         )}
-                                                        
+
                                                         {/* Display other properties (only non-null/non-undefined) */}
                                                         {contact.otherProperties && Object.entries(contact.otherProperties).filter(([_, value]) => value != null && value !== '').length > 0 && (
                                                             <div className="space-y-1">

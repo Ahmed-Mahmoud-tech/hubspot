@@ -6,9 +6,9 @@ import { useSearchParams } from 'next/navigation';
 import useRequest from '@/app/axios/useRequest';
 
 // Import components with updated paths
-import DuplicatesList from '@/app/duplicates/components/DuplicatesList';
-import ProcessStatus from '@/app/duplicates/components/ProcessStatus';
-import FieldSelectionModal from '@/app/duplicates/components/FieldSelectionModal';
+import DuplicatesList from './components/DuplicatesList';
+import ProcessStatus from './components/ProcessStatus';
+import FieldSelectionModal from './components/FieldSelectionModal';
 import { useRouter } from 'next/navigation';
 import { PlanModal } from '@/app/plan';
 import { freeContactLimit, freeMergeGroupLimit } from '@/constant/main';
@@ -440,7 +440,7 @@ function DuplicatesPageContent() {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 py-8">
+        <div className="py-8">
             {showPlanModal && (
                 <PlanModal
                     apiKey={apiKey}
