@@ -70,4 +70,16 @@ export class PlanController {
       body.billingType,
     );
   }
+
+  // Get user's payments history (paginated)
+  @UseGuards(JwtAuthGuard)
+  @Get('payments')
+  async getUserPayments(@Req() req) {
+    const userId = req.user?.id;
+    const page = req.query?.page ? parseInt(req.query.page as string, 10) : 1;
+    const limit = req.query?.limit
+      ? parseInt(req.query.limit as string, 10)
+      : 10;
+    return this.planService.getUserPayments(userId, page, limit);
+  }
 }

@@ -176,6 +176,22 @@ const useRequest = () => {
     return response.data;
   };
 
+  // Get paginated payments for the current user
+  const getUserPayments = async (params?: {
+    page?: number;
+    limit?: number;
+  }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append("page", params.page.toString());
+    if (params?.limit) queryParams.append("limit", params.limit.toString());
+
+    const url = `/plans/payments${
+      queryParams.toString() ? "?" + queryParams.toString() : ""
+    }`;
+    const response = await Request.get(url);
+    return response.data;
+  };
+
   // Calculate upgrade pricing with balance
   const calculateUpgradePrice = async (data: {
     contactCount: number;
@@ -525,6 +541,7 @@ const useRequest = () => {
     resetAllPendingMerges,
     finishProcess,
     getActions,
+    getUserPayments,
     getLatestAction,
     getRemovalHistory,
     undoRemoval,

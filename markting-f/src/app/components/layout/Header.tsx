@@ -73,12 +73,12 @@ export default function Header({ user: propUser, onUserUpdate }: HeaderProps) {
                     </Link>
 
                     <div className="flex items-center space-x-4">
-                        <div className="flex items-center space-x-2">
+                        <Link href="/profile" className="flex items-center space-x-2">
                             <UserIcon className="h-5 w-5 text-gray-500" />
                             <span className="text-sm text-gray-700">
                                 {user ? `${user.first_name} ${user.last_name}` : ''}
                             </span>
-                        </div>
+                        </Link>
 
                         <button
                             onClick={handleLogout}

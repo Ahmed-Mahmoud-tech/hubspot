@@ -83,9 +83,12 @@ export function PlanModal({ apiKey, open, onClose, userId, plan, contactCount }:
                 contactCount: plan.contactCount || initialContactCount,
             });
             setInputContactCount(Math.max((plan.contactCount || initialContactCount), stripeCountLimit));
+            console.log(contactCount, initialContactCount, stripeCountLimit, "555555555");
         } else {
             setLocalPlan({ type: 'free', mergeGroupsUsed: 0, contactCount: contactCount || initialContactCount });
             setInputContactCount(Math.max((contactCount || initialContactCount), stripeCountLimit));
+            console.log(contactCount, initialContactCount, stripeCountLimit, "555555555");
+
         }
 
         // If monthly is disabled, set billingType to yearly
@@ -184,18 +187,17 @@ export function PlanModal({ apiKey, open, onClose, userId, plan, contactCount }:
                     <button className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-2xl font-bold" onClick={onClose}>&times;</button>
                     <div className="mb-8 flex flex-col items-center">
                         <h1 className="text-3xl font-bold text-gray-900 mb-2 text-center">Contact Merge Plans</h1>
-                        <p className="text-gray-500 mb-4 text-center max-w-xl">Choose the best plan for your needs. Upgrade anytime for more features.</p>
+                        <p className="text-gray-500 mb-4 text-center max-w-xl"> you can select the contact limits for your plan to make it more suitable.</p>
                         <div className="w-full flex justify-center">
-                            <div className="rounded-lg border border-gray-200 bg-gray-50 px-6 py-4 flex flex-col items-center shadow-sm">
-                                <span className="text-gray-700 text-base mb-1 flex items-center">
-                                    <span className="mr-2">💡</span>For paid plans:
-                                </span>
+                            <div className="rounded-lg border border-blue-200 bg-blue-50 px-2 flex flex-col items-center shadow-sm">
+
                                 <span className="flex items-center gap-2 mt-1">
+                                    <span className="mr-2">💡</span>
                                     <span className="font-bold text-2xl text-gray-900">$1</span>
                                     <span className="text-gray-700 text-base">lets you fetch</span>
-                                    <span className="font-semibold text-lg text-gray-800">2,000</span>
+                                    <span className="font-semibold text-lg text-gray-800">{dividedContactPerMonth}</span>
                                     <span className="text-gray-700 text-base">(monthly) or</span>
-                                    <span className="font-semibold text-lg text-gray-800">4,000</span>
+                                    <span className="font-semibold text-lg text-gray-800">{dividedContactPerYear}</span>
                                     <span className="text-gray-700 text-base">(yearly)</span>
                                 </span>
                             </div>
@@ -403,7 +405,10 @@ export function PlanModal({ apiKey, open, onClose, userId, plan, contactCount }:
                                             aria-pressed={billingType === 'monthly'}
                                             disabled={moreThanMonth}
                                         >
-                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M8 17l4 4 4-4" /><path d="M12 21V3" /></svg>
+                                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                                <rect x="3" y="4" width="18" height="16" rx="2" ry="2" />
+                                                <path d="M16 2v4M8 2v4M3 10h18" />
+                                            </svg>
                                             Monthly
                                         </button>
                                         <button
@@ -411,7 +416,10 @@ export function PlanModal({ apiKey, open, onClose, userId, plan, contactCount }:
                                             onClick={() => setBillingType('yearly')}
                                             aria-pressed={billingType === 'yearly'}
                                         >
-                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></svg>
+                                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                                <circle cx="12" cy="12" r="9" />
+                                                <path d="M12 8l1.176 2.382L16 11l-2.412 1.135L13.176 15 12 13.118 10.824 15 9.412 12.135 7 11l2.824-0.618L12 8z" />
+                                            </svg>
                                             Yearly
                                         </button>
                                     </div>

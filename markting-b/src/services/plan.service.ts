@@ -260,4 +260,36 @@ export class PlanService {
       balanceInfo,
     };
   }
+
+  // Get paginated payments for a user
+  async getUserPayments(
+    userId: number,
+    page: number = 1,
+    limit: number = 10,
+  ): Promise<{
+    data: Payment[];
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+    };
+  }> {
+    const [payments, total] = await this.paymentRepo.findAndCount({
+      where: { userId },
+      order: { createdAt: 'DESC' },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+
+    return {
+      data: payments,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.max(1, Math.ceil(total / limit)),
+      },
+    };
+  }
 }
