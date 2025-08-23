@@ -109,11 +109,11 @@ export default function DuplicatesList({
                 <div className="flex items-center justify-between">
                     <div>
                         <div className="flex items-center"> <h2 className="text-xl font-semibold text-gray-900">Duplicate Groups</h2> <span className="text-sm text-gray-700 ml-2">- Please select the primary contact.</span></div>
-                        <p className="mt-1 text-sm text-gray-600">
-                            Found <span className="font-medium text-blue-600">{duplicates.length}</span> duplicate groups to review
-                        </p>
                     </div>
-                    <button
+                    <p className="mt-1 text-sm text-gray-600">
+                        Found <span className="font-medium text-blue-600">{duplicates.length}</span> duplicate groups to review
+                    </p>
+                    {/* <button
                         onClick={onRefresh}
                         className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 shadow-md transition-all duration-200"
                     >
@@ -121,7 +121,7 @@ export default function DuplicatesList({
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                         </svg>
                         Refresh
-                    </button>
+                    </button> */}
                 </div>
             </div>
 
