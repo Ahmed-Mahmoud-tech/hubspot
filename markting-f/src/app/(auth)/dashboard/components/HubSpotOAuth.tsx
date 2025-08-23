@@ -187,7 +187,7 @@ export default function HubSpotOAuth({ onConnectionChange }: HubSpotOAuthProps) 
   }
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-6">
+    <div className="bg-white border border-gray-200 rounded-lg p-6 mb-6">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center">
           <Link2 className="h-5 w-5 text-orange-500 mr-2" />

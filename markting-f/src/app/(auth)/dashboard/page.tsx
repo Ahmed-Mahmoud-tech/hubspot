@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { PlanModal } from '@/app/plan';
 import { useRouter } from 'next/navigation';
 import { getCookie, deleteCookie } from 'cookies-next';
@@ -79,12 +79,10 @@ export default function DashboardPage() {
     const [selectedFilters, setSelectedFilters] = useState<string[]>(['phone', 'first_last_name', 'first_name_phone', 'first_last_name_company']); // default: all selected
     const [selectAll, setSelectAll] = useState(true);
 
-    // Filter type selection
-    const [filterType, setFilterType] = useState<'default' | 'custom'>('default');
+    // Filter type selection removed; always default filters with optional custom conditions
 
     // Custom properties state
     const [customProperties, setCustomProperties] = useState<string[]>([]); // all available properties
-    const [customPropsLoading, setCustomPropsLoading] = useState(false);
     const [customPropsSearch, setCustomPropsSearch] = useState('');
 
     // Condition builder state
@@ -92,7 +90,7 @@ export default function DashboardPage() {
         id: string;
         properties: string[];
     }
-    const [conditions, setConditions] = useState<Condition[]>([{ id: Date.now().toString(), properties: [] }]);
+    const [conditions, setConditions] = useState<Condition[]>([]);
 
     const { getProfile, getActions, startHubSpotFetch, startHubSpotOAuthFetch, finalDeleteActionById, getUserPlan, getHubSpotProperties, getHubSpotPropertiesOAuth } = useRequest();
 
@@ -195,7 +193,6 @@ export default function DashboardPage() {
 
     // Fetch custom properties for API key or OAuth
     const fetchCustomProperties = async (apiKey?: string) => {
-        setCustomPropsLoading(true);
         try {
             let properties;
             if (hubspotConnected) {
@@ -211,23 +208,55 @@ export default function DashboardPage() {
             console.error('Error fetching properties:', error);
             setCustomProperties([]);
         } finally {
-            setCustomPropsLoading(false);
         }
     };
 
-    // When API key changes or OAuth connection changes, fetch custom properties and clear conditions
+    // When API key changes or OAuth connection changes, clear conditions and refetch properties if applicable
     useEffect(() => {
-        setConditions([{ id: Date.now().toString(), properties: [] }]);
+        // don't auto-create a condition; only clear existing ones and properties
+        setConditions([]);
         setCustomProperties([]);
-        if (filterType === 'custom') {
-            if (hubspotConnected) {
-                fetchCustomProperties();
-            } else if (formData.apiKey) {
-                fetchCustomProperties(formData.apiKey);
-            }
+        if (hubspotConnected) {
+            fetchCustomProperties();
+        } else if (formData.apiKey) {
+            fetchCustomProperties(formData.apiKey);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [formData.apiKey, filterType, hubspotConnected]);
+    }, [formData.apiKey, hubspotConnected]);
+
+    // Track previous conditions length so we only trigger fetch when a condition is added (not on initial mount)
+    const prevConditionsLengthRef = useRef(conditions.length);
+
+    useEffect(() => {
+        const prev = prevConditionsLengthRef.current;
+        // If a condition was added
+        if (conditions.length > prev) {
+            // Only fetch properties if we don't have them yet
+            if (customProperties.length === 0) {
+                if (hubspotConnected) {
+                    fetchCustomProperties();
+                } else if (formData.apiKey) {
+                    fetchCustomProperties(formData.apiKey);
+                }
+            }
+        }
+        prevConditionsLengthRef.current = conditions.length;
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [conditions.length]);
+
+    // Ensure properties are fetched on initial load (or when API key/OAuth becomes available)
+    useEffect(() => {
+        // If properties are already loaded, do nothing
+        if (customProperties.length > 0) return;
+
+        if (hubspotConnected) {
+            fetchCustomProperties();
+        } else if (formData.apiKey) {
+            fetchCustomProperties(formData.apiKey);
+        }
+        // Run when hubspotConnected or api key changes (and on mount)
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [hubspotConnected, formData.apiKey]);
 
     const transformDefaultFilters = (filters: string[]): string[] => {
         const filterMapping: { [key: string]: string } = {
@@ -253,20 +282,14 @@ export default function DashboardPage() {
         setIsSubmitting(true);
 
         try {
-            let filtersToSend: string[];
+            const filtersToSend: string[] = transformDefaultFilters(selectedFilters);
 
-            if (filterType === 'default') {
-                // Transform default filters to new format
-                filtersToSend = transformDefaultFilters([...selectedFilters, 'same_email']);
-            } else {
-                // Custom filters: build from conditions
-                filtersToSend = ['same_email']; // Always include same email
-                conditions.forEach((condition, index) => {
-                    if (condition.properties.length > 0) {
-                        filtersToSend.push(`condition_${index}:${condition.properties.join(',')}`);
-                    }
-                });
-            }
+            // Append any custom conditions that the user added (if they have properties)
+            conditions.forEach((condition, index) => {
+                if (condition.properties.length > 0) {
+                    filtersToSend.push(`condition_${index + 5}:${condition.properties.join(',')}`);
+                }
+            });
 
             let result;
 
@@ -295,9 +318,8 @@ export default function DashboardPage() {
             setFormData({ name: '', apiKey: '' });
             setSelectedFilters(['phone', 'first_last_name', 'first_name_phone', 'first_last_name_company']);
             setSelectAll(true);
-            setConditions([{ id: Date.now().toString(), properties: [] }]);
+            setConditions([]);
             setCustomProperties([]);
-            setFilterType('default');
             // Refresh actions list
             fetchActions(currentPage);
 
@@ -604,8 +626,6 @@ export default function DashboardPage() {
 
                                 {/* Duplicate Filters Component */}
                                 <DuplicateFilters
-                                    filterType={filterType}
-                                    setFilterType={setFilterType}
                                     selectedFilters={selectedFilters}
                                     setSelectedFilters={setSelectedFilters}
                                     selectAll={selectAll}
@@ -613,10 +633,8 @@ export default function DashboardPage() {
                                     conditions={conditions}
                                     setConditions={setConditions}
                                     customProperties={customProperties}
-                                    customPropsLoading={customPropsLoading}
                                     customPropsSearch={customPropsSearch}
                                     setCustomPropsSearch={setCustomPropsSearch}
-                                    apiKey={hubspotConnected ? '' : formData.apiKey}
                                 />
 
                                 <div className="flex justify-end space-x-3">
@@ -630,8 +648,7 @@ export default function DashboardPage() {
                                     <button
                                         type="submit"
                                         disabled={isSubmitting ||
-                                            (filterType === 'default' && selectedFilters.length === 0) ||
-                                            (filterType === 'custom' && conditions.every(c => c.properties.length === 0)) ||
+                                            (selectedFilters.length === 0 && conditions.every(c => c.properties.length === 0)) ||
                                             (!hubspotConnected && !formData.apiKey)
                                         }
                                         className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
