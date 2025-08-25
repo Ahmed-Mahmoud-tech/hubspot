@@ -69,7 +69,7 @@ export default function ProcessStatus({ status, onFinish }: ProcessStatusProps) 
 
     return (
         <div className="bg-white rounded-lg shadow p-6 mb-8">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between flex-wrap gap-2">
                 <div className="flex items-center space-x-4">
                     <div className="flex-shrink-0">
                         <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(status.process_name)}`}>

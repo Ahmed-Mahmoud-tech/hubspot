@@ -183,7 +183,7 @@ export function PlanModal({ apiKey, open, onClose, userId, plan, contactCount }:
                 className="fixed inset-0 z-50 flex items-center justify-center bg-[#00000040] bg-opacity-30 backdrop-blur-sm transition-all"
                 onClick={handleBackdropClick}
             >
-                <div className="max-w-4xl w-full mx-auto p-8 bg-white rounded-xl shadow-lg border border-gray-200 relative animate-fade-in">
+                <div className="w-4xl max-w-[90%] mx-auto p-8 bg-white rounded-xl shadow-lg border border-gray-200 relative animate-fade-in">
                     <button className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-2xl font-bold" onClick={onClose}>&times;</button>
                     <div className="mb-8 flex flex-col items-center">
                         <h1 className="text-3xl font-bold text-gray-900 mb-2 text-center">Contact Merge Plans</h1>
@@ -191,7 +191,7 @@ export function PlanModal({ apiKey, open, onClose, userId, plan, contactCount }:
                         <div className="w-full flex justify-center">
                             <div className="rounded-lg border border-blue-200 bg-blue-50 px-2 flex flex-col items-center shadow-sm">
 
-                                <span className="flex items-center gap-2 mt-1">
+                                <span className="flex items-center gap-x-2 mt-1 flex-wrap justify-center">
                                     <span className="mr-2">💡</span>
                                     <span className="font-bold text-2xl text-gray-900">$1</span>
                                     <span className="text-gray-700 text-base">lets you fetch</span>
@@ -307,7 +307,7 @@ export function PlanModal({ apiKey, open, onClose, userId, plan, contactCount }:
                                 </div>
                             )} */}
                             {/* Paid Plan Card */}
-                            <div className="min-w-[340px] relative bg-gradient-to-br from-yellow-100 via-yellow-50 to-white border-2 border-yellow-300 rounded-2xl p-6 flex flex-col items-center shadow-xl hover:shadow-2xl transition-all duration-300 min-w-[240px] max-w-md w-full text-xs">
+                            <div className="w-[340px] relative bg-gradient-to-br from-yellow-100 via-yellow-50 to-white border-2 border-yellow-300 rounded-2xl p-6 flex flex-col items-center shadow-xl hover:shadow-2xl transition-all duration-300 min-w-[240px] max-w-md text-xs">
                                 <div className="absolute top-2 right-2 flex items-center gap-1">
                                     <span className="bg-gradient-to-r from-yellow-400 to-yellow-500 text-white text-[10px] px-2 py-1 rounded-full font-bold shadow animate-pulse">⭐ Upgrade</span>
                                 </div>

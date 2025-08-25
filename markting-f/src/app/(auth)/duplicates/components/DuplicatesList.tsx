@@ -110,7 +110,7 @@ export default function DuplicatesList({
         <div className="bg-white rounded-xl shadow-lg overflow-hidden">
             {/* Header */}
             <div className="px-6 py-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-blue-100">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between flex-wrap gap-2">
                     <div>
                         <div className="flex items-center"> <h2 className="text-xl font-semibold text-gray-900">Duplicate Groups</h2> <span className="text-sm text-gray-700 ml-2">- Please select the primary contact.</span></div>
                     </div>
@@ -136,8 +136,8 @@ export default function DuplicatesList({
                         ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-l-4 border-green-400'
                         : 'hover:bg-gray-50'
                         }`}>
-                        <div className="flex items-start justify-between">
-                            <div className="flex-1">
+                        <div className="flex items-start justify-between flex-wrap gap-4">
+                            <div className="flex-1 w-[600px]">
                                 <div className="flex items-center mb-6 justify-between flex-wrap gap-2">
                                     <div className="flex items-center">
                                         {onGroupSelect && (
@@ -162,7 +162,7 @@ export default function DuplicatesList({
 
                                 </div>
 
-                                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2  ">
+                                <div className="flex flex-wrap gap-6 ">
                                     {duplicateGroup.group.map((contact) => {
                                         const isClickable = duplicateGroup.group.length === 2 || duplicateGroup.group.length > 2;
                                         const isSelected = selectedContactForTwoGroup[duplicateGroup.id] === contact.id;
@@ -170,7 +170,7 @@ export default function DuplicatesList({
                                         return (
                                             <div
                                                 key={contact.id}
-                                                className={`relative rounded-xl border-2 px-5 py-4 shadow-sm transition-all duration-300 transform hover:scale-105 ${isSelected
+                                                className={`flex-grow relative rounded-xl border-2 px-5 py-4 shadow-sm transition-all duration-300 transform hover:scale-105 ${isSelected
                                                     ? 'border-blue-500 bg-gradient-to-br from-blue-50 to-indigo-50 shadow-lg cursor-pointer'
                                                     : isClickable
                                                         ? 'border-gray-200 bg-white hover:border-blue-300 hover:shadow-md cursor-pointer'
@@ -292,7 +292,7 @@ export default function DuplicatesList({
                                 </div>
                             </div>
 
-                            <div className="ml-8 flex-shrink-0">
+                            <div className="flex-shrink-0">
                                 {duplicateGroup.merged ? (
                                     <div className="space-y-3">
                                         <span className="ml-4 inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800 border border-green-200">
@@ -360,8 +360,8 @@ export default function DuplicatesList({
             {/* Pagination */}
             {totalPages > 1 && (
                 <div className="bg-gradient-to-r from-gray-50 to-blue-50 px-6 py-4 border-t border-gray-200">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center">
+                    <div className="flex items-center justify-between gap-1 flex-wrap">
+                        <div className="flex items-center flex-wrap">
                             <p className="text-sm font-medium text-gray-700">
                                 Page <span className="font-bold text-blue-600">{currentPage}</span> of{' '}
                                 <span className="font-bold text-blue-600">{totalPages}</span>

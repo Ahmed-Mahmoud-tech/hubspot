@@ -67,7 +67,7 @@ export default function Header({ user: propUser, onUserUpdate }: HeaderProps) {
                 <div className="flex justify-between items-center h-16">
                     <Link href="/dashboard" className="flex items-center cursor-pointer" prefetch={false}>
                         <Image src={logo} alt="Logo" width={70} height={55} className="mr-3" />
-                        <h1 className="text-xl font-semibold text-gray-900">
+                        <h1 className="font-semibold text-gray-900 text-sm md:text-xl">
                             Clear Root
                         </h1>
                     </Link>
@@ -85,7 +85,7 @@ export default function Header({ user: propUser, onUserUpdate }: HeaderProps) {
                             className="cursor-pointer inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                         >
                             <LogOut className="h-4 w-4 mr-1" />
-                            Logout
+                            <span className="hidden sm:inline">Logout</span>
                         </button>
                     </div>
                 </div>

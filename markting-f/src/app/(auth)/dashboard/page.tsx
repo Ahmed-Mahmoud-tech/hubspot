@@ -552,46 +552,47 @@ export default function DashboardPage() {
                 <HubSpotOAuth onConnectionChange={setHubspotConnected} />
 
                 {/* HubSpot Integrations Section */}
-                {hubspotConnected && <div className="bg-white shadow rounded-lg">
-                    <div className="px-6 py-4 border-b border-gray-200">
-                        <div className="flex justify-between items-center">
-                            <h3 className="text-lg font-medium text-gray-900">HubSpot Integrations</h3>
-                            <button
-                                onClick={() => {
-                                    const hasManuallyMerge = actions.some(action => action.process_name === 'manually merge');
-                                    if (hasManuallyMerge) {
-                                        toast.warning('You have a scan in progress. Please finish or remove it before starting a new scan.');
-                                        return;
-                                    }
-                                    setShowForm(!showForm);
-                                }}
-                                className="cursor-pointer inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                            >
-                                <Plus className="h-4 w-4 mr-1" />
-                                New Scan
-                            </button>
+                {hubspotConnected && <div className="bg-white shadow rounded-lg overflow-x-auto">
+                    <div className=' min-w-[800px] '>
+                        <div className="px-6 py-4 border-b border-gray-200">
+                            <div className="flex justify-between items-center">
+                                <h3 className="text-lg font-medium text-gray-900">HubSpot Scans</h3>
+                                <button
+                                    onClick={() => {
+                                        const hasManuallyMerge = actions.some(action => action.process_name === 'manually merge');
+                                        if (hasManuallyMerge) {
+                                            toast.warning('You have a scan in progress. Please finish or remove it before starting a new scan.');
+                                            return;
+                                        }
+                                        setShowForm(!showForm);
+                                    }}
+                                    className="cursor-pointer inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                                >
+                                    <Plus className="h-4 w-4 mr-1" />
+                                    New Scan
+                                </button>
+                            </div>
                         </div>
-                    </div>
 
-                    {/* Integration Form */}
-                    {showForm && (
-                        <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-                            <form onSubmit={handleFormSubmit} className="space-y-4">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                                            Scan Name
-                                        </label>
-                                        <input
-                                            type="text"
-                                            value={formData.name}
-                                            onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                                            required
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                                            placeholder="Enter scan name"
-                                        />
-                                    </div>
-                                    {/* {!hubspotConnected && (
+                        {/* Integration Form */}
+                        {showForm && (
+                            <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+                                <form onSubmit={handleFormSubmit} className="space-y-4">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                Scan Name
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={formData.name}
+                                                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                                                required
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                                placeholder="Enter scan name"
+                                            />
+                                        </div>
+                                        {/* {!hubspotConnected && (
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700 mb-1">
                                                 HubSpot API Key
@@ -606,199 +607,199 @@ export default function DashboardPage() {
                                             />
                                         </div>
                                     )} */}
-                                </div>
-
-                                {hubspotConnected && (
-                                    <div className="bg-green-50 border border-green-200 rounded-md p-3">
-                                        <p className="text-sm text-green-700">
-                                            ✓ Using your connected HubSpot account for this integration
-                                        </p>
                                     </div>
-                                )}
 
-                                {!hubspotConnected && (
-                                    <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
-                                        <p className="text-sm text-blue-700">
-                                            💡 <strong>Tip:</strong> Connect your HubSpot account above for a more secure experience without API keys
-                                        </p>
+                                    {hubspotConnected && (
+                                        <div className="bg-green-50 border border-green-200 rounded-md p-3">
+                                            <p className="text-sm text-green-700">
+                                                ✓ Using your connected HubSpot account for this integration
+                                            </p>
+                                        </div>
+                                    )}
+
+                                    {!hubspotConnected && (
+                                        <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+                                            <p className="text-sm text-blue-700">
+                                                💡 <strong>Tip:</strong> Connect your HubSpot account above for a more secure experience without API keys
+                                            </p>
+                                        </div>
+                                    )}
+
+                                    {/* Duplicate Filters Component */}
+                                    <DuplicateFilters
+                                        selectedFilters={selectedFilters}
+                                        setSelectedFilters={setSelectedFilters}
+                                        selectAll={selectAll}
+                                        setSelectAll={setSelectAll}
+                                        conditions={conditions}
+                                        setConditions={setConditions}
+                                        customProperties={customProperties}
+                                        customPropsSearch={customPropsSearch}
+                                        setCustomPropsSearch={setCustomPropsSearch}
+                                    />
+
+                                    <div className="flex justify-end space-x-3">
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowForm(false)}
+                                            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            type="submit"
+                                            disabled={isSubmitting ||
+                                                (selectedFilters.length === 0 && conditions.every(c => c.properties.length === 0)) ||
+                                                (!hubspotConnected && !formData.apiKey)
+                                            }
+                                            className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                            {isSubmitting ? 'Starting...' : 'Start Integration'}
+                                        </button>
                                     </div>
-                                )}
+                                </form>
+                            </div>
+                        )}
 
-                                {/* Duplicate Filters Component */}
-                                <DuplicateFilters
-                                    selectedFilters={selectedFilters}
-                                    setSelectedFilters={setSelectedFilters}
-                                    selectAll={selectAll}
-                                    setSelectAll={setSelectAll}
-                                    conditions={conditions}
-                                    setConditions={setConditions}
-                                    customProperties={customProperties}
-                                    customPropsSearch={customPropsSearch}
-                                    setCustomPropsSearch={setCustomPropsSearch}
-                                />
-
-                                <div className="flex justify-end space-x-3">
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowForm(false)}
-                                        className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-                                    >
-                                        Cancel
-                                    </button>
-                                    <button
-                                        type="submit"
-                                        disabled={isSubmitting ||
-                                            (selectedFilters.length === 0 && conditions.every(c => c.properties.length === 0)) ||
-                                            (!hubspotConnected && !formData.apiKey)
-                                        }
-                                        className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                                    >
-                                        {isSubmitting ? 'Starting...' : 'Start Integration'}
-                                    </button>
+                        {/* Actions List */}
+                        <div className="px-6 py-4">
+                            {actionsLoading ? (
+                                <div className="flex justify-center py-8">
+                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
                                 </div>
-                            </form>
-                        </div>
-                    )}
-
-                    {/* Actions List */}
-                    <div className="px-6 py-4">
-                        {actionsLoading ? (
-                            <div className="flex justify-center py-8">
-                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
-                            </div>
-                        ) : actions.length === 0 ? (
-                            <div className="text-center py-12">
-                                <h3 className="mt-2 text-sm font-medium text-gray-900">No integrations found</h3>
-                                <p className="mt-1 text-sm text-gray-500">
-                                    Get started by creating a new HubSpot integration.
-                                </p>
-                            </div>
-                        ) : (
-                            <div className="space-y-4">
-                                <div className="divide-y divide-gray-200">
-                                    {actions.map((action) => (
-                                        <div key={action.id} className="py-4">
-                                            <div className="flex items-center justify-between">
-                                                <div className="flex-1">
-                                                    <div className="flex items-center space-x-4">
-                                                        <div>
-                                                            <h3 className="text-sm font-medium text-gray-900">{action.name}</h3>
-                                                            <p className="text-sm text-gray-500">
-                                                                Created: {new Date(action.created_at).toLocaleDateString()}
-                                                            </p>
-                                                        </div>
-                                                        <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(action.process_name)}`}>
-                                                            {action.process_name}
-                                                        </div>
-                                                        {action.count > 0 && (
-                                                            <div className="text-sm text-gray-600">
-                                                                {action.count} contacts
+                            ) : actions.length === 0 ? (
+                                <div className="text-center py-12">
+                                    <h3 className="mt-2 text-sm font-medium text-gray-900">No integrations found</h3>
+                                    <p className="mt-1 text-sm text-gray-500">
+                                        Get started by creating a new HubSpot integration.
+                                    </p>
+                                </div>
+                            ) : (
+                                <div className="space-y-4">
+                                    <div className="divide-y divide-gray-200">
+                                        {actions.map((action) => (
+                                            <div key={action.id} className="py-4">
+                                                <div className="flex items-center justify-between">
+                                                    <div className="flex-1">
+                                                        <div className="flex items-center space-x-4">
+                                                            <div>
+                                                                <h3 className="text-sm font-medium text-gray-900">{action.name}</h3>
+                                                                <p className="text-sm text-gray-500">
+                                                                    Created: {new Date(action.created_at).toLocaleDateString()}
+                                                                </p>
                                                             </div>
-                                                        )}
+                                                            <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(action.process_name)}`}>
+                                                                {action.process_name}
+                                                            </div>
+                                                            {action.count > 0 && (
+                                                                <div className="text-sm text-gray-600">
+                                                                    {action.count} contacts
+                                                                </div>
+                                                            )}
+                                                        </div>
                                                     </div>
-                                                </div>
 
-                                                <div className="flex items-center space-x-3">
-                                                    {/* Show Review Duplicates for manually merge */}
-                                                    {action.process_name === 'manually merge' && (
-                                                        <button
-                                                            onClick={() => router.push(`/duplicates?apiKey=${encodeURIComponent(action.api_key)}`)}
-                                                            className="cursor-pointer text-sm bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700"
-                                                        >
-                                                            Review Duplicates
-                                                        </button>
-                                                    )}
-                                                    {/* Show Remove button if status is 'processing' or Review Duplicates button is shown */}
-                                                    {(action.status === 'processing' || action.process_name === 'manually merge') && (
-                                                        <button
-                                                            onClick={() => handleRemoveAction(action.id, action.api_key)}
-                                                            disabled={removingActionId === action.id}
-                                                            className="cursor-pointer text-sm bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
-                                                        >
-                                                            <Trash2 className="h-3 w-3 mr-1" />
-                                                            {removingActionId === action.id ? 'Removing...' : 'Remove'}
-                                                        </button>
-                                                    )}
-                                                    {void console.log(action, "0000")}
-
-                                                    {['fetching', 'filtering', 'update hubspot'].includes(action.process_name) && (
-                                                        <div className="flex items-center space-x-2">
-                                                            <span className="text-sm text-gray-500">Processing...</span>
+                                                    <div className="flex items-center space-x-3">
+                                                        {/* Show Review Duplicates for manually merge */}
+                                                        {action.process_name === 'manually merge' && (
+                                                            <button
+                                                                onClick={() => router.push(`/duplicates?apiKey=${encodeURIComponent(action.api_key)}`)}
+                                                                className="cursor-pointer text-sm bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700"
+                                                            >
+                                                                Review Duplicates
+                                                            </button>
+                                                        )}
+                                                        {/* Show Remove button if status is 'processing' or Review Duplicates button is shown */}
+                                                        {(action.status === 'processing' || action.process_name === 'manually merge') && (
                                                             <button
                                                                 onClick={() => handleRemoveAction(action.id, action.api_key)}
                                                                 disabled={removingActionId === action.id}
-                                                                className="text-sm bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+                                                                className="cursor-pointer text-sm bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
                                                             >
                                                                 <Trash2 className="h-3 w-3 mr-1" />
                                                                 {removingActionId === action.id ? 'Removing...' : 'Remove'}
                                                             </button>
-                                                        </div>
-                                                    )}
+                                                        )}
+                                                        {void console.log(action, "0000")}
+
+                                                        {['fetching', 'filtering', 'update hubspot'].includes(action.process_name) && (
+                                                            <div className="flex items-center space-x-2">
+                                                                <span className="text-sm text-gray-500">Processing...</span>
+                                                                <button
+                                                                    onClick={() => handleRemoveAction(action.id, action.api_key)}
+                                                                    disabled={removingActionId === action.id}
+                                                                    className="text-sm bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+                                                                >
+                                                                    <Trash2 className="h-3 w-3 mr-1" />
+                                                                    {removingActionId === action.id ? 'Removing...' : 'Remove'}
+                                                                </button>
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    ))}
-                                </div>
-
-                                {/* Pagination */}
-                                {totalPages > 1 && (
-                                    <div className="flex items-center justify-between border-t border-gray-200 pt-4">
-                                        <div className="flex items-center text-sm text-gray-500">
-                                            Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, totalActions)} of {totalActions} integrations
-                                        </div>
-                                        <div className="flex items-center space-x-2">
-                                            <button
-                                                onClick={() => handlePageChange(currentPage - 1)}
-                                                disabled={currentPage === 1}
-                                                className="inline-flex items-center px-2 py-1 border border-gray-300 text-sm font-medium rounded-md text-gray-500 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                                            >
-                                                <ChevronLeft className="h-4 w-4" />
-                                                Previous
-                                            </button>
-
-                                            <div className="flex items-center space-x-1">
-                                                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                                                    let pageNum;
-                                                    if (totalPages <= 5) {
-                                                        pageNum = i + 1;
-                                                    } else if (currentPage <= 3) {
-                                                        pageNum = i + 1;
-                                                    } else if (currentPage >= totalPages - 2) {
-                                                        pageNum = totalPages - 4 + i;
-                                                    } else {
-                                                        pageNum = currentPage - 2 + i;
-                                                    }
-
-                                                    return (
-                                                        <button
-                                                            key={pageNum}
-                                                            onClick={() => handlePageChange(pageNum)}
-                                                            className={`px-3 py-1 text-sm font-medium rounded-md ${pageNum === currentPage
-                                                                ? 'bg-indigo-600 text-white'
-                                                                : 'text-gray-500 bg-white border border-gray-300 hover:bg-gray-50'
-                                                                }`}
-                                                        >
-                                                            {pageNum}
-                                                        </button>
-                                                    );
-                                                })}
-                                            </div>
-
-                                            <button
-                                                onClick={() => handlePageChange(currentPage + 1)}
-                                                disabled={currentPage === totalPages}
-                                                className="inline-flex items-center px-2 py-1 border border-gray-300 text-sm font-medium rounded-md text-gray-500 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                                            >
-                                                Next
-                                                <ChevronRight className="h-4 w-4" />
-                                            </button>
-                                        </div>
+                                        ))}
                                     </div>
-                                )}
-                            </div>
-                        )}
-                    </div>
-                </div>}
+
+                                    {/* Pagination */}
+                                    {totalPages > 1 && (
+                                        <div className="flex items-center justify-between border-t border-gray-200 pt-4">
+                                            <div className="flex items-center text-sm text-gray-500">
+                                                Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, totalActions)} of {totalActions} integrations
+                                            </div>
+                                            <div className="flex items-center space-x-2">
+                                                <button
+                                                    onClick={() => handlePageChange(currentPage - 1)}
+                                                    disabled={currentPage === 1}
+                                                    className="inline-flex items-center px-2 py-1 border border-gray-300 text-sm font-medium rounded-md text-gray-500 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                >
+                                                    <ChevronLeft className="h-4 w-4" />
+                                                    Previous
+                                                </button>
+
+                                                <div className="flex items-center space-x-1">
+                                                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                                                        let pageNum;
+                                                        if (totalPages <= 5) {
+                                                            pageNum = i + 1;
+                                                        } else if (currentPage <= 3) {
+                                                            pageNum = i + 1;
+                                                        } else if (currentPage >= totalPages - 2) {
+                                                            pageNum = totalPages - 4 + i;
+                                                        } else {
+                                                            pageNum = currentPage - 2 + i;
+                                                        }
+
+                                                        return (
+                                                            <button
+                                                                key={pageNum}
+                                                                onClick={() => handlePageChange(pageNum)}
+                                                                className={`px-3 py-1 text-sm font-medium rounded-md ${pageNum === currentPage
+                                                                    ? 'bg-indigo-600 text-white'
+                                                                    : 'text-gray-500 bg-white border border-gray-300 hover:bg-gray-50'
+                                                                    }`}
+                                                            >
+                                                                {pageNum}
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+
+                                                <button
+                                                    onClick={() => handlePageChange(currentPage + 1)}
+                                                    disabled={currentPage === totalPages}
+                                                    className="inline-flex items-center px-2 py-1 border border-gray-300 text-sm font-medium rounded-md text-gray-500 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                >
+                                                    Next
+                                                    <ChevronRight className="h-4 w-4" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    </div></div>}
 
 
             </main>
