@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Header from "@/app/components/layout/Header";
 
 export const metadata: Metadata = {
-    title: "Duplicates Management - HubSpot Duplicate Management",
+    title: "Clear Root",
     description: "Find, review and merge duplicate contacts in your HubSpot CRM",
 };
 
