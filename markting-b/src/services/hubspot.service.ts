@@ -282,22 +282,22 @@ export class HubSpotService {
 
       // Generate Excel file after fetching all contacts
       try {
-        const contacts = await this.contactService.getAllContacts(
-          userId,
-          apiKey,
-        );
-        const excelUrl = await this.fileGenerationService.generateExcelFile(
-          userId,
-          actionId,
-          contacts,
-        );
-        // Update action with Excel URL
-        await this.actionRepository.update(actionId, {
-          excel_link: excelUrl,
-        });
-        this.logger.log(
-          `Excel file generated and action updated with link for action ${actionId}`,
-        );
+        // const contacts = await this.contactService.getAllContacts(
+        //   userId,
+        //   apiKey,
+        // );
+        // const excelUrl = await this.fileGenerationService.generateExcelFile(
+        //   userId,
+        //   actionId,
+        //   contacts,
+        // );
+        // // Update action with Excel URL
+        // await this.actionRepository.update(actionId, {
+        //   excel_link: excelUrl,
+        // });
+        // this.logger.log(
+        //   `Excel file generated and action updated with link for action ${actionId}`,
+        // );
       } catch (excelError) {
         this.logger.error(
           `Failed to generate Excel file for action ${actionId}:`,
