@@ -8,7 +8,7 @@ I've successfully implemented the field selection functionality for duplicate co
 
 ### 1. Field Selection Modal Component
 
-**File:** `d:\markting\markting-f\src\app\duplicates\components\FieldSelectionModal.tsx`
+**File:** `d:\marketing\marketing-f\src\app\duplicates\components\FieldSelectionModal.tsx`
 
 - Created a new modal component that allows users to:
   - Select values for firstName, lastName, phone, and company fields from available options
@@ -19,7 +19,7 @@ I've successfully implemented the field selection functionality for duplicate co
 
 ### 2. Updated Duplicates Page
 
-**File:** `d:\markting\markting-f\src\app\duplicates\page.tsx`
+**File:** `d:\marketing\marketing-f\src\app\duplicates\page.tsx`
 
 - Added field selection modal state management
 - Modified `handleMergeClick` to open field selection modal instead of direct merge
@@ -31,7 +31,7 @@ I've successfully implemented the field selection functionality for duplicate co
 
 ### 3. Updated useRequest Hook
 
-**File:** `d:\markting\markting-f\src\app\axios\useRequest.ts`
+**File:** `d:\marketing\marketing-f\src\app\axios\useRequest.ts`
 
 - Added `updateContact` function to call the new backend endpoint
 - Added the function to the exported object
@@ -40,7 +40,7 @@ I've successfully implemented the field selection functionality for duplicate co
 
 ### 1. HubSpot Controller
 
-**File:** `d:\markting\markting-b\src\controllers\hubspot.controller.ts`
+**File:** `d:\marketing\marketing-b\src\controllers\hubspot.controller.ts`
 
 - Added new `@Post('update-contact')` endpoint
 - Accepts contactId, apiKey, and fields to update
@@ -48,7 +48,7 @@ I've successfully implemented the field selection functionality for duplicate co
 
 ### 2. HubSpot Service
 
-**File:** `d:\markting\markting-b\src\services\hubspot.service.ts`
+**File:** `d:\marketing\marketing-b\src\services\hubspot.service.ts`
 
 - Added `updateContactInHubSpot` method
 - Uses HubSpot's PATCH API to update contact properties
@@ -56,7 +56,7 @@ I've successfully implemented the field selection functionality for duplicate co
 
 ### 3. Merging Service
 
-**File:** `d:\markting\markting-b\src\services\merging.service.ts`
+**File:** `d:\marketing\marketing-b\src\services\merging.service.ts`
 
 - Fixed the merge loop issue by tracking the current primary ID
 - Added `currentPrimaryId` variable that gets updated after each merge

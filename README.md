@@ -5,8 +5,9 @@ A full-stack application that connects to HubSpot CRM, fetches contact data, ide
 ## 🆕 New: OAuth 2.0 Integration
 
 ### Secure HubSpot Authentication
+
 - **OAuth 2.0 Flow**: Connect your HubSpot account securely without API keys
-- **Automatic Token Management**: Handles token refresh automatically  
+- **Automatic Token Management**: Handles token refresh automatically
 - **Better Security**: No need to store or manage API keys manually
 - **Seamless Experience**: One-click connection to your HubSpot account
 - **Fallback Support**: Still supports API keys for users who prefer them
@@ -27,9 +28,9 @@ See [HUBSPOT_OAUTH_INTEGRATION.md](./HUBSPOT_OAUTH_INTEGRATION.md) for detailed 
 ## Project Structure
 
 ```
-markting/
-├── markting-b/          # NestJS Backend API
-├── markting-f/          # Next.js Frontend
+marketing/
+├── marketing-b/          # NestJS Backend API
+├── marketing-f/          # Next.js Frontend
 └── docker-compose.yml   # PostgreSQL Database
 ```
 
@@ -59,7 +60,7 @@ docker-compose up -d postgres
 ### 2. Backend Setup (NestJS)
 
 ```bash
-cd markting-b
+cd marketing-b
 
 # Install dependencies
 pnpm install
@@ -81,7 +82,7 @@ pnpm run start:dev
 ### 3. Frontend Setup (Next.js)
 
 ```bash
-cd markting-f
+cd marketing-f
 
 # Install dependencies
 pnpm install
@@ -239,7 +240,7 @@ curl -X POST http://localhost:3000/auth/login \
 ## Next Steps
 
 1. Start the database: `docker-compose up -d postgres`
-2. Start the backend: `cd markting-b && pnpm run start:dev`
+2. Start the backend: `cd marketing-b && pnpm run start:dev`
 3. Test user registration and email verification
 4. Build the frontend registration/login forms
 5. Implement HubSpot API integration
