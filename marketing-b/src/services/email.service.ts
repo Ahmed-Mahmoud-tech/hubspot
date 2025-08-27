@@ -6,16 +6,34 @@ import * as nodemailer from 'nodemailer';
 export class EmailService {
   private transporter: nodemailer.Transporter;
 
+  // constructor(private configService: ConfigService) {
+  //   this.transporter = nodemailer.createTransport({
+  //     service: 'gmail',
+  //     host: this.configService.get<string>('EMAIL_HOST'),
+  //     port: 587,
+  //     secure: false, // true for 465, false for other ports
+  //     auth: {
+  //       user: this.configService.get<string>('EMAIL_USER'),
+  //       pass: this.configService.get<string>('EMAIL_PASSWORD'),
+  //     },
+  //     tls: {
+  //       rejectUnauthorized: false,
+  //     },
+  //   });
+  // }
+
   constructor(private configService: ConfigService) {
     this.transporter = nodemailer.createTransport({
-      service: 'gmail',
-      host: this.configService.get<string>('EMAIL_HOST'),
-      port: 587,
-      secure: false, // true for 465, false for other ports
+      host: this.configService.get<string>('EMAIL_HOST') || 'smtp.gmail.com',
+      port: parseInt(this.configService.get<string>('EMAIL_PORT') || '587'),
+      secure: false,
       auth: {
         user: this.configService.get<string>('EMAIL_USER'),
         pass: this.configService.get<string>('EMAIL_PASSWORD'),
       },
+      connectionTimeout: 10000, // Add timeout settings
+      socketTimeout: 10000,
+      greetingTimeout: 10000,
       tls: {
         rejectUnauthorized: false,
       },
