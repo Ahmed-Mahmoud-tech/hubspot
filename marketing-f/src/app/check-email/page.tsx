@@ -2,10 +2,10 @@
 
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'react-toastify';
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import useRequest from '../axios/useRequest';
 
-export default function CheckEmailPage() {
+function CheckEmailContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isResending, setIsResending] = useState(false);
@@ -83,8 +83,8 @@ export default function CheckEmailPage() {
               onClick={handleResendVerification}
               disabled={isResending || (!email && !manualEmail)}
               className={`text-sm font-medium ${isResending || (!email && !manualEmail)
-                  ? 'text-gray-400 cursor-not-allowed'
-                  : 'text-indigo-600 hover:text-indigo-500'
+                ? 'text-gray-400 cursor-not-allowed'
+                : 'text-indigo-600 hover:text-indigo-500'
                 }`}
             >
               {isResending ? 'Resending...' : 'Resend verification email'}
@@ -116,5 +116,25 @@ export default function CheckEmailPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// Loading component for Suspense fallback
+function LoadingFallback() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
+        <p className="mt-2 text-sm text-gray-600">Loading...</p>
+      </div>
+    </div>
+  );
+}
+
+export default function CheckEmailPage() {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <CheckEmailContent />
+    </Suspense>
   );
 }
