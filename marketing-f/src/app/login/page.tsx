@@ -60,7 +60,7 @@ export default function LoginPage() {
         } catch (error: unknown) {
             const axiosError = error as { response?: { data?: { message?: string } } };
             const errorMessage = axiosError?.response?.data?.message || 'Login failed';
-            
+
             // Check if the error is about email verification
             if (errorMessage.includes('verify your email')) {
                 setUserEmail(data.email);
