@@ -1,10 +1,39 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'react-toastify';
+import { useState } from 'react';
+import useRequest from '../axios/useRequest';
 
 export default function CheckEmailPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const [isResending, setIsResending] = useState(false);
+  const [manualEmail, setManualEmail] = useState('');
+  const { resendVerificationEmail } = useRequest();
+
+  const email = searchParams?.get('email') || '';
+
+  const handleResendVerification = async () => {
+    const emailToUse = email || manualEmail;
+
+    if (!emailToUse) {
+      toast.error('Email address is required to resend verification');
+      return;
+    }
+
+    setIsResending(true);
+    try {
+      const result = await resendVerificationEmail({ email: emailToUse });
+      toast.success(result.message);
+    } catch (error: any) {
+      const errorMessage =
+        error?.response?.data?.message || 'Failed to resend verification email';
+      toast.error(errorMessage);
+    } finally {
+      setIsResending(false);
+    }
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
@@ -15,6 +44,11 @@ export default function CheckEmailPage() {
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
             We&apos;ve sent a verification link to your email address
+            {email && (
+              <span className="block font-medium text-gray-900 mt-1">
+                {email}
+              </span>
+            )}
           </p>
         </div>
 
@@ -46,14 +80,29 @@ export default function CheckEmailPage() {
               Didn&apos;t receive the email?
             </p>
             <button
-              onClick={() => {
-                // TODO: Implement resend verification email
-                toast.info('Resend functionality coming soon');
-              }}
-              className="text-sm font-medium text-indigo-600 hover:text-indigo-500"
+              onClick={handleResendVerification}
+              disabled={isResending || (!email && !manualEmail)}
+              className={`text-sm font-medium ${isResending || (!email && !manualEmail)
+                  ? 'text-gray-400 cursor-not-allowed'
+                  : 'text-indigo-600 hover:text-indigo-500'
+                }`}
             >
-              Resend verification email
+              {isResending ? 'Resending...' : 'Resend verification email'}
             </button>
+            {!email && (
+              <div className="space-y-3">
+                <p className="text-xs text-red-500">
+                  Email address not found. Please enter your email below:
+                </p>
+                <input
+                  type="email"
+                  value={manualEmail}
+                  onChange={(e) => setManualEmail(e.target.value)}
+                  placeholder="Enter your email address"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+                />
+              </div>
+            )}
           </div>
 
           <div className="text-center">

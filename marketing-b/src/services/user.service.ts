@@ -98,4 +98,23 @@ export class UserService {
   ): Promise<boolean> {
     return await bcrypt.compare(plainPassword, hashedPassword);
   }
+
+  async generateNewVerificationToken(email: string): Promise<string> {
+    const user = await this.findByEmail(email);
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (user.verified) {
+      throw new Error('User is already verified');
+    }
+
+    const verificationToken = randomBytes(32).toString('hex');
+    user.verification_token = verificationToken;
+
+    await this.userRepository.save(user);
+
+    return verificationToken;
+  }
 }

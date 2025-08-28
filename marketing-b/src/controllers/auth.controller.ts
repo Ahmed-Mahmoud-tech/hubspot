@@ -18,6 +18,7 @@ import {
   ForgotPasswordDto,
   ResetPasswordDto,
   VerifyEmailDto,
+  ResendVerificationDto,
 } from '../dto/auth.dto';
 
 @Controller('auth')
@@ -61,5 +62,14 @@ export class AuthController {
   @Get('profile')
   getProfile(@Request() req) {
     return req.user;
+  }
+
+  @Post('resend-verification')
+  async resendVerificationEmail(
+    @Body() resendVerificationDto: ResendVerificationDto,
+  ) {
+    return this.authService.resendVerificationEmail(
+      resendVerificationDto.email,
+    );
   }
 }

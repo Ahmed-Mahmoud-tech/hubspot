@@ -22,16 +22,34 @@ export class EmailService {
   //   });
   // }
 
+  // constructor(private configService: ConfigService) {
+  //   this.transporter = nodemailer.createTransport({
+  //     host: this.configService.get<string>('EMAIL_HOST') || 'smtp.gmail.com',
+  //     port: parseInt(this.configService.get<string>('EMAIL_PORT') || '587'),
+  //     secure: false,
+  //     auth: {
+  //       user: this.configService.get<string>('EMAIL_USER'),
+  //       pass: this.configService.get<string>('EMAIL_PASSWORD'),
+  //     },
+  //     connectionTimeout: 10000, // Add timeout settings
+  //     socketTimeout: 10000,
+  //     greetingTimeout: 10000,
+  //     tls: {
+  //       rejectUnauthorized: false,
+  //     },
+  //   });
+  // }
+
   constructor(private configService: ConfigService) {
     this.transporter = nodemailer.createTransport({
-      host: this.configService.get<string>('EMAIL_HOST') || 'smtp.gmail.com',
+      host: this.configService.get<string>('EMAIL_HOST'), // e.g., smtp.yourdomain.com or your provider's SMTP
       port: parseInt(this.configService.get<string>('EMAIL_PORT') || '587'),
-      secure: false,
+      secure: this.configService.get<string>('EMAIL_SECURE') === 'true', // true for 465, false for 587
       auth: {
-        user: this.configService.get<string>('EMAIL_USER'),
+        user: this.configService.get<string>('EMAIL_USER'), // e.g., noreply@yourdomain.com
         pass: this.configService.get<string>('EMAIL_PASSWORD'),
       },
-      connectionTimeout: 10000, // Add timeout settings
+      connectionTimeout: 10000,
       socketTimeout: 10000,
       greetingTimeout: 10000,
       tls: {
@@ -118,5 +136,17 @@ export class EmailService {
       `,
     };
     await this.transporter.sendMail(mailOptions);
+  }
+
+  // Test method to verify SMTP connection
+  async testConnection(): Promise<boolean> {
+    try {
+      await this.transporter.verify();
+      console.log('SMTP connection successful');
+      return true;
+    } catch (error) {
+      console.error('SMTP connection failed:', error);
+      return false;
+    }
   }
 }

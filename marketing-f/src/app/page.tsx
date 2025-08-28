@@ -47,7 +47,7 @@ export default function RegisterPage() {
       const result = await registerUser(registerData as RegisterData);
 
       toast.success(result.message);
-      router.push('/check-email');
+      router.push(`/check-email?email=${encodeURIComponent(registerData.email)}`);
     } catch (error: unknown) {
       const axiosError = error as { response?: { data?: { message?: string } } };
       const errorMessage = axiosError?.response?.data?.message || 'Registration failed';

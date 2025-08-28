@@ -430,6 +430,13 @@ const useRequest = () => {
     return response.data as User;
   };
 
+  const resendVerificationEmail = async (data: {
+    email: string;
+  }): Promise<{ message: string }> => {
+    const response = await Request.post("/auth/resend-verification", data);
+    return response.data as { message: string };
+  };
+
   // Create user plan (free or paid)
   const createUserPlan = async (data: {
     planType: string;
@@ -521,6 +528,7 @@ const useRequest = () => {
     login,
     forgotPassword,
     resetPassword,
+    resendVerificationEmail,
     getProfile,
     isAuthenticated,
     getCurrentUser,

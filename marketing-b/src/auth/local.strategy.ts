@@ -18,12 +18,11 @@ export class LocalStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    // TODO: Re-enable email verification once SMTP is configured properly
-    // if (!user.verified) {
-    //   throw new UnauthorizedException(
-    //     'Please verify your email before logging in',
-    //   );
-    // }
+    if (!user.verified) {
+      throw new UnauthorizedException(
+        'Please verify your email before logging in',
+      );
+    }
 
     const isPasswordValid = await this.userService.validatePassword(
       password,

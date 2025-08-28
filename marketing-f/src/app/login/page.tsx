@@ -22,8 +22,10 @@ export default function LoginPage() {
     const router = useRouter();
     const [isLoading, setIsLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
+    const [showResendVerification, setShowResendVerification] = useState(false);
+    const [userEmail, setUserEmail] = useState('');
 
-    const { login } = useRequest();
+    const { login, resendVerificationEmail } = useRequest();
 
     const {
         register,
@@ -58,9 +60,29 @@ export default function LoginPage() {
         } catch (error: unknown) {
             const axiosError = error as { response?: { data?: { message?: string } } };
             const errorMessage = axiosError?.response?.data?.message || 'Login failed';
-            toast.error(errorMessage);
+            
+            // Check if the error is about email verification
+            if (errorMessage.includes('verify your email')) {
+                setUserEmail(data.email);
+                setShowResendVerification(true);
+                toast.error('Please verify your email before logging in.');
+            } else {
+                toast.error(errorMessage);
+            }
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    const handleResendVerification = async () => {
+        try {
+            await resendVerificationEmail({ email: userEmail });
+            toast.success('Verification email sent! Please check your inbox.');
+            setShowResendVerification(false);
+        } catch (error: unknown) {
+            const axiosError = error as { response?: { data?: { message?: string } } };
+            const errorMessage = axiosError?.response?.data?.message || 'Failed to send verification email';
+            toast.error(errorMessage);
         }
     };
 
@@ -154,6 +176,41 @@ export default function LoginPage() {
                             )}
                         </button>
                     </form>
+
+                    {/* Email Verification Prompt */}
+                    {showResendVerification && (
+                        <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                            <div className="flex items-start">
+                                <div className="flex-shrink-0">
+                                    <Mail className="h-5 w-5 text-yellow-400" />
+                                </div>
+                                <div className="ml-3 flex-1">
+                                    <h3 className="text-sm font-medium text-yellow-800">
+                                        Email Verification Required
+                                    </h3>
+                                    <div className="mt-2 text-sm text-yellow-700">
+                                        <p>
+                                            Your account is not yet verified. Please check your email ({userEmail}) for a verification link.
+                                        </p>
+                                    </div>
+                                    <div className="mt-3 flex space-x-3">
+                                        <button
+                                            onClick={handleResendVerification}
+                                            className="text-sm font-medium text-yellow-800 hover:text-yellow-900 underline"
+                                        >
+                                            Resend verification email
+                                        </button>
+                                        <button
+                                            onClick={() => setShowResendVerification(false)}
+                                            className="text-sm font-medium text-yellow-600 hover:text-yellow-700"
+                                        >
+                                            Dismiss
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
                     {/* Footer Links */}
                     <div className="mt-8 text-center space-y-4">

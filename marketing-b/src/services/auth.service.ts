@@ -123,4 +123,40 @@ export class AuthService {
 
     return null;
   }
+
+  async resendVerificationEmail(email: string): Promise<{ message: string }> {
+    try {
+      const user = await this.userService.findByEmail(email);
+
+      if (!user) {
+        // Don't reveal if email exists or not for security
+        return {
+          message:
+            'If an unverified account with this email exists, you will receive a verification email.',
+        };
+      }
+
+      if (user.verified) {
+        return {
+          message: 'This account is already verified.',
+        };
+      }
+
+      const verificationToken =
+        await this.userService.generateNewVerificationToken(email);
+
+      await this.emailService.sendVerificationEmail(email, verificationToken);
+
+      return {
+        message: 'Verification email sent. Please check your email.',
+      };
+    } catch (error) {
+      console.error('Failed to resend verification email:', error);
+      // Don't reveal specific error details for security
+      return {
+        message:
+          'If an unverified account with this email exists, you will receive a verification email.',
+      };
+    }
+  }
 }
