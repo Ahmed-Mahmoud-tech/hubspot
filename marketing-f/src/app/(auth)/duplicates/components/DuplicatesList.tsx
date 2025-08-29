@@ -86,7 +86,7 @@ export default function DuplicatesList({
                     <p className="text-lg text-gray-600 mb-8">
                         No duplicate contacts found. All your contacts are unique and organized!
                     </p>
-                    <div className="space-y-4">
+                    {/* <div className="space-y-4">
                         <button
                             type="button"
                             onClick={onRefresh}
@@ -100,7 +100,7 @@ export default function DuplicatesList({
                         <p className="text-sm text-gray-500">
                             Click refresh to scan for new duplicates or check if any new contacts have been added.
                         </p>
-                    </div>
+                    </div> */}
                 </div>
             </div>
         );
@@ -162,7 +162,7 @@ export default function DuplicatesList({
 
                                 </div>
 
-                                <div className="flex flex-wrap gap-6 ">
+                                <div className="flex flex-wrap gap-6">
                                     {duplicateGroup.group.map((contact) => {
                                         const isClickable = duplicateGroup.group.length === 2 || duplicateGroup.group.length > 2;
                                         const isSelected = selectedContactForTwoGroup[duplicateGroup.id] === contact.id;
@@ -170,7 +170,7 @@ export default function DuplicatesList({
                                         return (
                                             <div
                                                 key={contact.id}
-                                                className={`flex-grow relative rounded-xl border-2 px-5 py-4 shadow-sm transition-all duration-300 transform hover:scale-105 ${isSelected
+                                                className={`max-w-[420px] flex-grow relative rounded-xl border-2 px-5 py-4 shadow-sm transition-all duration-300 transform hover:scale-105 ${isSelected
                                                     ? 'border-blue-500 bg-gradient-to-br from-blue-50 to-indigo-50 shadow-lg cursor-pointer'
                                                     : isClickable
                                                         ? 'border-gray-200 bg-white hover:border-blue-300 hover:shadow-md cursor-pointer'
