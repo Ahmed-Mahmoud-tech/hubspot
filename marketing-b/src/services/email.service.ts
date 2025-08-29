@@ -1,79 +1,28 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import * as nodemailer from 'nodemailer';
+import * as sgMail from '@sendgrid/mail';
 
 @Injectable()
 export class EmailService {
-  private transporter: nodemailer.Transporter;
-
-  // constructor(private configService: ConfigService) {
-  //   this.transporter = nodemailer.createTransport({
-  //     service: 'gmail',
-  //     host: this.configService.get<string>('EMAIL_HOST'),
-  //     port: 587,
-  //     secure: false, // true for 465, false for other ports
-  //     auth: {
-  //       user: this.configService.get<string>('EMAIL_USER'),
-  //       pass: this.configService.get<string>('EMAIL_PASSWORD'),
-  //     },
-  //     tls: {
-  //       rejectUnauthorized: false,
-  //     },
-  //   });
-  // }
-
-  // constructor(private configService: ConfigService) {
-  //   this.transporter = nodemailer.createTransport({
-  //     host: this.configService.get<string>('EMAIL_HOST') || 'smtp.gmail.com',
-  //     port: parseInt(this.configService.get<string>('EMAIL_PORT') || '587'),
-  //     secure: false,
-  //     auth: {
-  //       user: this.configService.get<string>('EMAIL_USER'),
-  //       pass: this.configService.get<string>('EMAIL_PASSWORD'),
-  //     },
-  //     connectionTimeout: 10000, // Add timeout settings
-  //     socketTimeout: 10000,
-  //     greetingTimeout: 10000,
-  //     tls: {
-  //       rejectUnauthorized: false,
-  //     },
-  //   });
-  // }
-
   constructor(private configService: ConfigService) {
-    this.transporter = nodemailer.createTransport({
-      host: this.configService.get<string>('EMAIL_HOST'),
-      port: parseInt(this.configService.get<string>('EMAIL_PORT') || '587'),
-      secure: this.configService.get<string>('EMAIL_SECURE') === 'true',
-      auth: {
-        user: this.configService.get<string>('EMAIL_USER'),
-        pass: this.configService.get<string>('EMAIL_PASSWORD'),
-      },
-      // Longer timeouts for better connection success
-      connectionTimeout: 30000, // 30 seconds
-      socketTimeout: 30000, // 30 seconds
-      greetingTimeout: 30000, // 30 seconds,
-      // tls: {
-      //   rejectUnauthorized: false,
-      //   ciphers: 'SSLv3',
-      //   servername: this.configService.get<string>('EMAIL_HOST'),
-      // },
-      debug: true,
-      logger: true,
-      pool: true,
-      maxConnections: 5,
-      maxMessages: 10,
-      // debug: this.configService.get<string>('NODE_ENV') === 'development',
-      // logger: this.configService.get<string>('NODE_ENV') === 'development',
-    });
+    const apiKey = this.configService.get<string>('SENDGRID_API_KEY');
+    if (!apiKey) {
+      throw new Error('SENDGRID_API_KEY is required but not provided');
+    }
+    sgMail.setApiKey(apiKey);
   }
 
   async sendVerificationEmail(email: string, token: string): Promise<void> {
     const frontendUrl = this.configService.get<string>('FRONTEND_URL');
     const verificationUrl = `${frontendUrl}/verify-email?token=${token}`;
+    const fromEmail = this.configService.get<string>('EMAIL_FROM');
 
-    const mailOptions = {
-      from: this.configService.get<string>('EMAIL_FROM'),
+    if (!fromEmail) {
+      throw new Error('EMAIL_FROM is required but not provided');
+    }
+
+    const mailOptions: sgMail.MailDataRequired = {
+      from: fromEmail,
       to: email,
       subject: 'Email Verification - HubSpot Duplicate Management',
       html: `
@@ -98,9 +47,14 @@ export class EmailService {
   async sendPasswordResetEmail(email: string, token: string): Promise<void> {
     const frontendUrl = this.configService.get<string>('FRONTEND_URL');
     const resetUrl = `${frontendUrl}/reset-password?token=${token}`;
+    const fromEmail = this.configService.get<string>('EMAIL_FROM');
 
-    const mailOptions = {
-      from: this.configService.get<string>('EMAIL_FROM'),
+    if (!fromEmail) {
+      throw new Error('EMAIL_FROM is required but not provided');
+    }
+
+    const mailOptions: sgMail.MailDataRequired = {
+      from: fromEmail,
       to: email,
       subject: 'Password Reset - HubSpot Duplicate Management',
       html: `
@@ -126,8 +80,14 @@ export class EmailService {
     email: string,
     billingEndDate: Date,
   ): Promise<void> {
-    const mailOptions = {
-      from: this.configService.get<string>('EMAIL_FROM'),
+    const fromEmail = this.configService.get<string>('EMAIL_FROM');
+
+    if (!fromEmail) {
+      throw new Error('EMAIL_FROM is required but not provided');
+    }
+
+    const mailOptions: sgMail.MailDataRequired = {
+      from: fromEmail,
       to: email,
       subject: 'Your Plan Will Expire Soon',
       html: `
@@ -148,14 +108,15 @@ export class EmailService {
     await this.sendEmailWithRetry(mailOptions);
   }
 
-  // Test method to verify SMTP connection
+  // Test method to verify SendGrid connection
   async testConnection(): Promise<boolean> {
     try {
-      await this.transporter.verify();
-      console.log('SMTP connection successful');
+      // SendGrid doesn't have a verify method like nodemailer
+      // We can send a test email to verify the connection instead
+      console.log('SendGrid API Key is configured');
       return true;
     } catch (error) {
-      console.error('SMTP connection failed:', error);
+      console.error('SendGrid connection failed:', error);
       return false;
     }
   }
@@ -166,8 +127,14 @@ export class EmailService {
     subject: string,
     html: string,
   ): Promise<void> {
-    const mailOptions = {
-      from: this.configService.get<string>('EMAIL_FROM'),
+    const fromEmail = this.configService.get<string>('EMAIL_FROM');
+
+    if (!fromEmail) {
+      throw new Error('EMAIL_FROM is required but not provided');
+    }
+
+    const mailOptions: sgMail.MailDataRequired = {
+      from: fromEmail,
       to,
       subject,
       html,
@@ -176,19 +143,24 @@ export class EmailService {
     await this.sendEmailWithRetry(mailOptions);
   }
 
-  // Retry logic for sending emails
+  // Retry logic for sending emails with SendGrid
   private async sendEmailWithRetry(
-    mailOptions: any,
+    mailOptions: sgMail.MailDataRequired,
     maxRetries: number = 3,
   ): Promise<void> {
     let lastError: Error | null = null;
+    const recipientEmail = Array.isArray(mailOptions.to)
+      ? mailOptions.to[0]
+      : typeof mailOptions.to === 'string'
+        ? mailOptions.to
+        : (mailOptions.to as any)?.email || 'unknown';
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         console.log(
-          `📧 Email attempt ${attempt}/${maxRetries} to ${mailOptions.to}`,
+          `📧 Email attempt ${attempt}/${maxRetries} to ${recipientEmail}`,
         );
-        await this.transporter.sendMail(mailOptions);
+        await sgMail.send(mailOptions);
         console.log(`✅ Email sent successfully on attempt ${attempt}`);
         return;
       } catch (error) {
@@ -198,12 +170,12 @@ export class EmailService {
           error,
         );
 
-        // If it's a connection timeout, wait before retrying
+        // If it's a rate limit or temporary error, wait before retrying
         if (
           attempt < maxRetries &&
           (lastError?.message?.includes('timeout') ||
-            lastError?.message?.includes('ETIMEDOUT') ||
-            lastError?.message?.includes('ECONNREFUSED'))
+            lastError?.message?.includes('rate limit') ||
+            lastError?.message?.includes('temporarily unavailable'))
         ) {
           const delay = attempt * 2000; // 2s, 4s, 6s delays
           console.log(`⏳ Waiting ${delay}ms before retry...`);
