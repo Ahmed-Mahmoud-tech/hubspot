@@ -1,78 +1,109 @@
 <!DOCTYPE html>
 <html>
-<head>
+  <head>
     <title>Test Email Service</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 40px; }
-        button { padding: 10px 20px; margin: 10px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
-        button:hover { background: #0056b3; }
-        .result { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9; }
-        .success { border-color: #28a745; background: #d4edda; }
-        .error { border-color: #dc3545; background: #f8d7da; }
+      body {
+        font-family: Arial, sans-serif;
+        margin: 40px;
+      }
+      button {
+        padding: 10px 20px;
+        margin: 10px;
+        background: #007bff;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      button:hover {
+        background: #0056b3;
+      }
+      .result {
+        margin: 20px 0;
+        padding: 15px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        background: #f9f9f9;
+      }
+      .success {
+        border-color: #28a745;
+        background: #d4edda;
+      }
+      .error {
+        border-color: #dc3545;
+        background: #f8d7da;
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <h1>Email Service Test</h1>
-    
+
     <div>
-        <h3>Test Email Sending:</h3>
-        <button onclick="testEmail()">Send Test Email</button>
-        <button onclick="testConnection()">Test SMTP Connection</button>
+      <h3>Test Email Sending:</h3>
+      <button onclick="testEmail()">Send Test Email</button>
+      <button onclick="testConnection()">Test SMTP Connection</button>
     </div>
-    
-    <div id="result" class="result" style="display: none;"></div>
+
+    <div id="result" class="result" style="display: none"></div>
 
     <script>
-        function showResult(message, isSuccess = true) {
-            const resultDiv = document.getElementById('result');
-            resultDiv.innerHTML = message;
-            resultDiv.className = isSuccess ? 'result success' : 'result error';
-            resultDiv.style.display = 'block';
-        }
+      function showResult(message, isSuccess = true) {
+        const resultDiv = document.getElementById("result");
+        resultDiv.innerHTML = message;
+        resultDiv.className = isSuccess ? "result success" : "result error";
+        resultDiv.style.display = "block";
+      }
 
-        async function testConnection() {
-            try {
-                showResult('Testing SMTP connection...');
-                const response = await fetch('http://localhost:8000/auth/test-email', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ test: 'connection' })
-                });
-                
-                const result = await response.text();
-                if (response.ok) {
-                    showResult(`✅ Connection test result: ${result}`, true);
-                } else {
-                    showResult(`❌ Connection test failed: ${result}`, false);
-                }
-            } catch (error) {
-                showResult(`❌ Connection test error: ${error.message}`, false);
+      async function testConnection() {
+        try {
+          showResult("Testing SMTP connection...");
+          const response = await fetch(
+            "http://localhost:8000/auth/test-email",
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ test: "connection" }),
             }
-        }
+          );
 
-        async function testEmail() {
-            try {
-                showResult('Sending test email...');
-                const response = await fetch('http://localhost:8000/auth/test-email', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        to: 'test@example.com',
-                        subject: 'Test Email',
-                        html: '<h1>Test Email</h1><p>This is a test email from the retry service.</p>'
-                    })
-                });
-                
-                const result = await response.text();
-                if (response.ok) {
-                    showResult(`✅ Email sent successfully: ${result}`, true);
-                } else {
-                    showResult(`❌ Email failed: ${result}`, false);
-                }
-            } catch (error) {
-                showResult(`❌ Email error: ${error.message}`, false);
-            }
+          const result = await response.text();
+          if (response.ok) {
+            showResult(`✅ Connection test result: ${result}`, true);
+          } else {
+            showResult(`❌ Connection test failed: ${result}`, false);
+          }
+        } catch (error) {
+          showResult(`❌ Connection test error: ${error.message}`, false);
         }
+      }
+
+      async function testEmail() {
+        try {
+          showResult("Sending test email...");
+          const response = await fetch(
+            "http://localhost:8000/auth/test-email",
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                to: "test@example.com",
+                subject: "Test Email",
+                html: "<h1>Test Email</h1><p>This is a test email from the retry service.</p>",
+              }),
+            }
+          );
+
+          const result = await response.text();
+          if (response.ok) {
+            showResult(`✅ Email sent successfully: ${result}`, true);
+          } else {
+            showResult(`❌ Email failed: ${result}`, false);
+          }
+        } catch (error) {
+          showResult(`❌ Email error: ${error.message}`, false);
+        }
+      }
     </script>
-</body>
+  </body>
 </html>
