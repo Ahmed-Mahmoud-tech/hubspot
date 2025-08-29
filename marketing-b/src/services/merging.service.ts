@@ -10,6 +10,7 @@ import { Contact } from '../entities/contact.entity';
 import { User } from '../entities/user.entity';
 import { Matching } from '../entities/matching.entity';
 import { MergeContactsDto, BatchMergeContactsDto } from '../dto/hubspot.dto';
+import { HubSpotConnectionService } from './hubspot-connection.service';
 import axios from 'axios';
 import { merge } from 'rxjs';
 
@@ -24,6 +25,7 @@ export class MergingService {
     private userRepository: Repository<User>,
     @InjectRepository(Matching)
     private matchingRepository: Repository<Matching>,
+    private hubspotConnectionService: HubSpotConnectionService,
   ) {}
 
   /**
@@ -272,23 +274,28 @@ export class MergingService {
       let currentPrimaryId = primaryAccountId;
 
       for (const secondaryContact of secondaryContacts) {
+        console.log(
+          `Merging contact ${secondaryContact.hubspotId} into ${currentPrimaryId}`,
+        );
+
         // Merge in HubSpot using the current primary ID (which may have been updated from previous merges)
         const mergeResult = await this.mergeContactsInHubSpot(
-          apiKey,
+          userId,
           currentPrimaryId,
           secondaryContact.hubspotId,
         );
+
+        console.log('HubSpot merge result:', mergeResult);
+
         if (mergeResult && mergeResult.id) {
           mergedId = mergeResult.id;
           // Update the current primary ID for the next merge
           currentPrimaryId = mergeResult.id;
+          console.log(`Updated currentPrimaryId to: ${currentPrimaryId}`);
+        } else {
+          console.error('No ID returned from merge result:', mergeResult);
+          throw new Error('HubSpot merge did not return a valid ID');
         }
-
-        console.log(
-          mergeResult,
-          '000000000000000000000000000000000rrrrr',
-          mergeResult.data,
-        );
 
         // Update additional fields from each secondary contact
         if (mergeResult.id) {
@@ -387,7 +394,7 @@ export class MergingService {
     try {
       // 1. Call HubSpot API to actually merge the contacts
       await this.mergeContactsInHubSpot(
-        mergeRecord.apiKey,
+        mergeRecord.userId,
         primaryContact.hubspotId,
         secondaryContact.hubspotId,
       );
@@ -445,11 +452,15 @@ export class MergingService {
   }
 
   private async mergeContactsInHubSpot(
-    apiKey: string,
+    userId: number,
     primaryContactId: string,
     secondaryContactId: string,
   ): Promise<any> {
     try {
+      // Get valid OAuth access token for the user
+      const accessToken =
+        await this.hubspotConnectionService.getValidAccessToken(userId);
+
       // HubSpot merge contacts API endpoint
       const mergeUrl = `https://api.hubapi.com/crm/v3/objects/contacts/merge`;
 
@@ -457,16 +468,15 @@ export class MergingService {
         primaryObjectId: primaryContactId,
         objectIdToMerge: secondaryContactId,
       };
-      console.log(apiKey, '0000000000000000000000000000000008', mergePayload);
+      console.log('Using OAuth token for merge:', mergePayload);
 
       const response = await axios.post(mergeUrl, mergePayload, {
         headers: {
-          Authorization: `Bearer ${apiKey}`,
+          Authorization: `Bearer ${accessToken}`,
           'Content-Type': 'application/json',
         },
       });
-      console.log('0000000000000000000000000000000009', response.data);
-      console.log(`HubSpot merge successful:`, response);
+      console.log('HubSpot merge successful:', response.data);
       return response.data;
     } catch (error) {
       console.error(

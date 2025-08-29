@@ -29,7 +29,6 @@ function PaymentSuccessPageContent() {
         const data = response && typeof response === 'object' && 'data' in response ? (response as any).data : response;
         if (data.success && data.status === 'paid') {
           setStatus('paid');
-          window.alert('Payment successful!');
           if (apiKey) {
             router.replace(`/duplicates?apiKey=${encodeURIComponent(apiKey)}`);
           } else {

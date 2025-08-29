@@ -32,6 +32,7 @@ interface DuplicatesListProps {
     selectedGroups?: Set<number>;
     onGroupSelect?: (groupId: number, isSelected: boolean) => void;
     limit?: number; // Optional limit prop to control items per page
+    mergingGroupIds?: Set<number>; // Track which groups are currently merging
 }
 
 export default function DuplicatesList({
@@ -46,7 +47,8 @@ export default function DuplicatesList({
     onContactSelect,
     selectedGroups = new Set(),
     onGroupSelect,
-    limit
+    limit,
+    mergingGroupIds = new Set()
 }: DuplicatesListProps) {
     // Helper function to format date
     const formatDate = (date: Date | string | undefined) => {
@@ -324,24 +326,41 @@ export default function DuplicatesList({
                                         <div className="flex gap-2 mt-2 sm:mt-0">
                                             <button
                                                 onClick={() => onDirectMergeClick(duplicateGroup)}
-                                                disabled={selectedContactForTwoGroup[duplicateGroup.id] == null}
+                                                disabled={selectedContactForTwoGroup[duplicateGroup.id] == null || mergingGroupIds.has(duplicateGroup.id)}
                                                 className={`cursor-pointer inline-flex items-center px-6 py-3 border border-transparent text-sm font-medium rounded-lg shadow-lg text-white transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2
-                                                ${selectedContactForTwoGroup[duplicateGroup.id]
-                                                        ? 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 focus:ring-green-500'
-                                                        : 'bg-gray-500 cursor-not-allowed opacity-60'}
+                                                ${mergingGroupIds.has(duplicateGroup.id)
+                                                        ? 'bg-gray-500 cursor-not-allowed opacity-60'
+                                                        : selectedContactForTwoGroup[duplicateGroup.id]
+                                                            ? 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 focus:ring-green-500'
+                                                            : 'bg-gray-500 cursor-not-allowed opacity-60'}
                                             `}
                                             >
-                                                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
-                                                </svg>    Merge
+                                                {mergingGroupIds.has(duplicateGroup.id) ? (
+                                                    <>
+                                                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                        </svg>
+                                                        Merging...
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
+                                                        </svg>
+                                                        Merge
+                                                    </>
+                                                )}
                                             </button>
                                             <button
                                                 onClick={() => onMergeClick(duplicateGroup)}
-                                                disabled={selectedContactForTwoGroup[duplicateGroup.id] == null}
+                                                disabled={selectedContactForTwoGroup[duplicateGroup.id] == null || mergingGroupIds.has(duplicateGroup.id)}
                                                 className={`cursor-pointer inline-flex items-center px-6 py-3 border border-transparent text-sm font-medium rounded-lg shadow-lg text-white transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2
-                                                ${selectedContactForTwoGroup[duplicateGroup.id]
-                                                        ? 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 focus:ring-blue-500'
-                                                        : 'bg-gray-500 cursor-not-allowed opacity-60'}
+                                                ${mergingGroupIds.has(duplicateGroup.id)
+                                                        ? 'bg-gray-500 cursor-not-allowed opacity-60'
+                                                        : selectedContactForTwoGroup[duplicateGroup.id]
+                                                            ? 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 focus:ring-blue-500'
+                                                            : 'bg-gray-500 cursor-not-allowed opacity-60'}
                                             `}
                                             >
                                                 <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">

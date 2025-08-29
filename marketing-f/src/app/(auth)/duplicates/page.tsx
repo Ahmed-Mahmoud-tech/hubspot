@@ -68,6 +68,7 @@ function DuplicatesPageContent() {
     const [totalPages, setTotalPages] = useState(1);
     const [isFieldSelectionModalOpen, setIsFieldSelectionModalOpen] = useState(false);
     const [isBulkMerging, setIsBulkMerging] = useState(false);
+    const [mergingGroupIds, setMergingGroupIds] = useState<Set<number>>(new Set()); // Track which groups are currently merging
 
     const [userPlan, setUserPlan] = useState<any | null>(null);
     const [showPlanModal, setShowPlanModal] = useState(false);
@@ -489,6 +490,11 @@ function DuplicatesPageContent() {
     const handleFieldSelectionConfirm = async (updatedPrimaryData: any) => {
         if (!selectedGroup) return;
 
+        // Prevent multiple clicks on the same group
+        if (mergingGroupIds.has(selectedGroup.id)) {
+            return;
+        }
+
         const selectedContactId = selectedContactForTwoGroup[selectedGroup.id];
         if (!selectedContactId) {
             toast.info('No primary contact selected');
@@ -502,6 +508,9 @@ function DuplicatesPageContent() {
             toast.error('Primary contact not found');
             return;
         }
+
+        // Set loading state for this group
+        setMergingGroupIds(prev => new Set(prev).add(selectedGroup.id));
 
         try {
             // Step 1: Update the primary contact in HubSpot if there are field changes
@@ -561,34 +570,32 @@ function DuplicatesPageContent() {
             // Step 2: Perform the merge with the updated/current primary contact
             const secondaryContacts = selectedGroup.group.filter(c => c.id !== selectedContactId);
 
-            // Process each secondary contact individually
-            let currentPrimaryId = updatedContactId;
+            // Send ALL secondary contacts in ONE request
+            const mergeData = {
+                groupId: selectedGroup.id,
+                primaryAccountId: updatedContactId,
+                secondaryAccountId: secondaryContacts.map(c => c.hubspotId), // Array of all secondary contacts
+                apiKey,
+            };
 
-            for (const secondaryContact of secondaryContacts) {
-                const mergeData = {
-                    groupId: selectedGroup.id,
-                    primaryAccountId: currentPrimaryId,
-                    secondaryAccountId: secondaryContact.hubspotId, // Single contact, not array
-                    apiKey,
-                };
+            console.log('🔄 BATCH MERGE - Sending merge request with all contacts:', mergeData);
+            const response = await mergeContacts(mergeData);
+            console.log('✅ BATCH MERGE - Merge response:', response);
+            const result = response.data as { success: boolean; message: string; mergeId?: number; details?: any };
 
-                console.log('🔄 SINGLE MERGE - Sending merge request:', mergeData);
-                const response = await mergeContacts(mergeData);
-                console.log('✅ SINGLE MERGE - Merge response:', response);
-                const result = response.data as { success: boolean; message: string; mergeId?: number; details?: any };
-
-                if (result && result.success) {
-                    console.log('✅ SINGLE MERGE - Merge successful, result:', result);
-                    // Update current primary ID if HubSpot returns a new merged ID
-                    if (result.details?.id) {
-                        currentPrimaryId = result.details.id;
-                    }
-                } else {
-                    console.error('❌ SINGLE MERGE - Merge failed, result:', result);
-                    toast.error('❌ Merge failed. Please try again.');
-                    setIsFieldSelectionModalOpen(false);
-                    return;
-                }
+            if (result && result.success) {
+                console.log('✅ BATCH MERGE - Merge successful, result:', result);
+            } else {
+                console.error('❌ BATCH MERGE - Merge failed, result:', result);
+                toast.error('❌ Merge failed. Please try again.');
+                setIsFieldSelectionModalOpen(false);
+                // Remove loading state before returning
+                setMergingGroupIds(prev => {
+                    const newSet = new Set(prev);
+                    newSet.delete(selectedGroup.id);
+                    return newSet;
+                });
+                return;
             }
 
             toast.success(`✅ Successfully merged all contacts in group`);
@@ -599,6 +606,13 @@ function DuplicatesPageContent() {
         } catch (error: any) {
             console.error('Error during field selection merge:', error);
             toast.error('❌ Error processing merge. Please try again.\n\nError details: ' + (error?.message || error?.toString()));
+        } finally {
+            // Remove loading state for this group
+            setMergingGroupIds(prev => {
+                const newSet = new Set(prev);
+                newSet.delete(selectedGroup.id);
+                return newSet;
+            });
         }
 
         setIsFieldSelectionModalOpen(false);
@@ -765,6 +779,11 @@ function DuplicatesPageContent() {
                             }}
                             onMergeClick={handleMergeClick}
                             onDirectMergeClick={async (group) => {
+                                // Prevent multiple clicks on the same group
+                                if (mergingGroupIds.has(group.id)) {
+                                    return;
+                                }
+
                                 // Direct merge logic: use exact same logic as handleFieldSelectionConfirm
                                 const selectedContactId = selectedContactForTwoGroup[group.id];
                                 if (!selectedContactId) {
@@ -778,48 +797,47 @@ function DuplicatesPageContent() {
                                 }
                                 const secondaryContacts = group.group.filter(c => c.id !== selectedContactId);
 
+                                // Set loading state for this group
+                                setMergingGroupIds(prev => new Set(prev).add(group.id));
+
                                 try {
-                                    // Use same logic as handleFieldSelectionConfirm: process each secondary contact individually
-                                    let groupSuccess = true;
-                                    let currentPrimaryId = primaryContact.hubspotId;
+                                    // Send ALL secondary contacts in ONE request (same logic as handleFieldSelectionConfirm)
+                                    const mergeData = {
+                                        groupId: group.id,
+                                        primaryAccountId: primaryContact.hubspotId,
+                                        secondaryAccountId: secondaryContacts.map(c => c.hubspotId), // Array of all secondary contacts
+                                        apiKey,
+                                    };
 
-                                    for (const secondaryContact of secondaryContacts) {
-                                        const mergeData = {
-                                            groupId: group.id,
-                                            primaryAccountId: currentPrimaryId,
-                                            secondaryAccountId: secondaryContact.hubspotId, // Single contact like in handleFieldSelectionConfirm
-                                            apiKey,
-                                        };
+                                    console.log('🔄 DIRECT MERGE - Sending batch merge request:', mergeData);
+                                    const response = await mergeContacts(mergeData);
+                                    const result = response.data as { success: boolean; message: string; mergeId?: number; details?: any };
 
-                                        const response = await mergeContacts(mergeData);
-                                        const result = response.data as { success: boolean; message: string; mergeId?: number; details?: any };
-
-                                        if (result && result.success) {
-                                            // Update current primary ID if HubSpot returns a new merged ID
-                                            if (result.details?.id) {
-                                                currentPrimaryId = result.details.id;
-                                            }
-                                        } else {
-                                            groupSuccess = false;
-                                            break;
-                                        }
-                                    }
-
-                                    if (groupSuccess) {
+                                    if (result && result.success) {
+                                        console.log('✅ DIRECT MERGE - Batch merge successful:', result);
                                         dispatch(setSelectedContact({ groupId: group.id, contactId: null }));
                                         await fetchDuplicates(currentPage);
                                     } else {
+                                        console.error('❌ DIRECT MERGE - Batch merge failed:', result);
                                         toast.error('❌ Merge failed. Please try again.');
                                     }
                                 } catch (error: any) {
                                     console.error('Error during direct merge:', error);
                                     toast.error('❌ Error processing merge. Please try again.\n\nError details: ' + (error?.message || error?.toString()));
+                                } finally {
+                                    // Remove loading state for this group
+                                    setMergingGroupIds(prev => {
+                                        const newSet = new Set(prev);
+                                        newSet.delete(group.id);
+                                        return newSet;
+                                    });
                                 }
                             }}
                             onRefresh={() => fetchDuplicates(currentPage)}
                             selectedContactForTwoGroup={selectedContactForTwoGroup}
                             onContactSelect={handleContactSelect}
                             limit={limit} // Pass limit to control items per page
+                            mergingGroupIds={mergingGroupIds} // Pass loading state
                         />
                     </>
                 )}
