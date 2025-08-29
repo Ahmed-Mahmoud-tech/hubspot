@@ -11,6 +11,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { AuthService } from '../services/auth.service';
+import { EmailService } from '../services/email.service';
 import { LocalAuthGuard } from '../auth/local-auth.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import {
@@ -25,7 +26,10 @@ import {
 export class AuthController {
   private readonly logger = new Logger(AuthController.name);
 
-  constructor(private authService: AuthService) {}
+  constructor(
+    private authService: AuthService,
+    private emailService: EmailService,
+  ) {}
 
   @Post('register')
   async register(@Body() registerDto: RegisterDto) {
@@ -71,5 +75,46 @@ export class AuthController {
     return this.authService.resendVerificationEmail(
       resendVerificationDto.email,
     );
+  }
+
+  @Post('test-email')
+  async testEmail(@Body() body: any) {
+    try {
+      // Test connection first
+      const isConnected = await this.emailService.testConnection();
+      this.logger.log(
+        `SMTP Connection test: ${isConnected ? 'PASSED' : 'FAILED'}`,
+      );
+
+      if (body.test === 'connection') {
+        return {
+          success: isConnected,
+          message: isConnected
+            ? 'SMTP connection successful'
+            : 'SMTP connection failed',
+        };
+      }
+
+      // Send test email
+      if (body.to && body.subject && body.html) {
+        await this.emailService.sendTestEmail(body.to, body.subject, body.html);
+        this.logger.log(`Test email sent to ${body.to}`);
+        return {
+          success: true,
+          message: `Test email sent successfully to ${body.to}`,
+        };
+      }
+
+      return {
+        success: false,
+        message: 'Missing required fields: to, subject, html',
+      };
+    } catch (error) {
+      this.logger.error('Test email failed:', error);
+      return {
+        success: false,
+        message: `Test email failed: ${error.message}`,
+      };
+    }
   }
 }

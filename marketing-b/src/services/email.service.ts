@@ -42,19 +42,27 @@ export class EmailService {
 
   constructor(private configService: ConfigService) {
     this.transporter = nodemailer.createTransport({
-      host: this.configService.get<string>('EMAIL_HOST'), // e.g., smtp.yourdomain.com or your provider's SMTP
+      host: this.configService.get<string>('EMAIL_HOST'),
       port: parseInt(this.configService.get<string>('EMAIL_PORT') || '587'),
-      secure: this.configService.get<string>('EMAIL_SECURE') === 'true', // true for 465, false for 587
+      secure: this.configService.get<string>('EMAIL_SECURE') === 'true',
       auth: {
-        user: this.configService.get<string>('EMAIL_USER'), // e.g., noreply@yourdomain.com
+        user: this.configService.get<string>('EMAIL_USER'),
         pass: this.configService.get<string>('EMAIL_PASSWORD'),
       },
-      connectionTimeout: 10000,
-      socketTimeout: 10000,
-      greetingTimeout: 10000,
+      // Longer timeouts for better connection success
+      connectionTimeout: 30000, // 30 seconds
+      socketTimeout: 30000, // 30 seconds
+      greetingTimeout: 30000, // 30 seconds
       tls: {
         rejectUnauthorized: false,
+        ciphers: 'SSLv3',
+        servername: this.configService.get<string>('EMAIL_HOST'),
       },
+      pool: true,
+      maxConnections: 5,
+      maxMessages: 10,
+      debug: this.configService.get<string>('NODE_ENV') === 'development',
+      logger: this.configService.get<string>('NODE_ENV') === 'development',
     });
   }
 
@@ -82,7 +90,7 @@ export class EmailService {
       `,
     };
 
-    await this.transporter.sendMail(mailOptions);
+    await this.sendEmailWithRetry(mailOptions);
   }
 
   async sendPasswordResetEmail(email: string, token: string): Promise<void> {
@@ -110,7 +118,7 @@ export class EmailService {
       `,
     };
 
-    await this.transporter.sendMail(mailOptions);
+    await this.sendEmailWithRetry(mailOptions);
   }
   async sendPlanEndingSoonEmail(
     email: string,
@@ -135,7 +143,7 @@ export class EmailService {
         </div>
       `,
     };
-    await this.transporter.sendMail(mailOptions);
+    await this.sendEmailWithRetry(mailOptions);
   }
 
   // Test method to verify SMTP connection
@@ -148,5 +156,62 @@ export class EmailService {
       console.error('SMTP connection failed:', error);
       return false;
     }
+  }
+
+  // Test email sending method
+  async sendTestEmail(
+    to: string,
+    subject: string,
+    html: string,
+  ): Promise<void> {
+    const mailOptions = {
+      from: this.configService.get<string>('EMAIL_FROM'),
+      to,
+      subject,
+      html,
+    };
+
+    await this.sendEmailWithRetry(mailOptions);
+  }
+
+  // Retry logic for sending emails
+  private async sendEmailWithRetry(
+    mailOptions: any,
+    maxRetries: number = 3,
+  ): Promise<void> {
+    let lastError: Error | null = null;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(
+          `📧 Email attempt ${attempt}/${maxRetries} to ${mailOptions.to}`,
+        );
+        await this.transporter.sendMail(mailOptions);
+        console.log(`✅ Email sent successfully on attempt ${attempt}`);
+        return;
+      } catch (error) {
+        lastError = error as Error;
+        console.error(
+          `❌ Email attempt ${attempt}/${maxRetries} failed:`,
+          error,
+        );
+
+        // If it's a connection timeout, wait before retrying
+        if (
+          attempt < maxRetries &&
+          (lastError?.message?.includes('timeout') ||
+            lastError?.message?.includes('ETIMEDOUT') ||
+            lastError?.message?.includes('ECONNREFUSED'))
+        ) {
+          const delay = attempt * 2000; // 2s, 4s, 6s delays
+          console.log(`⏳ Waiting ${delay}ms before retry...`);
+          await new Promise((resolve) => setTimeout(resolve, delay));
+        }
+      }
+    }
+
+    throw new Error(
+      `Failed to send email after ${maxRetries} attempts: ${lastError?.message || 'Unknown error'}`,
+    );
   }
 }
