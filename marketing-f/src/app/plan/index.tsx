@@ -14,24 +14,63 @@ interface PlanModalProps {
     contactCount: number;
 }
 
+interface LocalPlan {
+    type: 'free' | 'paid';
+    mergeGroupsUsed: number;
+    contactCount: number;
+}
+
+interface UpgradeInfo {
+    finalPrice: number;
+    userBalance: number;
+    canUpgrade: boolean;
+}
+
+interface UserBalance {
+    hasBalance: boolean;
+    balanceAmount: number;
+    remainingDays: number;
+}
+
 
 export function PlanModal({ apiKey, open, onClose, userId, plan, contactCount }: PlanModalProps) {
     // Move moreThanMonth above useEffect to avoid initialization error
     const moreThanMonth = plan && plan.planType === 'paid' && plan.billingEndDate && new Date(plan.billingEndDate) > new Date(new Date().setMonth(new Date().getMonth() + 1));
     const { createStripeCheckoutSession, getUserBalance, calculateUpgradePrice } = useRequest();
-    // Assign stripeCountLimit only once and memoize for future-proofing
+
+    // Memoize constants and calculations
     const stripeCountLimit = React.useMemo(() => dividedContactPerMonth, []);
-    const initialContactCount = contactCount || freeContactLimit;
-    // If plan is null, fallback to free plan for UI, but show correct message
-    const [localPlan, setLocalPlan] = useState({ type: 'free', mergeGroupsUsed: 0, contactCount: initialContactCount });
-    // Add input state for contact count (for paid plan), always not less than stripeCountLimit
-    const [inputContactCount, setInputContactCount] = useState(() => Math.max(initialContactCount, stripeCountLimit));
-    const [error, setError] = useState('');
+    const initialContactCount = React.useMemo(() => contactCount || freeContactLimit, [contactCount]);
+
+    // Memoize dropdown options for better performance
+    const contactCountOptions = React.useMemo(() => [
+        5000, 10000,
+        ...Array.from({ length: 49 }, (_, i) => 110000 + i * 10000) // 110000 to 500000 in steps of 10000
+    ], []);
+
+
+    // Function to get the next higher option instead of ceiling to current
+    const getNextHigherOption = React.useCallback((count: number): number => {
+        const nextOption = contactCountOptions.find(option => option > count);
+        return nextOption || contactCountOptions[contactCountOptions.length - 1];
+    }, [contactCountOptions]);
+
+    // State with proper typing
+    const [localPlan, setLocalPlan] = useState<LocalPlan>({
+        type: 'free',
+        mergeGroupsUsed: 0,
+        contactCount: initialContactCount
+    });
+
+    const [inputContactCount, setInputContactCount] = useState(() =>
+        getNextHigherOption(Math.max(initialContactCount, stripeCountLimit))
+    );
+
+    const [error, setError] = useState<string>('');
     const [billingType, setBillingType] = useState<'monthly' | 'yearly'>('monthly');
-    const [upgradeInfo, setUpgradeInfo] = useState<any>(null);
-    const [userBalance, setUserBalance] = useState<any>(null);
+    const [upgradeInfo, setUpgradeInfo] = useState<UpgradeInfo | null>(null);
+    const [userBalance, setUserBalance] = useState<UserBalance | null>(null);
     const modalRef = useRef<HTMLDivElement>(null);
-    console.log(initialContactCount, dividedContactPerMonth, stripeCountLimit);
 
 
     // Move moreThanMonth above useEffect to avoid initialization error
@@ -55,7 +94,7 @@ export function PlanModal({ apiKey, open, onClose, userId, plan, contactCount }:
     const fetchUserBalance = useCallback(async () => {
         try {
             const balance = await getUserBalance();
-            setUserBalance(balance);
+            setUserBalance(balance as UserBalance);
         } catch (error) {
             console.error('Error fetching user balance:', error);
         }
@@ -67,7 +106,7 @@ export function PlanModal({ apiKey, open, onClose, userId, plan, contactCount }:
                 contactCount: inputContactCount,
                 billingType: billingType,
             });
-            setUpgradeInfo(pricing);
+            setUpgradeInfo(pricing as UpgradeInfo);
         } catch (error) {
             console.error('Error calculating upgrade price:', error);
         }
@@ -82,13 +121,14 @@ export function PlanModal({ apiKey, open, onClose, userId, plan, contactCount }:
                 mergeGroupsUsed: plan.mergeGroupsUsed || 0,
                 contactCount: plan.contactCount || initialContactCount,
             });
-            setInputContactCount(Math.max((plan.contactCount || initialContactCount), stripeCountLimit));
-            console.log(contactCount, initialContactCount, stripeCountLimit, "555555555");
+            // Use next higher option instead of ceiling to current count
+            const currentCount = plan.contactCount || initialContactCount;
+            setInputContactCount(getNextHigherOption(Math.max(currentCount, stripeCountLimit)));
         } else {
             setLocalPlan({ type: 'free', mergeGroupsUsed: 0, contactCount: contactCount || initialContactCount });
-            setInputContactCount(Math.max((contactCount || initialContactCount), stripeCountLimit));
-            console.log(contactCount, initialContactCount, stripeCountLimit, "555555555");
-
+            // Use next higher option instead of ceiling to current count
+            const currentCount = contactCount || initialContactCount;
+            setInputContactCount(getNextHigherOption(Math.max(currentCount, stripeCountLimit)));
         }
 
         // If monthly is disabled, set billingType to yearly
@@ -102,14 +142,23 @@ export function PlanModal({ apiKey, open, onClose, userId, plan, contactCount }:
             fetchUserBalance();
             fetchUpgradePrice(); // Always re-fetch upgrade info when modal opens or plan changes
         }
-    }, [plan, contactCount, initialContactCount, moreThanMonth, fetchUserBalance]);
+    }, [
+        plan,
+        contactCount,
+        initialContactCount,
+        moreThanMonth,
+        fetchUserBalance,
+        fetchUpgradePrice,
+        getNextHigherOption,
+        stripeCountLimit
+    ]);
 
     // Fetch user balance and calculate upgrade pricing when contact count or billing type changes
     React.useEffect(() => {
         if (plan && plan.planType === 'paid' && inputContactCount > 0) {
             fetchUpgradePrice();
         }
-    }, [inputContactCount, billingType, plan, fetchUpgradePrice]);
+    }, [inputContactCount, billingType, plan]);
 
     if (!open) return null;
 
@@ -345,7 +394,7 @@ export function PlanModal({ apiKey, open, onClose, userId, plan, contactCount }:
                                     </ul>
                                 </div>
 
-                                {/* Contact Count Input */}
+                                {/* Enhanced Contact Count Dropdown */}
                                 <div className="mb-2 w-full flex flex-col items-center">
                                     {/* Quick summary: Balance and Amount to Pay */}
                                     {(userBalance && userBalance.hasBalance && upgradeInfo) && (
@@ -362,35 +411,61 @@ export function PlanModal({ apiKey, open, onClose, userId, plan, contactCount }:
                                             </div>
                                         </div>
                                     )}
-                                    <label className="mb-1 text-xs text-gray-700 font-bold" htmlFor="contactCountInput">📊 Select Contact Count</label>
+
+                                    <label className="mb-1 text-xs text-gray-700 font-bold" htmlFor="contactCountInput">
+                                        📊 Select Contact Count
+                                    </label>
+
                                     {/* Show minimum charge error in card if upgradeInfo exists and !upgradeInfo.canUpgrade */}
                                     {upgradeInfo && !upgradeInfo.canUpgrade && (
                                         <div className="mt-2 mb-2 bg-red-50 border border-red-200 rounded-lg p-2 text-center w-full">
-                                            <p className="text-red-600 text-xs font-medium">⚠️ Minimum charge of $1.00 required for upgrade</p>
+                                            <p className="text-red-600 text-xs font-medium">
+                                                ⚠️ Minimum charge of $1.00 required for upgrade
+                                            </p>
                                         </div>
                                     )}
-                                    <div className="relative w-32 mb-2">
-                                        <input
+
+                                    <div className="relative w-40 mb-2">
+                                        <select
                                             id="contactCountInput"
-                                            type="number"
-                                            min={Math.max(localPlan.contactCount, stripeCountLimit)}
-                                            value={inputContactCount === 0 ? '' : inputContactCount}
-                                            onChange={e => {
-                                                const val = e.target.value;
-                                                if (val === '') {
-                                                    setInputContactCount(0);
-                                                } else {
-                                                    // Allow user to type any value, only enforce min onBlur
-                                                    setInputContactCount(Number(val));
-                                                }
+                                            value={inputContactCount}
+                                            onChange={(e) => {
+                                                const val = Number(e.target.value);
+                                                setInputContactCount(val);
+                                                setError(''); // Clear any existing errors
                                             }}
-                                            onBlur={() => {
-                                                if (inputContactCount < Math.max(localPlan.contactCount, stripeCountLimit)) {
-                                                    setInputContactCount(Math.max(localPlan.contactCount, stripeCountLimit));
-                                                }
-                                            }}
-                                            className="w-full px-2 py-2 border-2 border-yellow-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-400 text-center font-bold text-yellow-700 bg-yellow-50 shadow-sm text-xs transition-all"
-                                        />
+                                            className="w-full px-3 py-2 border-2 border-yellow-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-yellow-500 text-center font-bold text-yellow-700 bg-yellow-50 shadow-sm text-xs transition-all appearance-none cursor-pointer hover:border-yellow-400 hover:shadow-md"
+                                            aria-label="Select contact count for your plan"
+                                        >
+                                            {contactCountOptions.map((option) => (
+                                                <option key={option} value={option}>
+                                                    {option.toLocaleString()}
+                                                </option>
+                                            ))}
+                                        </select>
+
+                                        {/* Enhanced dropdown arrow with animation */}
+                                        <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                                            <svg
+                                                className="w-4 h-4 text-yellow-700 transition-transform duration-200 ease-in-out"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                viewBox="0 0 24 24"
+                                                aria-hidden="true"
+                                            >
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                            </svg>
+                                        </div>
+                                    </div>
+
+                                    {/* Contact count info helper */}
+                                    <div className="text-xs text-gray-500 text-center mb-2">
+                                        <span className="inline-flex items-center gap-1">
+                                            💡
+                                            <span>
+                                                Current: <strong className="text-yellow-700">{inputContactCount.toLocaleString()}</strong> contacts
+                                            </span>
+                                        </span>
                                     </div>
 
                                     {/* Billing Type Selection */}
@@ -445,14 +520,15 @@ export function PlanModal({ apiKey, open, onClose, userId, plan, contactCount }:
                                     {/* )} */}
                                 </div>
 
-                                {/* Upgrade Button */}
+                                {/* Enhanced Upgrade Button */}
                                 <button
                                     className={`w-full font-bold py-2 px-3 rounded-xl shadow transition-all duration-200 text-xs tracking-wide transform hover:scale-105 ${upgradeInfo && !upgradeInfo.canUpgrade
                                         ? 'bg-gray-300 text-gray-500 cursor-not-allowed border border-gray-300'
                                         : 'bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-yellow-500 hover:to-yellow-600 text-white border border-yellow-400 shadow-yellow-200'
                                         }`}
                                     onClick={handleUpgrade}
-                                    disabled={upgradeInfo && !upgradeInfo.canUpgrade}
+                                    disabled={Boolean(upgradeInfo && !upgradeInfo.canUpgrade)}
+                                    aria-label={upgradeInfo && !upgradeInfo.canUpgrade ? 'Cannot upgrade - minimum charge required' : 'Upgrade to Premium Plan'}
                                 >
                                     {upgradeInfo && !upgradeInfo.canUpgrade ? '❌ Cannot Upgrade' : '🚀 Upgrade to Premium'}
                                 </button>
