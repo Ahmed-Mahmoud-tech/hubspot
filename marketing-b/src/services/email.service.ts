@@ -40,44 +40,31 @@ export class EmailService {
   //   });
   // }
 
-  // constructor(private configService: ConfigService) {
-  //   this.transporter = nodemailer.createTransport({
-  //     host: this.configService.get<string>('EMAIL_HOST'),
-  //     port: parseInt(this.configService.get<string>('EMAIL_PORT') || '587'),
-  //     secure: this.configService.get<string>('EMAIL_SECURE') === 'true',
-  //     auth: {
-  //       user: this.configService.get<string>('EMAIL_USER'),
-  //       pass: this.configService.get<string>('EMAIL_PASSWORD'),
-  //     },
-  //     // Longer timeouts for better connection success
-  //     connectionTimeout: 30000, // 30 seconds
-  //     socketTimeout: 30000, // 30 seconds
-  //     greetingTimeout: 30000, // 30 seconds,
-  //     tls: {
-  //       rejectUnauthorized: false,
-  //       ciphers: 'SSLv3',
-  //       servername: this.configService.get<string>('EMAIL_HOST'),
-  //     },
-  //     pool: true,
-  //     maxConnections: 5,
-  //     maxMessages: 10,
-  //     debug: this.configService.get<string>('NODE_ENV') === 'development',
-  //     logger: this.configService.get<string>('NODE_ENV') === 'development',
-  //   });
-  // }
   constructor(private configService: ConfigService) {
-    nodemailer.createTransport({
-      host: 'mail.privateemail.com',
-      port: 587,
-      secure: false,
+    this.transporter = nodemailer.createTransport({
+      host: this.configService.get<string>('EMAIL_HOST'),
+      port: parseInt(this.configService.get<string>('EMAIL_PORT') || '587'),
+      secure: this.configService.get<string>('EMAIL_SECURE') === 'true',
       auth: {
         user: this.configService.get<string>('EMAIL_USER'),
         pass: this.configService.get<string>('EMAIL_PASSWORD'),
       },
-      connectionTimeout: 60000,
-      socketTimeout: 60000,
+      // Longer timeouts for better connection success
+      connectionTimeout: 30000, // 30 seconds
+      socketTimeout: 30000, // 30 seconds
+      greetingTimeout: 30000, // 30 seconds,
+      // tls: {
+      //   rejectUnauthorized: false,
+      //   ciphers: 'SSLv3',
+      //   servername: this.configService.get<string>('EMAIL_HOST'),
+      // },
       debug: true,
       logger: true,
+      pool: true,
+      maxConnections: 5,
+      maxMessages: 10,
+      // debug: this.configService.get<string>('NODE_ENV') === 'development',
+      // logger: this.configService.get<string>('NODE_ENV') === 'development',
     });
   }
 
