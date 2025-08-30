@@ -61,13 +61,26 @@ export class PlanController {
   @Post('upgrade-price')
   async calculateUpgradePrice(
     @Req() req,
-    @Body() body: { contactCount: number; billingType: 'monthly' | 'yearly' },
+    @Body()
+    body: {
+      contactCount: number;
+      billingType: 'monthly' | 'yearly';
+      isProRatedUpgrade?: boolean;
+      currentPlan?: {
+        contactCount: number;
+        billingType: string;
+        remainingDays: number;
+        billingEndDate: string;
+      };
+    },
   ) {
     const userId = req.user?.id;
     return this.planService.calculateUpgradePrice(
       userId,
       body.contactCount,
       body.billingType,
+      body.isProRatedUpgrade || false,
+      body.currentPlan,
     );
   }
 

@@ -1,9 +1,13 @@
-
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { loadStripe } from '@stripe/stripe-js';
-import { ErrorMessage } from './ErrorMessage';
-import useRequest from '@/app/axios/useRequest';
-import { dividedContactPerMonth, dividedContactPerYear, freeContactLimit, freeMergeGroupLimit } from '@/constant/main';
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { loadStripe } from "@stripe/stripe-js";
+import { ErrorMessage } from "./ErrorMessage";
+import useRequest from "@/app/axios/useRequest";
+import {
+    dividedContactPerMonth,
+    dividedContactPerYear,
+    freeContactLimit,
+    freeMergeGroupLimit,
+} from "@/constant/main";
 
 interface PlanModalProps {
     apiKey: string;
@@ -15,7 +19,7 @@ interface PlanModalProps {
 }
 
 interface LocalPlan {
-    type: 'free' | 'paid';
+    type: "free" | "paid";
     mergeGroupsUsed: number;
     contactCount: number;
 }
@@ -32,57 +36,99 @@ interface UserBalance {
     remainingDays: number;
 }
 
-
-export function PlanModal({ apiKey, open, onClose, userId, plan, contactCount }: PlanModalProps) {
+export function PlanModal({
+    apiKey,
+    open,
+    onClose,
+    userId,
+    plan,
+    contactCount,
+}: PlanModalProps) {
     // Move moreThanMonth above useEffect to avoid initialization error
-    const moreThanMonth = plan && plan.planType === 'paid' && plan.billingEndDate && new Date(plan.billingEndDate) > new Date(new Date().setMonth(new Date().getMonth() + 1));
-    const { createStripeCheckoutSession, getUserBalance, calculateUpgradePrice } = useRequest();
+    const moreThanMonth =
+        plan &&
+        plan.planType === "paid" &&
+        plan.billingEndDate &&
+        new Date(plan.billingEndDate) >
+        new Date(new Date().setMonth(new Date().getMonth() + 1));
+    const { createStripeCheckoutSession, getUserBalance, calculateUpgradePrice } =
+        useRequest();
 
     // Memoize constants and calculations
     const stripeCountLimit = React.useMemo(() => dividedContactPerMonth, []);
-    const initialContactCount = React.useMemo(() => contactCount || freeContactLimit, [contactCount]);
+    const initialContactCount = React.useMemo(
+        () => contactCount || freeContactLimit,
+        [contactCount]
+    );
 
     // Memoize dropdown options for better performance
-    const contactCountOptions = React.useMemo(() => [
-        5000, 10000,
-        ...Array.from({ length: 49 }, (_, i) => 110000 + i * 10000) // 110000 to 500000 in steps of 10000
-    ], []);
+    const contactCountOptions = React.useMemo(
+        () => [
+            5000,
+            10000,
+            ...Array.from({ length: 49 }, (_, i) => 20000 + i * 10000), // 110000 to 500000 in steps of 10000
+        ],
+        []
+    );
 
-
-    // Function to get the next higher option instead of ceiling to current
-    const getNextHigherOption = React.useCallback((count: number): number => {
-        const nextOption = contactCountOptions.find(option => option > count);
-        return nextOption || contactCountOptions[contactCountOptions.length - 1];
-    }, [contactCountOptions]);
+    // Function to get the minimum allowed option based on current contact count
+    const getMinimumAllowedOption = React.useCallback(
+        (count: number): number => {
+            const minOption = contactCountOptions.find((option) => option > count);
+            return minOption || contactCountOptions[contactCountOptions.length - 1];
+        },
+        [contactCountOptions]
+    );
 
     // State with proper typing
     const [localPlan, setLocalPlan] = useState<LocalPlan>({
-        type: 'free',
+        type: "free",
         mergeGroupsUsed: 0,
-        contactCount: initialContactCount
+        contactCount: initialContactCount,
     });
 
-    const [inputContactCount, setInputContactCount] = useState(() =>
-        getNextHigherOption(Math.max(initialContactCount, stripeCountLimit))
-    );
+    const [inputContactCount, setInputContactCount] = useState(() => {
+        const currentCount = Math.max(initialContactCount, stripeCountLimit);
+        // Find the next higher option from contactCountOptions
+        const nextOption = contactCountOptions.find((option) => option > currentCount);
+        return nextOption || contactCountOptions[contactCountOptions.length - 1];
+    });
 
-    const [error, setError] = useState<string>('');
-    const [billingType, setBillingType] = useState<'monthly' | 'yearly'>('monthly');
+    const [userHasChangedSelection, setUserHasChangedSelection] = useState(false);
+
+    const [error, setError] = useState<string>("");
+    const [billingType, setBillingType] = useState<"monthly" | "yearly">(
+        "monthly"
+    );
     const [upgradeInfo, setUpgradeInfo] = useState<UpgradeInfo | null>(null);
     const [userBalance, setUserBalance] = useState<UserBalance | null>(null);
     const modalRef = useRef<HTMLDivElement>(null);
 
+    // Function to get available options preventing downgrades
+    const getAvailableOptions = React.useCallback(() => {
+
+        const minimumAllowed = Math.max(plan?.contactCount || 0, stripeCountLimit);
+        console.log(initialContactCount, minimumAllowed, "555555555555", contactCountOptions.filter(option => option > minimumAllowed), stripeCountLimit);
+
+        return contactCountOptions.filter(option => option > minimumAllowed);
+    }, [contactCountOptions, inputContactCount, stripeCountLimit]);
 
     // Move moreThanMonth above useEffect to avoid initialization error
 
     useEffect(() => {
         function handleKeyDown(e: KeyboardEvent) {
-            if (e.key === 'Escape' && open) {
+            if (e.key === "Escape" && open) {
                 onClose();
             }
         }
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
+        window.addEventListener("keydown", handleKeyDown);
+
+        // Reset user selection flag when modal opens
+        if (open) {
+            setUserHasChangedSelection(false);
+        }
+
+        return () => window.removeEventListener("keydown", handleKeyDown);
     }, [open, onClose]);
 
     function handleBackdropClick(e: React.MouseEvent<HTMLDivElement>) {
@@ -96,49 +142,84 @@ export function PlanModal({ apiKey, open, onClose, userId, plan, contactCount }:
             const balance = await getUserBalance();
             setUserBalance(balance as UserBalance);
         } catch (error) {
-            console.error('Error fetching user balance:', error);
+            console.error("Error fetching user balance:", error);
         }
     }, []);
 
     const fetchUpgradePrice = useCallback(async () => {
         try {
-            const pricing = await calculateUpgradePrice({
+            const pricingData: any = {
                 contactCount: inputContactCount,
                 billingType: billingType,
-            });
+                // If user has an existing paid plan, add pro-ration data for pricing calculation
+                ...(plan && plan.planType === "paid" && plan.billingEndDate
+                    ? {
+                        isProRatedUpgrade: true,
+                        currentPlan: {
+                            contactCount: plan.contactCount,
+                            billingType: plan.billingType || "monthly",
+                            remainingDays: Math.max(
+                                0,
+                                Math.ceil(
+                                    (new Date(plan.billingEndDate).getTime() -
+                                        new Date().getTime()) /
+                                    (1000 * 60 * 60 * 24)
+                                )
+                            ),
+                            billingEndDate: plan.billingEndDate,
+                        },
+                    }
+                    : {}),
+            };
+
+            const pricing = await calculateUpgradePrice(pricingData);
             setUpgradeInfo(pricing as UpgradeInfo);
         } catch (error) {
-            console.error('Error calculating upgrade price:', error);
+            console.error("Error calculating upgrade price:", error);
         }
-    }, [inputContactCount, billingType]);
+    }, [inputContactCount, billingType, plan]);
 
     // If plan is null, treat as free for UI, but show correct message
 
     React.useEffect(() => {
+
         if (plan) {
             setLocalPlan({
-                type: plan.planType || 'free',
+                type: plan.planType || "free",
                 mergeGroupsUsed: plan.mergeGroupsUsed || 0,
                 contactCount: plan.contactCount || initialContactCount,
             });
-            // Use next higher option instead of ceiling to current count
-            const currentCount = plan.contactCount || initialContactCount;
-            setInputContactCount(getNextHigherOption(Math.max(currentCount, stripeCountLimit)));
+            // Only set initial value if user hasn't made a manual selection
+            if (!userHasChangedSelection) {
+                const currentCount = plan.contactCount || initialContactCount;
+                setInputContactCount(
+                    getMinimumAllowedOption(Math.max(currentCount, stripeCountLimit))
+                );
+            }
         } else {
-            setLocalPlan({ type: 'free', mergeGroupsUsed: 0, contactCount: contactCount || initialContactCount });
-            // Use next higher option instead of ceiling to current count
-            const currentCount = contactCount || initialContactCount;
-            setInputContactCount(getNextHigherOption(Math.max(currentCount, stripeCountLimit)));
+            setLocalPlan({
+                type: "free",
+                mergeGroupsUsed: 0,
+                contactCount: contactCount || initialContactCount,
+            });
+
+            // Only set initial value if user hasn't made a manual selection
+            if (!userHasChangedSelection) {
+                const currentCount = contactCount || initialContactCount;
+                setInputContactCount(
+                    getMinimumAllowedOption(Math.max(currentCount, stripeCountLimit))
+                );
+            }
         }
 
         // If monthly is disabled, set billingType to yearly
         const monthlyDisabled = moreThanMonth;
         if (monthlyDisabled) {
-            setBillingType('yearly');
+            setBillingType("yearly");
         }
 
         // Fetch user balance if user has a paid plan
-        if (plan && plan.planType === 'paid') {
+        if (plan && plan.planType === "paid") {
             fetchUserBalance();
             fetchUpgradePrice(); // Always re-fetch upgrade info when modal opens or plan changes
         }
@@ -149,13 +230,14 @@ export function PlanModal({ apiKey, open, onClose, userId, plan, contactCount }:
         moreThanMonth,
         fetchUserBalance,
         fetchUpgradePrice,
-        getNextHigherOption,
-        stripeCountLimit
+        getMinimumAllowedOption,
+        stripeCountLimit,
+        userHasChangedSelection,
     ]);
 
     // Fetch user balance and calculate upgrade pricing when contact count or billing type changes
     React.useEffect(() => {
-        if (plan && plan.planType === 'paid' && inputContactCount > 0) {
+        if (plan && plan.planType === "paid" && inputContactCount > 0) {
             fetchUpgradePrice();
         }
     }, [inputContactCount, billingType, plan]);
@@ -174,86 +256,185 @@ export function PlanModal({ apiKey, open, onClose, userId, plan, contactCount }:
 
     const handleUpgrade = async () => {
         try {
-            // Enforce inputContactCount >= localPlan.contactCount
-            if (inputContactCount < localPlan.contactCount) {
-                setError(`Contact count cannot be less than your current count (${localPlan.contactCount.toLocaleString()})`);
+            // Get both actual contact count and current plan contact count
+            const actualContactCount = contactCount || initialContactCount;
+            const currentPlanContactCount = plan?.contactCount || 0;
+            const minimumAllowed = getMinimumAllowedOption(actualContactCount);
+
+            // Prevent downgrade: inputContactCount must be >= current plan contact count
+            if (plan && plan.planType === "paid" && inputContactCount < currentPlanContactCount) {
+                setError(
+                    `Cannot downgrade: Contact count must be at least your current plan limit (${currentPlanContactCount.toLocaleString()})`
+                );
                 return;
             }
-            const data = await createStripeCheckoutSession({
+
+            // Enforce inputContactCount > actual contact count (for usage requirement)
+            if (inputContactCount <= actualContactCount) {
+                setError(
+                    `Contact count must be greater than your actual contact count (${actualContactCount.toLocaleString()})`
+                );
+                return;
+            }
+
+            // Ensure the selected count meets minimum requirement
+            if (inputContactCount < minimumAllowed) {
+                setError(
+                    `Contact count must be at least ${minimumAllowed.toLocaleString()} for your usage`
+                );
+                return;
+            }
+
+            // Ensure the selected count is in our allowed options
+            if (!contactCountOptions.includes(inputContactCount)) {
+                setError("Please select a valid contact count from the dropdown");
+                return;
+            }            // Calculate pro-rated upgrade for existing paid plans
+            let upgradeData: any = {
                 planType: billingType,
                 contactCount: inputContactCount,
                 billingType,
                 userId,
-                apiKey
-            }) as { sessionId: string };
-            if (!data.sessionId) throw new Error('Stripe session error');
+                apiKey,
+            };
+
+            // Handle case where upgrade is less than $1.00 - create new plan with new time
+            if (upgradeInfo && !upgradeInfo.canUpgrade) {
+                upgradeData.createNewPlanPeriod = true;
+                upgradeData.skipProRation = true;
+                console.log("Creating new plan period due to insufficient upgrade amount");
+
+                // Don't preserve billing end date, start fresh period
+                upgradeData.preserveBillingEndDate = false;
+            } else if (plan && plan.planType === "paid" && plan.billingEndDate) {
+                const currentDate = new Date();
+                const billingEndDate = new Date(plan.billingEndDate);
+
+                // Calculate remaining days in current plan
+                const remainingDays = Math.max(
+                    0,
+                    Math.ceil(
+                        (billingEndDate.getTime() - currentDate.getTime()) /
+                        (1000 * 60 * 60 * 24)
+                    )
+                );
+
+                // Add pro-ration parameters
+                upgradeData = {
+                    ...upgradeData,
+                    isProRatedUpgrade: true,
+                    currentPlan: {
+                        contactCount: plan.contactCount,
+                        billingType: plan.billingType || "monthly",
+                        remainingDays: remainingDays,
+                        billingEndDate: plan.billingEndDate,
+                        planId: plan.id,
+                    },
+                    // Keep the same billing end date for pro-rated upgrades
+                    preserveBillingEndDate: true,
+                };
+
+                console.log("Pro-rated upgrade data:", upgradeData);
+            }
+
+            const data = (await createStripeCheckoutSession(upgradeData)) as {
+                sessionId: string;
+            };
+
+            if (!data.sessionId) throw new Error("Stripe session error");
+
             // Use your Stripe public key here
-            const stripePublicKey = 'pk_test_51RpU70HLTJKxRr2VrhSFOtEWl3HnkFMoVkEeW9jl3OMGqrtBDmNCUun76Kll9nwVvVMmNDTdWyDZ7N75lS0YCetv00dZwqN7WM'; // TODO: Replace with your real public key
+            const stripePublicKey =
+                "pk_test_51RpU70HLTJKxRr2VrhSFOtEWl3HnkFMoVkEeW9jl3OMGqrtBDmNCUun76Kll9nwVvVMmNDTdWyDZ7N75lS0YCetv00dZwqN7WM"; // TODO: Replace with your real public key
             const stripe = await loadStripe(stripePublicKey);
-            if (!stripe) throw new Error('Stripe.js failed to load');
+            if (!stripe) throw new Error("Stripe.js failed to load");
             await stripe.redirectToCheckout({ sessionId: data.sessionId });
         } catch (error) {
-            let message = 'Unknown error';
+            let message = "Unknown error";
             if (error instanceof Error) message = error.message;
-            setError('Error upgrading plan: ' + message);
+            setError("Error upgrading plan: " + message);
         }
     };
 
     // Message logic
-    let infoMessage = '';
+    let infoMessage = "";
     let showUpgrade = false;
     if (!plan) {
         if (contactCount > freeContactLimit) {
-            infoMessage = 'You have more than 500,000 contacts. You must upgrade your plan to continue merging.';
+            infoMessage =
+                "You have more than 500,000 contacts. You must upgrade your plan to continue merging.";
             showUpgrade = true;
         } else {
-            infoMessage = 'You are currently on the free plan.';
+            infoMessage = "You are currently on the free plan.";
         }
-    } else if (plan.planType === 'free') {
+    } else if (plan.planType === "free") {
         if (contactCount > freeContactLimit) {
-            infoMessage = 'You have exceeded the free plan contact limit (500,000). Please upgrade your plan to continue merging.';
+            infoMessage =
+                "You have exceeded the free plan contact limit (500,000). Please upgrade your plan to continue merging.";
             showUpgrade = true;
         } else {
-            infoMessage = 'You are already on the free plan.';
+            infoMessage = "You are already on the free plan.";
         }
-    } else if (plan.planType === 'paid') {
+    } else if (plan.planType === "paid") {
         // If user is paid but contactCount > plan.contactLimit (if available)
         if (plan.contactLimit && contactCount > plan.contactLimit) {
             infoMessage = `You have exceeded your paid plan contact limit (${plan.contactLimit.toLocaleString()}). Please upgrade your plan to increase your contact limit.`;
             showUpgrade = true;
         } else {
-            infoMessage = 'You are on a paid plan.';
+            infoMessage = "You are on a paid plan.";
         }
     }
     return (
-        <div>
+        <div className="relative">
             <div
                 ref={modalRef}
                 className="fixed inset-0 z-50 flex items-center justify-center bg-[#00000040] bg-opacity-30 backdrop-blur-sm transition-all"
                 onClick={handleBackdropClick}
             >
-                <div className="w-4xl max-w-[90%] mx-auto p-8 bg-white rounded-xl shadow-lg border border-gray-200 relative animate-fade-in">
-                    <button className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-2xl font-bold" onClick={onClose}>&times;</button>
-                    <div className="mb-8 flex flex-col items-center">
-                        <h1 className="text-3xl font-bold text-gray-900 mb-2 text-center">Contact Merge Plans</h1>
-                        <p className="text-gray-500 mb-4 text-center max-w-xl"> you can select the contact limits for your plan to make it more suitable.</p>
-                        <div className="w-full flex justify-center">
-                            <div className="rounded-lg border border-blue-200 bg-blue-50 px-2 flex flex-col items-center shadow-sm">
-
-                                <span className="flex items-center gap-x-2 mt-1 flex-wrap justify-center">
-                                    <span className="mr-2">💡</span>
-                                    <span className="font-bold text-2xl text-gray-900">$1</span>
-                                    <span className="text-gray-700 text-base">lets you fetch</span>
-                                    <span className="font-semibold text-lg text-gray-800">{dividedContactPerMonth}</span>
-                                    <span className="text-gray-700 text-base">(monthly) or</span>
-                                    <span className="font-semibold text-lg text-gray-800">{dividedContactPerYear}</span>
-                                    <span className="text-gray-700 text-base">(yearly)</span>
-                                </span>
+                <div className="overflow-auto max-h-[85vh]">
+                    <div>
+                        <div className="w-4xl max-w-[90%] mx-auto p-8 bg-white rounded-xl shadow-lg border border-gray-200 relative animate-fade-in">
+                            <button
+                                className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-2xl font-bold"
+                                onClick={onClose}
+                            >
+                                &times;
+                            </button>
+                            <div className="mb-8 flex flex-col items-center">
+                                <h1 className="text-3xl font-bold text-gray-900 mb-2 text-center">
+                                    Contact Merge Plans
+                                </h1>
+                                <p className="text-gray-500 mb-4 text-center max-w-xl">
+                                    {" "}
+                                    you can select the contact limits for your plan to make it
+                                    more suitable.
+                                </p>
+                                <div className="w-full flex justify-center">
+                                    <div className="rounded-lg border border-blue-200 bg-blue-50 px-2 flex flex-col items-center shadow-sm">
+                                        <span className="flex items-center gap-x-2 mt-1 flex-wrap justify-center">
+                                            <span className="mr-2">💡</span>
+                                            <span className="font-bold text-2xl text-gray-900">
+                                                $1
+                                            </span>
+                                            <span className="text-gray-700 text-base">
+                                                lets you fetch
+                                            </span>
+                                            <span className="font-semibold text-lg text-gray-800">
+                                                {dividedContactPerMonth}
+                                            </span>
+                                            <span className="text-gray-700 text-base">
+                                                (monthly) or
+                                            </span>
+                                            <span className="font-semibold text-lg text-gray-800">
+                                                {dividedContactPerYear}
+                                            </span>
+                                            <span className="text-gray-700 text-base">(yearly)</span>
+                                        </span>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                    </div>
-                    <div className='flex flex-col md:flex-row gap-4 justify-center'>
-                        {/* <div className="flex flex-col gap-3">
+                            <div className="flex flex-col md:flex-row gap-4 justify-center">
+                                {/* <div className="flex flex-col gap-3">
                             {(userBalance && userBalance.hasBalance && upgradeInfo) && (
                                 <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-2xl p-4 mb-3 shadow-lg">
                                     <div className="flex items-center justify-center mb-2">
@@ -312,12 +493,12 @@ export function PlanModal({ apiKey, open, onClose, userId, plan, contactCount }:
                                 </div>
                             )}
                         </div> */}
-                        <div
-                            className={`mb-4 flex justify-center`}
-                        // className={`mb-4 ${(!plan || plan.planType !== 'paid') ? 'grid grid-cols-1 md:grid-cols-2 gap-4' : 'flex justify-center'}`}
-                        >
-                            {/* Free Plan Card: Only show if not paid plan */}
-                            {/* {(!plan || plan.planType !== 'paid') && (
+                                <div
+                                    className={`mb-4 flex justify-center`}
+                                // className={`mb-4 ${(!plan || plan.planType !== 'paid') ? 'grid grid-cols-1 md:grid-cols-2 gap-4' : 'flex justify-center'}`}
+                                >
+                                    {/* Free Plan Card: Only show if not paid plan */}
+                                    {/* {(!plan || plan.planType !== 'paid') && (
                                 <div className="bg-gradient-to-br from-blue-50 via-blue-25 to-white border-2 border-blue-200 rounded-2xl p-3 flex flex-col items-center shadow-xl hover:shadow-2xl transition-all duration-300 relative text-xs">
                                     <div className="absolute top-2 right-2">
                                         <span className="bg-gradient-to-r from-blue-500 to-blue-600 text-white text-[10px] px-2 py-1 rounded-full font-bold shadow">Current Plan</span>
@@ -355,198 +536,363 @@ export function PlanModal({ apiKey, open, onClose, userId, plan, contactCount }:
                                     </div>
                                 </div>
                             )} */}
-                            {/* Paid Plan Card */}
-                            <div className="w-[340px] relative bg-gradient-to-br from-yellow-100 via-yellow-50 to-white border-2 border-yellow-300 rounded-2xl p-6 flex flex-col items-center shadow-xl hover:shadow-2xl transition-all duration-300 min-w-[240px] max-w-md text-xs">
-                                <div className="absolute top-2 right-2 flex items-center gap-1">
-                                    <span className="bg-gradient-to-r from-yellow-400 to-yellow-500 text-white text-[10px] px-2 py-1 rounded-full font-bold shadow animate-pulse">⭐ Upgrade</span>
-                                </div>
-
-                                {/* Enhanced Crown Icon */}
-                                <div className="bg-yellow-100 rounded-full p-1.5 mb-2 shadow-inner">
-                                    <svg className="w-7 h-7 text-yellow-500 drop-shadow" fill="currentColor" viewBox="0 0 24 24">
-                                        <path d="M12 2l3 7h7l-5.5 4.5L18 21l-6-4-6 4 1.5-7.5L2 9h7z" />
-                                    </svg>
-                                </div>
-
-                                <div className="flex flex-col items-center w-full">
-                                    <div className="flex items-center gap-1 mb-1 relative w-max">
-                                        <span className="text-3xl font-extrabold text-yellow-700 tracking-tight drop-shadow">{Math.max(inputContactCount, stripeCountLimit).toLocaleString()}</span>
-                                        <span className="text-[10px] font-medium text-yellow-700 bg-yellow-100 px-2 py-0.5 rounded-full shadow-sm cursor-help transition-colors" title="Total contacts included in your plan">contacts</span>
-                                    </div>
-                                    <h2 className="text-lg font-bold mb-1 text-yellow-800">Premium Plan</h2>
-                                    <ul className="text-gray-700 mb-2 text-center text-xs space-y-0.5">
-                                        <li className="flex items-center justify-center gap-1">
-                                            <span className="text-green-500 font-bold">✔️</span>
-                                            <span><span className="font-bold text-yellow-700">Unlimited</span> merge groups</span>
-                                        </li>
-                                        <li className="flex items-center justify-center gap-1">
-                                            <span className="text-green-500 font-bold">✔️</span>
-                                            <span><span className="font-bold text-yellow-700">Dynamic pricing</span> by contact count</span>
-                                        </li>
-                                        <li className="flex items-center justify-center gap-1">
-                                            <span className="text-green-500 font-bold">✔️</span>
-                                            <span><span className="font-bold text-yellow-700">Flexible</span> Monthly/Yearly billing</span>
-                                        </li>
-                                        <li className="flex items-center justify-center gap-1">
-                                            <span className="text-green-500 font-bold">✔️</span>
-                                            <span><span className="font-bold text-yellow-700">Priority</span> support</span>
-                                        </li>
-                                    </ul>
-                                </div>
-
-                                {/* Enhanced Contact Count Dropdown */}
-                                <div className="mb-2 w-full flex flex-col items-center">
-                                    {/* Quick summary: Balance and Amount to Pay */}
-                                    {(userBalance && userBalance.hasBalance && upgradeInfo) && (
-                                        <div className="flex flex-col items-center mb-2 w-full">
-                                            <div className="flex flex-row justify-center gap-3 w-full">
-                                                <div className="bg-green-50 border border-green-200 rounded-lg px-3 py-1 flex items-center">
-                                                    <span className="text-md me-2 text-green-700 font-semibold">Balance</span>
-                                                    <span className="text-md font-bold text-green-700">${userBalance.balanceAmount.toFixed(2)}</span>
-                                                </div>
-                                                <div className="bg-orange-50 border border-yellow-200 rounded-lg px-3 py-1 flex items-center">
-                                                    <span className="text-md me-2 text-yellow-700 font-semibold">To Pay</span>
-                                                    <span className="text-md font-bold text-yellow-700">${upgradeInfo.finalPrice.toFixed(2)}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    <label className="mb-1 text-xs text-gray-700 font-bold" htmlFor="contactCountInput">
-                                        📊 Select Contact Count
-                                    </label>
-
-                                    {/* Show minimum charge error in card if upgradeInfo exists and !upgradeInfo.canUpgrade */}
-                                    {upgradeInfo && !upgradeInfo.canUpgrade && (
-                                        <div className="mt-2 mb-2 bg-red-50 border border-red-200 rounded-lg p-2 text-center w-full">
-                                            <p className="text-red-600 text-xs font-medium">
-                                                ⚠️ Minimum charge of $1.00 required for upgrade
-                                            </p>
-                                        </div>
-                                    )}
-
-                                    <div className="relative w-40 mb-2">
-                                        <select
-                                            id="contactCountInput"
-                                            value={inputContactCount}
-                                            onChange={(e) => {
-                                                const val = Number(e.target.value);
-                                                setInputContactCount(val);
-                                                setError(''); // Clear any existing errors
-                                            }}
-                                            className="w-full px-3 py-2 border-2 border-yellow-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-yellow-500 text-center font-bold text-yellow-700 bg-yellow-50 shadow-sm text-xs transition-all appearance-none cursor-pointer hover:border-yellow-400 hover:shadow-md"
-                                            aria-label="Select contact count for your plan"
-                                        >
-                                            {contactCountOptions.map((option) => (
-                                                <option key={option} value={option}>
-                                                    {option.toLocaleString()}
-                                                </option>
-                                            ))}
-                                        </select>
-
-                                        {/* Enhanced dropdown arrow with animation */}
-                                        <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                                            <svg
-                                                className="w-4 h-4 text-yellow-700 transition-transform duration-200 ease-in-out"
-                                                fill="none"
-                                                stroke="currentColor"
-                                                viewBox="0 0 24 24"
-                                                aria-hidden="true"
-                                            >
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                            </svg>
-                                        </div>
-                                    </div>
-
-                                    {/* Contact count info helper */}
-                                    <div className="text-xs text-gray-500 text-center mb-2">
-                                        <span className="inline-flex items-center gap-1">
-                                            💡
-                                            <span>
-                                                Current: <strong className="text-yellow-700">{inputContactCount.toLocaleString()}</strong> contacts
+                                    {/* Paid Plan Card */}
+                                    <div className="w-[340px] relative bg-gradient-to-br from-yellow-100 via-yellow-50 to-white border-2 border-yellow-300 rounded-2xl p-6 flex flex-col items-center shadow-xl hover:shadow-2xl transition-all duration-300 min-w-[240px] max-w-md text-xs">
+                                        <div className="absolute top-2 right-2 flex items-center gap-1">
+                                            <span className="bg-gradient-to-r from-yellow-400 to-yellow-500 text-white text-[10px] px-2 py-1 rounded-full font-bold shadow animate-pulse">
+                                                ⭐ Upgrade
                                             </span>
-                                        </span>
-                                    </div>
+                                        </div>
 
-                                    {/* Billing Type Selection */}
-                                    <div className="flex items-center justify-center gap-3 mb-1 w-full">
-                                        <button
-                                            className={`flex-1 flex items-center justify-center gap-2 px-2 py-2 rounded-xl font-bold text-sm shadow-md transition-all duration-200 border-2 focus:outline-none ${billingType === 'monthly' ? 'bg-yellow-500 text-white border-yellow-500 scale-105 shadow-lg' : 'bg-white text-gray-700 border-gray-300 hover:border-yellow-300'} ${moreThanMonth ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-lg'}`}
-                                            onClick={() => {
-                                                if (!(moreThanMonth)) {
-                                                    setBillingType('monthly');
-                                                }
-                                            }}
-                                            aria-pressed={billingType === 'monthly'}
-                                            disabled={moreThanMonth}
-                                        >
-                                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                                                <rect x="3" y="4" width="18" height="16" rx="2" ry="2" />
-                                                <path d="M16 2v4M8 2v4M3 10h18" />
+                                        {/* Enhanced Crown Icon */}
+                                        <div className="bg-yellow-100 rounded-full p-1.5 mb-2 shadow-inner">
+                                            <svg
+                                                className="w-7 h-7 text-yellow-500 drop-shadow"
+                                                fill="currentColor"
+                                                viewBox="0 0 24 24"
+                                            >
+                                                <path d="M12 2l3 7h7l-5.5 4.5L18 21l-6-4-6 4 1.5-7.5L2 9h7z" />
                                             </svg>
-                                            Monthly
-                                        </button>
-                                        <button
-                                            className={`flex-1 flex items-center justify-center gap-2 px-2 py-2 rounded-xl font-bold text-sm shadow-md transition-all duration-200 border-2 focus:outline-none ${billingType === 'yearly' ? 'bg-yellow-500 text-white border-yellow-500 scale-105 shadow-lg' : 'bg-white text-gray-700 border-gray-300 hover:border-yellow-300'} hover:shadow-lg`}
-                                            onClick={() => setBillingType('yearly')}
-                                            aria-pressed={billingType === 'yearly'}
-                                        >
-                                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                                                <circle cx="12" cy="12" r="9" />
-                                                <path d="M12 8l1.176 2.382L16 11l-2.412 1.135L13.176 15 12 13.118 10.824 15 9.412 12.135 7 11l2.824-0.618L12 8z" />
-                                            </svg>
-                                            Yearly
-                                        </button>
-                                    </div>
+                                        </div>
 
-                                    {/* Simple pricing display inside card */}
-                                    {/* {!upgradeInfo && ( */}
-                                    <div className="bg-white rounded-xl p-2 m-1 shadow-inner border border-yellow-200 mb-1 w-full text-xs">
-                                        <div className="text-center">
-                                            {billingType === 'monthly' ? (
-                                                <div className='flex items-center justify-center'>
-                                                    <span className="text-3xl font-bold text-yellow-700">${monthlyCost.toFixed(2)}</span>
-                                                    <span className="text-sm text-gray-600">/month</span>
-                                                </div>
-                                            ) : (
-                                                <div className='flex items-center justify-center'>
-                                                    <span className="text-3xl font-bold text-yellow-700">${yearlyMonthlyCost.toFixed(2)}</span>
-                                                    <span className="text-sm text-gray-600 me-2">/month</span>
-                                                    <div className="text-xs text-gray-500 mt-1">(${annualCost.toFixed(2)} billed yearly)</div>
+                                        <div className="flex flex-col items-center w-full">
+                                            <div className="flex items-center gap-1 mb-1 relative w-max">
+                                                <span className="text-3xl font-extrabold text-yellow-700 tracking-tight drop-shadow">
+                                                    {Math.max(
+                                                        inputContactCount,
+                                                        stripeCountLimit
+                                                    ).toLocaleString()}
+                                                </span>
+                                                <span
+                                                    className="text-[10px] font-medium text-yellow-700 bg-yellow-100 px-2 py-0.5 rounded-full shadow-sm cursor-help transition-colors"
+                                                    title="Total contacts included in your plan"
+                                                >
+                                                    contacts
+                                                </span>
+                                            </div>
+                                            <h2 className="text-lg font-bold mb-1 text-yellow-800">
+                                                Premium Plan
+                                            </h2>
+                                            <ul className="text-gray-700 mb-2 text-center text-xs space-y-0.5">
+                                                <li className="flex items-center justify-center gap-1">
+                                                    <span className="text-green-500 font-bold">✔️</span>
+                                                    <span>
+                                                        <span className="font-bold text-yellow-700">
+                                                            Unlimited
+                                                        </span>{" "}
+                                                        merge groups
+                                                    </span>
+                                                </li>
+                                                <li className="flex items-center justify-center gap-1">
+                                                    <span className="text-green-500 font-bold">✔️</span>
+                                                    <span>
+                                                        <span className="font-bold text-yellow-700">
+                                                            Dynamic pricing
+                                                        </span>{" "}
+                                                        by contact count
+                                                    </span>
+                                                </li>
+                                                <li className="flex items-center justify-center gap-1">
+                                                    <span className="text-green-500 font-bold">✔️</span>
+                                                    <span>
+                                                        <span className="font-bold text-yellow-700">
+                                                            Flexible
+                                                        </span>{" "}
+                                                        Monthly/Yearly billing
+                                                    </span>
+                                                </li>
+                                                <li className="flex items-center justify-center gap-1">
+                                                    <span className="text-green-500 font-bold">✔️</span>
+                                                    <span>
+                                                        <span className="font-bold text-yellow-700">
+                                                            Priority
+                                                        </span>{" "}
+                                                        support
+                                                    </span>
+                                                </li>
+                                            </ul>
+                                        </div>
+
+                                        {/* Enhanced Contact Count Dropdown */}
+                                        <div className="mb-2 w-full flex flex-col items-center">
+                                            {/* Quick summary: Balance and Amount to Pay */}
+                                            {userBalance && userBalance.hasBalance && upgradeInfo && (
+                                                <div className="flex flex-col items-center mb-2 w-full">
+                                                    <div className="flex flex-row justify-center gap-3 w-full">
+                                                        <div className="bg-green-50 border border-green-200 rounded-lg px-3 py-1 flex items-center">
+                                                            <span className="text-md me-2 text-green-700 font-semibold">
+                                                                Balance
+                                                            </span>
+                                                            <span className="text-md font-bold text-green-700">
+                                                                ${(userBalance.balanceAmount || 0).toFixed(2)}
+                                                            </span>
+                                                        </div>
+                                                        <div className="bg-orange-50 border border-yellow-200 rounded-lg px-3 py-1 flex items-center">
+                                                            <span className="text-md me-2 text-yellow-700 font-semibold">
+                                                                To Pay
+                                                            </span>
+                                                            <span className="text-md font-bold text-yellow-700">
+                                                                ${(upgradeInfo.finalPrice || 0).toFixed(2)}
+                                                            </span>
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             )}
+
+                                            {/* Pro-ration Information for Existing Paid Plans */}
+                                            {/* {(plan && plan.planType === 'paid' && plan.billingEndDate && upgradeInfo) && (
+                                        <div className="mb-2 bg-blue-50 border border-blue-200 rounded-lg p-3 w-full text-center">
+                                            <div className="flex items-center justify-center gap-2 mb-1">
+                                                <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                </svg>
+                                                <span className="text-xs font-bold text-blue-700">Pro-rated Upgrade</span>
+                                            </div>
+                                            <p className="text-xs text-blue-600">
+                                                Your plan will be upgraded immediately. You&apos;ll only pay the difference for the remaining
+                                                <strong> {Math.max(0, Math.ceil((new Date(plan.billingEndDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)))} days</strong>
+                                                until {new Date(plan.billingEndDate).toLocaleDateString()}.
+                                            </p>
                                         </div>
+                                    )} */}
+
+                                            <label
+                                                className="mb-1 text-xs text-gray-700 font-bold"
+                                                htmlFor="contactCountInput"
+                                            >
+                                                📊 Select Contact Count
+                                            </label>
+
+                                            {/* Show minimum charge error in card if upgradeInfo exists and !upgradeInfo.canUpgrade */}
+                                            {upgradeInfo && !upgradeInfo.canUpgrade && (
+                                                <div className="mt-2 mb-2 bg-green-50 border border-green-200 rounded-lg p-2 text-center w-full">
+                                                    <p className="text-green-600 text-xs font-medium">
+                                                        � New plan period will be started with full pricing
+                                                    </p>
+                                                </div>
+                                            )}
+
+                                            {/* Compute options so the list starts from the select default (inputContactCount) */}
+                                            {(() => {
+                                                const available = getAvailableOptions();
+                                                console.log(available, "xxx3");
+                                                const defaultIdx = available.findIndex((o) => o === inputContactCount);
+                                                if (defaultIdx >= 0) return { optionsToShow: available.slice(defaultIdx) };
+                                                const nextIdx = available.findIndex((o) => o > inputContactCount);
+                                                if (nextIdx >= 0) return { optionsToShow: available.slice(nextIdx) };
+                                                return { optionsToShow: available };
+                                            })() && null}
+
+                                            <div className="relative w-40 mb-2">
+                                                <select
+                                                    id="contactCountInput"
+                                                    value={inputContactCount}
+                                                    onChange={(e) => {
+                                                        const val = Number(e.target.value);
+                                                        setInputContactCount(val);
+                                                        setUserHasChangedSelection(true); // Mark that user has made a selection
+                                                        setError(""); // Clear any existing errors
+                                                    }}
+                                                    className="w-full px-3 py-2 border-2 border-yellow-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-yellow-500 text-center font-bold text-yellow-700 bg-yellow-50 shadow-sm text-xs transition-all appearance-none cursor-pointer hover:border-yellow-400 hover:shadow-md"
+                                                    aria-label="Select contact count for your plan"
+                                                >
+                                                    {(() => {
+                                                        const available = getAvailableOptions();
+                                                        console.log(available, "xxx1");
+
+                                                        // const defaultIdx = available.findIndex((o) => o === inputContactCount);
+                                                        // let optionsToShow = available;
+                                                        // if (defaultIdx >= 0) optionsToShow = available.slice(defaultIdx);
+                                                        // else {
+                                                        //     const nextIdx = available.findIndex((o) => o > inputContactCount);
+                                                        //     if (nextIdx >= 0) optionsToShow = available.slice(nextIdx);
+                                                        // }
+                                                        return available.map((option) => (
+                                                            <option key={option} value={option}>
+                                                                {option.toLocaleString()}
+                                                            </option>
+                                                        ));
+                                                    })()}
+                                                </select>
+
+                                                {/* Enhanced dropdown arrow with animation */}
+                                                <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                                                    <svg
+                                                        className="w-4 h-4 text-yellow-700 transition-transform duration-200 ease-in-out"
+                                                        fill="none"
+                                                        stroke="currentColor"
+                                                        viewBox="0 0 24 24"
+                                                        aria-hidden="true"
+                                                    >
+                                                        <path
+                                                            strokeLinecap="round"
+                                                            strokeLinejoin="round"
+                                                            strokeWidth={2}
+                                                            d="M19 9l-7 7-7-7"
+                                                        />
+                                                    </svg>
+                                                </div>
+                                            </div>
+
+                                            {/* Contact count info helper */}
+                                            <div className="text-xs text-gray-500 text-center mb-2">
+                                                <span className="inline-flex items-center gap-1">
+                                                    💡
+                                                    <span>
+                                                        Selected:{" "}
+                                                        <strong className="text-yellow-700">
+                                                            {inputContactCount.toLocaleString()}
+                                                        </strong>{" "}
+                                                        contacts (Min: {getAvailableOptions()[0]?.toLocaleString() || 'N/A'})
+                                                        {void console.log(getAvailableOptions()[0], "xxx2")}
+                                                    </span>
+                                                </span>
+                                            </div>
+
+                                            {/* Billing Type Selection */}
+                                            <div className="flex items-center justify-center gap-3 mb-1 w-full">
+                                                <button
+                                                    className={`flex-1 flex items-center justify-center gap-2 px-2 py-2 rounded-xl font-bold text-sm shadow-md transition-all duration-200 border-2 focus:outline-none ${billingType === "monthly"
+                                                        ? "bg-yellow-500 text-white border-yellow-500 scale-105 shadow-lg"
+                                                        : "bg-white text-gray-700 border-gray-300 hover:border-yellow-300"
+                                                        } ${moreThanMonth
+                                                            ? "opacity-50 cursor-not-allowed"
+                                                            : "hover:shadow-lg"
+                                                        }`}
+                                                    onClick={() => {
+                                                        if (!moreThanMonth) {
+                                                            setBillingType("monthly");
+                                                        }
+                                                    }}
+                                                    aria-pressed={billingType === "monthly"}
+                                                    disabled={moreThanMonth}
+                                                >
+                                                    <svg
+                                                        className="w-4 h-4"
+                                                        viewBox="0 0 24 24"
+                                                        fill="none"
+                                                        stroke="currentColor"
+                                                        strokeWidth="1.5"
+                                                        strokeLinecap="round"
+                                                        strokeLinejoin="round"
+                                                        aria-hidden="true"
+                                                    >
+                                                        <rect
+                                                            x="3"
+                                                            y="4"
+                                                            width="18"
+                                                            height="16"
+                                                            rx="2"
+                                                            ry="2"
+                                                        />
+                                                        <path d="M16 2v4M8 2v4M3 10h18" />
+                                                    </svg>
+                                                    Monthly
+                                                </button>
+                                                <button
+                                                    className={`flex-1 flex items-center justify-center gap-2 px-2 py-2 rounded-xl font-bold text-sm shadow-md transition-all duration-200 border-2 focus:outline-none ${billingType === "yearly"
+                                                        ? "bg-yellow-500 text-white border-yellow-500 scale-105 shadow-lg"
+                                                        : "bg-white text-gray-700 border-gray-300 hover:border-yellow-300"
+                                                        } hover:shadow-lg`}
+                                                    onClick={() => setBillingType("yearly")}
+                                                    aria-pressed={billingType === "yearly"}
+                                                >
+                                                    <svg
+                                                        className="w-4 h-4"
+                                                        viewBox="0 0 24 24"
+                                                        fill="none"
+                                                        stroke="currentColor"
+                                                        strokeWidth="1.5"
+                                                        strokeLinecap="round"
+                                                        strokeLinejoin="round"
+                                                        aria-hidden="true"
+                                                    >
+                                                        <circle cx="12" cy="12" r="9" />
+                                                        <path d="M12 8l1.176 2.382L16 11l-2.412 1.135L13.176 15 12 13.118 10.824 15 9.412 12.135 7 11l2.824-0.618L12 8z" />
+                                                    </svg>
+                                                    Yearly
+                                                </button>
+                                            </div>
+
+                                            {/* Simple pricing display inside card */}
+                                            <div className="bg-white rounded-xl p-2 m-1 shadow-inner border border-yellow-200 mb-1 w-full text-xs">
+                                                <div className="text-center">
+                                                    {upgradeInfo && !upgradeInfo.canUpgrade ? (
+                                                        billingType === "monthly" ? (
+                                                            <div className="flex items-center justify-center">
+                                                                <span className="text-3xl font-bold text-green-700">
+                                                                    ${(monthlyCost || 0).toFixed(2)}
+                                                                </span>
+                                                                <span className="text-sm text-gray-600">
+                                                                    /month (new period)
+                                                                </span>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="flex items-center justify-center">
+                                                                <span className="text-3xl font-bold text-green-700">
+                                                                    ${(yearlyMonthlyCost || 0).toFixed(2)}
+                                                                </span>
+                                                                <span className="text-sm text-gray-600 me-2">
+                                                                    /month (new period)
+                                                                </span>
+                                                            </div>
+                                                        )
+                                                    ) : billingType === "monthly" ? (
+                                                        <div className="flex items-center justify-center">
+                                                            <span className="text-3xl font-bold text-yellow-700">
+                                                                ${(monthlyCost || 0).toFixed(2)}
+                                                            </span>
+                                                            <span className="text-sm text-gray-600">
+                                                                /month
+                                                            </span>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="flex items-center justify-center">
+                                                            <span className="text-3xl font-bold text-yellow-700">
+                                                                ${(yearlyMonthlyCost || 0).toFixed(2)}
+                                                            </span>
+                                                            <span className="text-sm text-gray-600 me-2">
+                                                                /month
+                                                            </span>
+                                                            <div className="text-xs text-gray-500 mt-1">
+                                                                (${(annualCost || 0).toFixed(2)} billed yearly)
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            {/* )} */}
+                                        </div>
+
+                                        {/* Enhanced Upgrade Button */}
+                                        <button
+                                            className="w-full font-bold py-2 px-3 rounded-xl shadow transition-all duration-200 text-xs tracking-wide transform hover:scale-105 bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-yellow-500 hover:to-yellow-600 text-white border border-yellow-400 shadow-yellow-200"
+                                            onClick={handleUpgrade}
+                                            aria-label="Upgrade to Premium Plan"
+                                        >
+                                            {upgradeInfo && !upgradeInfo.canUpgrade
+                                                ? "� Start New Plan Period"
+                                                : "🚀 Upgrade to Premium"}
+                                        </button>
                                     </div>
-                                    {/* )} */}
                                 </div>
-
-                                {/* Enhanced Upgrade Button */}
-                                <button
-                                    className={`w-full font-bold py-2 px-3 rounded-xl shadow transition-all duration-200 text-xs tracking-wide transform hover:scale-105 ${upgradeInfo && !upgradeInfo.canUpgrade
-                                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed border border-gray-300'
-                                        : 'bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-yellow-500 hover:to-yellow-600 text-white border border-yellow-400 shadow-yellow-200'
-                                        }`}
-                                    onClick={handleUpgrade}
-                                    disabled={Boolean(upgradeInfo && !upgradeInfo.canUpgrade)}
-                                    aria-label={upgradeInfo && !upgradeInfo.canUpgrade ? 'Cannot upgrade - minimum charge required' : 'Upgrade to Premium Plan'}
-                                >
-                                    {upgradeInfo && !upgradeInfo.canUpgrade ? '❌ Cannot Upgrade' : '🚀 Upgrade to Premium'}
-                                </button>
                             </div>
-                        </div>
-                    </div>
 
-                    <ErrorMessage error={error} />
+                            <ErrorMessage error={error} />
+                        </div>
+
+                        <style>{`
+                                    .animate-fade-in {
+                                    animation: fadeIn 0.4s ease;
+                                    }
+                                    @keyframes fadeIn {
+                                    from { opacity: 0; transform: scale(0.95); }
+                                    to { opacity: 1; transform: scale(1); }
+                                    }
+                                `}
+                        </style>
+                    </div>
                 </div>
-                <style>{`
-            .animate-fade-in {
-              animation: fadeIn 0.4s ease;
-            }
-            @keyframes fadeIn {
-              from { opacity: 0; transform: scale(0.95); }
-              to { opacity: 1; transform: scale(1); }
-            }
-          `}</style>
             </div>
         </div>
     );

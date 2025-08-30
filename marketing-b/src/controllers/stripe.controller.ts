@@ -6,7 +6,10 @@ import { ConfigService } from '@nestjs/config';
 import { Payment } from '../entities/payment.entity';
 import { UserPlan } from '../entities/user-plan.entity';
 import { PlanService } from '../services/plan.service';
-import { dividedContactPerMonth } from 'src/constant/main';
+import {
+  dividedContactPerMonth,
+  dividedContactPerYear,
+} from 'src/constant/main';
 
 let stripe: Stripe;
 
@@ -60,7 +63,7 @@ export class StripeController {
           //     lastActionCount = lastAction.count || 0;
           //   }
           // }
-          // Determine billingEndDate based on payment.billingType
+          // Determine billingEndDate based on payment.billingType and pro-ration settings
           let billingEndDate: Date | undefined = undefined;
           // Try to get billingType from Stripe session metadata if not in payment
           let billingType = payment['billingType'];
@@ -72,14 +75,33 @@ export class StripeController {
           ) {
             billingType = sessionObj.metadata.billingType;
           }
+
+          // Check if this is a pro-rated upgrade
+          const isProRated = sessionObj.metadata?.isProRated === 'true';
+          const preserveBillingEndDate =
+            sessionObj.metadata?.preserveBillingEndDate === 'true';
+          const existingBillingEndDate = sessionObj.metadata?.billingEndDate;
+
           const activationDate = new Date();
-          if (billingType === 'yearly') {
-            billingEndDate = new Date(activationDate);
-            billingEndDate.setFullYear(billingEndDate.getFullYear() + 1);
-          } else if (billingType === 'monthly') {
-            billingEndDate = new Date(activationDate);
-            billingEndDate.setMonth(billingEndDate.getMonth() + 1);
+
+          if (isProRated && preserveBillingEndDate && existingBillingEndDate) {
+            // For pro-rated upgrades, preserve the existing billing end date
+            billingEndDate = new Date(existingBillingEndDate);
+            console.log(
+              'Pro-rated upgrade: preserving billing end date:',
+              billingEndDate,
+            );
+          } else {
+            // Regular billing date calculation
+            if (billingType === 'yearly') {
+              billingEndDate = new Date(activationDate);
+              billingEndDate.setFullYear(billingEndDate.getFullYear() + 1);
+            } else if (billingType === 'monthly') {
+              billingEndDate = new Date(activationDate);
+              billingEndDate.setMonth(billingEndDate.getMonth() + 1);
+            }
           }
+
           await this.userPlanRepo.save({
             userId: payment.userId,
             planType: PlanType.PAID,
@@ -108,29 +130,78 @@ export class StripeController {
       billingType: string;
       userId: number;
       apiKey: string;
+      isProRatedUpgrade?: boolean;
+      currentPlan?: {
+        contactCount: number;
+        billingType: string;
+        remainingDays: number;
+        billingEndDate: string;
+        planId?: number;
+      };
+      preserveBillingEndDate?: boolean;
+      createNewPlanPeriod?: boolean;
+      skipProRation?: boolean;
     },
   ) {
-    // Calculate upgrade pricing with balance consideration
-    const upgradeInfo = await this.planService.calculateUpgradePrice(
-      dto.userId,
-      dto.contactCount,
-      dto.billingType as 'monthly' | 'yearly',
-    );
+    // Calculate upgrade pricing with balance consideration and pro-ration support
+    let upgradeInfo;
+    let amount: number;
 
-    if (!upgradeInfo.canUpgrade) {
-      throw new Error(
-        `Cannot upgrade: The new plan price ($${upgradeInfo.originalPrice}) minus your balance ($${upgradeInfo.userBalance}) must be at least $1.00`,
+    if (dto.createNewPlanPeriod) {
+      // For new plan periods, calculate full price without pro-ration
+      const fullPrice =
+        dto.contactCount /
+        (dto.billingType === 'monthly'
+          ? dividedContactPerMonth
+          : dividedContactPerYear);
+
+      amount = Math.round(fullPrice * 100); // Convert to cents
+      console.log(`Creating new plan period with full price: $${fullPrice}`);
+
+      // Create a mock upgradeInfo for consistency
+      upgradeInfo = {
+        canUpgrade: true,
+        finalPrice: fullPrice,
+        originalPrice: fullPrice,
+        userBalance: 0,
+        isProRated: false,
+      };
+    } else {
+      upgradeInfo = await this.planService.calculateUpgradePrice(
+        dto.userId,
+        dto.contactCount,
+        dto.billingType as 'monthly' | 'yearly',
+        dto.isProRatedUpgrade || false,
+        dto.currentPlan,
       );
+
+      if (!upgradeInfo.canUpgrade) {
+        throw new Error(
+          `Cannot upgrade: The new plan price ($${upgradeInfo.originalPrice}) minus your balance ($${upgradeInfo.userBalance}) must be at least $1.00. Use createNewPlanPeriod to start a new billing period.`,
+        );
+      }
+
+      // Use the calculated final price (in dollars) and convert to cents for Stripe
+      amount = Math.round(upgradeInfo.finalPrice * 100);
     }
 
-    // Use the calculated final price (in dollars) and convert to cents for Stripe
-    const amount = Math.round(upgradeInfo.finalPrice * 100);
-
-    // Enforce minimum contact count for Stripe minimum charge ($1.00)
-    const minContactCount = dividedContactPerMonth; // $1.00 minimum for monthly (2000 contacts)
-    const safeContactCount = Math.max(dto.contactCount, minContactCount);
+    // Use the contact count as specified (no more minimum enforcement here)
+    const safeContactCount = dto.contactCount;
 
     const successUrl = `${this.configService.get<string>('STRIPE_SUCCESS_URL')}?session_id={CHECKOUT_SESSION_ID}&apiKey=${encodeURIComponent(dto.apiKey)}`;
+
+    // Create description based on upgrade type
+    let description: string;
+    if (dto.createNewPlanPeriod) {
+      description = `New plan period (${safeContactCount.toLocaleString()} contacts) - Full billing cycle`;
+    } else if (upgradeInfo.isProRated && upgradeInfo.proratedDetails) {
+      description = `Pro-rated plan upgrade (${safeContactCount.toLocaleString()} contacts) for ${upgradeInfo.proratedDetails.remainingDays} remaining days`;
+    } else if (upgradeInfo.userBalance > 0) {
+      description = `Plan upgrade (${safeContactCount.toLocaleString()} contacts) - Balance applied: $${upgradeInfo.userBalance}`;
+    } else {
+      description = `Plan upgrade (${safeContactCount.toLocaleString()} contacts)`;
+    }
+
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       payment_method_options: {
@@ -143,11 +214,10 @@ export class StripeController {
           price_data: {
             currency: 'usd',
             product_data: {
-              name: 'Contact Merge Plan',
-              description:
-                upgradeInfo.userBalance > 0
-                  ? `Plan upgrade (${safeContactCount.toLocaleString()} contacts) - Balance applied: $${upgradeInfo.userBalance}`
-                  : `Plan upgrade (${safeContactCount.toLocaleString()} contacts)`,
+              name: upgradeInfo.isProRated
+                ? 'Pro-rated Plan Upgrade'
+                : 'Contact Merge Plan',
+              description: description,
             },
             unit_amount: amount,
           },
@@ -164,6 +234,16 @@ export class StripeController {
         originalPrice: String(upgradeInfo.originalPrice),
         userBalance: String(upgradeInfo.userBalance),
         finalPrice: String(upgradeInfo.finalPrice),
+        isProRated: String(upgradeInfo.isProRated || false),
+        preserveBillingEndDate: String(dto.preserveBillingEndDate || false),
+        isNewPlanPeriod: String(Boolean(dto.createNewPlanPeriod)),
+        skipProRation: String(Boolean(dto.skipProRation)),
+        ...(dto.currentPlan && dto.currentPlan.planId
+          ? { currentPlanId: String(dto.currentPlan.planId) }
+          : {}),
+        ...(dto.currentPlan
+          ? { billingEndDate: dto.currentPlan.billingEndDate }
+          : {}),
       },
     });
 
@@ -175,6 +255,13 @@ export class StripeController {
       contactCount: safeContactCount,
       billingType: dto.billingType,
       originalPrice: Math.round(upgradeInfo.originalPrice * 100), // store originalPrice in cents
+      // Add pro-ration metadata
+      ...(upgradeInfo.isProRated &&
+        {
+          // You might want to add additional fields to track pro-ration in your Payment entity
+          // isProRated: true,
+          // proratedDays: upgradeInfo.proratedDetails?.remainingDays,
+        }),
     });
 
     return {
