@@ -408,21 +408,79 @@ export default function DuplicatesList({
                                 </svg>
                             </button>
 
-                            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                                const pageNum = i + 1;
-                                return (
-                                    <button
-                                        key={pageNum}
-                                        onClick={() => onPageChange(pageNum)}
-                                        className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 rounded-lg transition-all duration-200 ${pageNum === currentPage
-                                            ? 'z-10 bg-gradient-to-r from-blue-500 to-indigo-600 border-blue-500 text-white shadow-lg'
-                                            : 'bg-white border-gray-300 text-gray-500 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-600'
+                            {(() => {
+                                const maxPagesToShow = 5;
+                                const halfRange = Math.floor(maxPagesToShow / 2);
+                                let startPage = Math.max(1, currentPage - halfRange);
+                                const endPage = Math.min(totalPages, startPage + maxPagesToShow - 1);
+                                
+                                // Adjust start page if we're near the end
+                                if (endPage - startPage + 1 < maxPagesToShow) {
+                                    startPage = Math.max(1, endPage - maxPagesToShow + 1);
+                                }
+                                
+                                const pages = [];
+                                
+                                // Add first page and ellipsis if needed
+                                if (startPage > 1) {
+                                    pages.push(
+                                        <button
+                                            key={1}
+                                            onClick={() => onPageChange(1)}
+                                            className="relative inline-flex items-center px-4 py-2 border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 rounded-lg transition-all duration-200 bg-white border-gray-300 text-gray-500 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-600"
+                                        >
+                                            1
+                                        </button>
+                                    );
+                                    
+                                    if (startPage > 2) {
+                                        pages.push(
+                                            <span key="ellipsis-start" className="relative inline-flex items-center px-4 py-2 text-sm font-medium text-gray-500">
+                                                ...
+                                            </span>
+                                        );
+                                    }
+                                }
+                                
+                                // Add page numbers in range
+                                for (let i = startPage; i <= endPage; i++) {
+                                    pages.push(
+                                        <button
+                                            key={i}
+                                            onClick={() => onPageChange(i)}
+                                            className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 rounded-lg transition-all duration-200 ${i === currentPage
+                                                ? 'z-10 bg-gradient-to-r from-blue-500 to-indigo-600 border-blue-500 text-white shadow-lg'
+                                                : 'bg-white border-gray-300 text-gray-500 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-600'
                                             }`}
-                                    >
-                                        {pageNum}
-                                    </button>
-                                );
-                            })}
+                                        >
+                                            {i}
+                                        </button>
+                                    );
+                                }
+                                
+                                // Add ellipsis and last page if needed
+                                if (endPage < totalPages) {
+                                    if (endPage < totalPages - 1) {
+                                        pages.push(
+                                            <span key="ellipsis-end" className="relative inline-flex items-center px-4 py-2 text-sm font-medium text-gray-500">
+                                                ...
+                                            </span>
+                                        );
+                                    }
+                                    
+                                    pages.push(
+                                        <button
+                                            key={totalPages}
+                                            onClick={() => onPageChange(totalPages)}
+                                            className="relative inline-flex items-center px-4 py-2 border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 rounded-lg transition-all duration-200 bg-white border-gray-300 text-gray-500 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-600"
+                                        >
+                                            {totalPages}
+                                        </button>
+                                    );
+                                }
+                                
+                                return pages;
+                            })()}
 
                             <button
                                 onClick={() => onPageChange(currentPage + 1)}
