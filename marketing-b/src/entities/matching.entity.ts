@@ -17,7 +17,7 @@ export class Matching {
   @Column({ name: 'group_data', type: 'jsonb' })
   group: number[]; // Array of contact IDs that are duplicates
 
-  @Column({ name: 'api_key' })
+  @Column({ name: 'api_key', type: 'varchar', length: 500 })
   apiKey: string;
 
   @Column({ name: 'user_id' })

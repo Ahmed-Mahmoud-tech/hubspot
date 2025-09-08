@@ -24,22 +24,22 @@ export class Contact {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ name: 'hubspot_id', unique: true })
+  @Column({ name: 'hubspot_id', type: 'varchar', length: 500, unique: true })
   hubspotId: string;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', length: 500, nullable: true })
   email: string;
 
-  @Column({ name: 'first_name', nullable: true })
+  @Column({ name: 'first_name', type: 'varchar', length: 500, nullable: true })
   firstName: string;
 
-  @Column({ name: 'last_name', nullable: true })
+  @Column({ name: 'last_name', type: 'varchar', length: 500, nullable: true })
   lastName: string;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', length: 255, nullable: true })
   phone: string;
 
-  @Column({ nullable: true })
+  @Column({ type: 'text', nullable: true })
   company: string;
 
   @Column({ name: 'create_date', type: 'timestamp', nullable: true })
@@ -48,7 +48,7 @@ export class Contact {
   @Column({ name: 'last_modified_date', type: 'timestamp', nullable: true })
   lastModifiedDate: Date;
 
-  @Column({ name: 'api_key' })
+  @Column({ name: 'api_key', type: 'varchar', length: 500 })
   apiKey: string;
 
   @ManyToOne(() => User, { onDelete: 'CASCADE' })

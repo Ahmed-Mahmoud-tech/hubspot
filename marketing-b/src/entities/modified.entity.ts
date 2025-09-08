@@ -19,7 +19,7 @@ export class Modified {
   @Column({ name: 'updated_data', type: 'jsonb' })
   updatedData: Record<string, any>;
 
-  @Column({ name: 'api_key' })
+  @Column({ name: 'api_key', type: 'varchar', length: 500 })
   apiKey: string;
 
   @Column({ name: 'user_id' })

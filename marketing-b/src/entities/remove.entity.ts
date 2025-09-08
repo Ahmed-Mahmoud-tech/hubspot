@@ -16,7 +16,7 @@ export class Remove {
   @Column({ name: 'contact_id' })
   contactId: number;
 
-  @Column({ name: 'api_key' })
+  @Column({ name: 'api_key', type: 'varchar', length: 500 })
   apiKey: string;
 
   @Column({ name: 'user_id' })

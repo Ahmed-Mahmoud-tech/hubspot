@@ -19,16 +19,16 @@ export class Merging {
   @Column({ name: 'user_id' })
   userId: number;
 
-  @Column({ name: 'api_key' })
+  @Column({ name: 'api_key', type: 'varchar', length: 500 })
   apiKey: string;
 
   @Column({ name: 'group_id' })
   groupId: number;
 
-  @Column({ name: 'primary_account_id' })
+  @Column({ name: 'primary_account_id', type: 'varchar', length: 500 })
   primaryAccountId: string;
 
-  @Column({ name: 'secondary_account_id' })
+  @Column({ name: 'secondary_account_id', type: 'varchar', length: 500 })
   secondaryAccountId: string;
 
   @Column({ name: 'merge_status', default: 'completed' })

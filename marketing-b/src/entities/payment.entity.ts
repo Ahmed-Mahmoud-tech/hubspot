@@ -22,7 +22,7 @@ export class Payment {
   @Column('int', { nullable: true })
   contactCount: number;
 
-  @Column({ type: 'varchar', length: 20, nullable: true })
+  @Column({ type: 'varchar', length: 50, nullable: true })
   billingType: string;
 
   @Column({ default: 'usd' })

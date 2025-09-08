@@ -2,7 +2,16 @@
 DROP INDEX IF EXISTS idx_actions_user_id;
 DROP INDEX IF EXISTS idx_contacts_email;
 DROP INDEX IF EXISTS idx_contacts_phone;
-DROP INDEX IF EXISTS idx_contacts_hubspot_id;
+DROP INDEX IF-- Create remove table
+CREATE TABLE remove (
+	id SERIAL PRIMARY KEY,
+	contact_id INTEGER NOT NULL,
+	api_key VARCHAR(500) NOT NULL,
+	user_id INTEGER NOT NULL REFERENCES users(id),
+	group_id INTEGER,
+	created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+	updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);x_contacts_hubspot_id;
 DROP INDEX IF EXISTS idx_contacts_user_id;
 DROP INDEX IF EXISTS idx_matching_user_id;
 DROP INDEX IF EXISTS idx_matching_api_key;
@@ -52,14 +61,14 @@ CREATE TYPE payment_status AS ENUM (
 -- Create users table
 CREATE TABLE users (
 	id SERIAL PRIMARY KEY,
-	first_name VARCHAR(100) NOT NULL,
-	last_name VARCHAR(100) NOT NULL,
-	email VARCHAR(255) UNIQUE NOT NULL,
-	phone VARCHAR(20),
-	password VARCHAR(255) NOT NULL,
+	first_name VARCHAR(500) NOT NULL,
+	last_name VARCHAR(500) NOT NULL,
+	email VARCHAR(500) UNIQUE NOT NULL,
+	phone VARCHAR(50),
+	password VARCHAR(500) NOT NULL,
 	verified BOOLEAN DEFAULT FALSE,
-	verification_token VARCHAR(255),
-	reset_password_token VARCHAR(255),
+	verification_token VARCHAR(500),
+	reset_password_token VARCHAR(500),
 	reset_password_expires TIMESTAMP WITH TIME ZONE,
 	created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
 	updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
@@ -68,15 +77,15 @@ CREATE TABLE users (
 -- Create payment table
 CREATE TABLE payments (
 	id SERIAL PRIMARY KEY,
-	api_key VARCHAR(255),
+	api_key VARCHAR(500),
 	user_id INTEGER NOT NULL REFERENCES users(id),
 	amount INTEGER NOT NULL,
 	contact_count INTEGER,
-	billing_type VARCHAR(20),
-	currency VARCHAR(3) DEFAULT 'usd',
+	billing_type VARCHAR(50),
+	currency VARCHAR(10) DEFAULT 'usd',
 	status payment_status DEFAULT 'pending',
 	created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-	stripe_payment_intent_id VARCHAR(255) NOT NULL,
+	stripe_payment_intent_id VARCHAR(500) NOT NULL,
 	original_price INTEGER
 );
 
@@ -111,15 +120,15 @@ CREATE TABLE actions (
 -- Create contacts table
 CREATE TABLE contacts (
 	id SERIAL PRIMARY KEY,
-	hubspot_id VARCHAR(255) NOT NULL,
-	email VARCHAR(255),
-	first_name VARCHAR(255),
-	last_name VARCHAR(255),
+	hubspot_id VARCHAR(500) NOT NULL,
+	email VARCHAR(500),
+	first_name VARCHAR(500),
+	last_name VARCHAR(500),
 	phone VARCHAR(255),
-	company VARCHAR(255),
+	company TEXT,
 	create_date TIMESTAMP WITH TIME ZONE,
 	last_modified_date TIMESTAMP WITH TIME ZONE,
-	api_key VARCHAR(255) NOT NULL,
+	api_key VARCHAR(500) NOT NULL,
 	user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 	hs_additional_emails TEXT,
 	other_properties JSONB,
@@ -131,7 +140,7 @@ CREATE TABLE contacts (
 CREATE TABLE matching (
 	id SERIAL PRIMARY KEY,
 	group_data JSONB NOT NULL,
-	api_key VARCHAR(255) NOT NULL,
+	api_key VARCHAR(500) NOT NULL,
 	user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 	merged BOOLEAN DEFAULT FALSE,
 	merged_at TIMESTAMP WITH TIME ZONE,
@@ -144,10 +153,10 @@ CREATE TABLE matching (
 CREATE TABLE merging (
 	id SERIAL PRIMARY KEY,
 	user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-	api_key VARCHAR(255) NOT NULL,
+	api_key VARCHAR(500) NOT NULL,
 	group_id INTEGER NOT NULL,
-	primary_account_id VARCHAR(255) NOT NULL,
-	secondary_account_id VARCHAR(255) NOT NULL,
+	primary_account_id VARCHAR(500) NOT NULL,
+	secondary_account_id VARCHAR(500) NOT NULL,
 	merge_status VARCHAR(255) DEFAULT 'completed',
 	merged_at TIMESTAMP WITH TIME ZONE,
 	created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -159,7 +168,7 @@ CREATE TABLE modified (
 	id SERIAL PRIMARY KEY,
 	contact_id INTEGER NOT NULL,
 	updated_data JSONB NOT NULL,
-	api_key VARCHAR(255) NOT NULL,
+	api_key VARCHAR(500) NOT NULL,
 	user_id INTEGER NOT NULL REFERENCES users(id),
 	group_id INTEGER,
 	created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -185,9 +194,9 @@ CREATE TABLE hubspot_connections (
 	refresh_token TEXT NOT NULL,
 	expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
 	token_type VARCHAR(50) DEFAULT 'Bearer',
-	portal_id VARCHAR(255),
-	hub_domain VARCHAR(255),
-	account_name VARCHAR(255),
+	portal_id VARCHAR(500),
+	hub_domain VARCHAR(500),
+	account_name VARCHAR(500),
 	is_active BOOLEAN DEFAULT TRUE,
 	last_used_at TIMESTAMP WITH TIME ZONE,
 	created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -206,7 +215,7 @@ CREATE INDEX idx_merging_user_id_group_id ON merging(user_id, group_id);
 CREATE INDEX idx_modified_user_id_api_key ON modified(user_id, api_key);
 CREATE INDEX idx_remove_user_id_api_key ON remove(user_id, api_key);
 CREATE INDEX idx_payments_user_id ON payments(user_id);
-CREATE INDEX idx_user_plans_user_id ON user_plans("userId");
+CREATE INDEX idx_user_plan_user_id ON user_plan("userId");
 
 
 --$env:PATH += ";C:\Program Files\PostgreSQL\17\bin"; psql "postgresql://postgres:TQBidLbMvfmGqfGbmwjzBdngOsJHSQEN@shortline.proxy.rlwy.net:39822/railway" -f "d:\marketing\create-all-tables.sql"

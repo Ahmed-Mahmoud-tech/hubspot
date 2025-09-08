@@ -562,7 +562,7 @@ export default function DashboardPage() {
                                 <p className="text-sm text-gray-600 mb-4">Secure connection using OAuth 2.0. No need to manage API keys manually.</p>
                                 <HubSpotOAuth onConnectionChange={setHubspotConnected} />
                             </div>
-                            
+
                             {/* API Key Method */}
                             <div className="border border-gray-200 rounded-lg p-4">
                                 <h4 className="text-md font-semibold text-gray-900 mb-2">API Key Connection</h4>
@@ -605,7 +605,7 @@ export default function DashboardPage() {
                                 </div>
                             </div>
                         </div>
-                        
+
                         {/* Connection Status */}
                         <div className="mt-6 p-4 bg-gray-50 rounded-lg">
                             <div className="flex items-center">
