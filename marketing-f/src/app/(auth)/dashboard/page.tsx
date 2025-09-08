@@ -549,10 +549,80 @@ export default function DashboardPage() {
 
                 {/* Actions Section */}
                 {/* HubSpot Connection Section */}
-                <HubSpotOAuth onConnectionChange={setHubspotConnected} />
+                <div className="bg-white shadow rounded-lg mb-6">
+                    <div className="px-6 py-4 border-b border-gray-200">
+                        <h3 className="text-lg font-medium text-gray-900">Connect to HubSpot</h3>
+                        <p className="text-sm text-gray-600 mt-1">Choose how you want to connect to your HubSpot account</p>
+                    </div>
+                    <div className="p-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {/* OAuth Method */}
+                            <div className="border border-gray-200 rounded-lg p-4">
+                                <h4 className="text-md font-semibold text-gray-900 mb-2">OAuth Connection (Recommended)</h4>
+                                <p className="text-sm text-gray-600 mb-4">Secure connection using OAuth 2.0. No need to manage API keys manually.</p>
+                                <HubSpotOAuth onConnectionChange={setHubspotConnected} />
+                            </div>
+                            
+                            {/* API Key Method */}
+                            <div className="border border-gray-200 rounded-lg p-4">
+                                <h4 className="text-md font-semibold text-gray-900 mb-2">API Key Connection</h4>
+                                <p className="text-sm text-gray-600 mb-4">Connect using your HubSpot private app access token.</p>
+                                <div className="space-y-3">
+                                    <div>
+                                        <label htmlFor="hubspot-api-key" className="block text-sm font-medium text-gray-700 mb-1">
+                                            HubSpot API Key
+                                        </label>
+                                        <input
+                                            id="hubspot-api-key"
+                                            type="password"
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm"
+                                            placeholder="pat-na1-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                                            value={formData.apiKey}
+                                            onChange={e => setFormData(f => ({ ...f, apiKey: e.target.value }))}
+                                        />
+                                    </div>
+                                    <button
+                                        className="w-full px-4 py-2 bg-indigo-600 text-white rounded-md font-medium hover:bg-indigo-700 transition text-sm"
+                                        onClick={() => {
+                                            if (formData.apiKey.trim()) {
+                                                toast.success('API key saved! You can now create scans.');
+                                            } else {
+                                                toast.error('Please enter a valid API key.');
+                                            }
+                                        }}
+                                        type="button"
+                                    >
+                                        Save API Key
+                                    </button>
+                                    {formData.apiKey && (
+                                        <div className="flex items-center text-green-600 text-sm">
+                                            <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                            </svg>
+                                            API Key configured
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        {/* Connection Status */}
+                        <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+                            <div className="flex items-center">
+                                <div className={`w-3 h-3 rounded-full mr-2 ${(hubspotConnected || formData.apiKey) ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                                <span className="text-sm font-medium text-gray-700">
+                                    {hubspotConnected ? 'Connected via OAuth' : formData.apiKey ? 'Connected via API Key' : 'Not Connected'}
+                                </span>
+                            </div>
+                            {!hubspotConnected && !formData.apiKey && (
+                                <p className="text-sm text-gray-600 mt-1">Please connect using either OAuth or API Key to create HubSpot scans.</p>
+                            )}
+                        </div>
+                    </div>
+                </div>
 
                 {/* HubSpot Integrations Section */}
-                {hubspotConnected && <div className="bg-white shadow rounded-lg overflow-x-auto">
+                {(hubspotConnected || formData.apiKey) && <div className="bg-white shadow rounded-lg overflow-x-auto">
                     <div className=' min-w-[800px] '>
                         <div className="px-6 py-4 border-b border-gray-200">
                             <div className="flex justify-between items-center">

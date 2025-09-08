@@ -209,4 +209,4 @@ CREATE INDEX idx_payments_user_id ON payments(user_id);
 CREATE INDEX idx_user_plans_user_id ON user_plans("userId");
 
 
---$env:PATH += ";C:\Program Files\PostgreSQL\17\bin"; psql "postgresql://postgres:PgiucBnSiQavTlzbaMihWpXSsSLjRUAm@crossover.proxy.rlwy.net:40974/railway" -f "d:\marketing\create-all-tables.sql"
+--$env:PATH += ";C:\Program Files\PostgreSQL\17\bin"; psql "postgresql://postgres:TQBidLbMvfmGqfGbmwjzBdngOsJHSQEN@shortline.proxy.rlwy.net:39822/railway" -f "d:\marketing\create-all-tables.sql"
