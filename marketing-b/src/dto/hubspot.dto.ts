@@ -28,6 +28,11 @@ export class StartHubSpotFetchDto {
   @IsArray()
   @IsString({ each: true })
   filters?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  properties?: string[];
 }
 
 export class StartHubSpotOAuthFetchDto {
@@ -40,6 +45,11 @@ export class StartHubSpotOAuthFetchDto {
   @IsArray()
   @IsString({ each: true })
   filters?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  properties?: string[];
 }
 
 export class GetDuplicatesDto {

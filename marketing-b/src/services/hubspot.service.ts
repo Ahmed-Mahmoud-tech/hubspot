@@ -72,7 +72,7 @@ export class HubSpotService {
     startHubSpotFetchDto: StartHubSpotFetchDto,
   ): Promise<{ message: string; action: Action }> {
     try {
-      const { name, apiKey, filters } = startHubSpotFetchDto;
+      const { name, apiKey, filters, properties } = startHubSpotFetchDto;
       console.log(startHubSpotFetchDto, '5555555555555555');
 
       this.logger.log(
@@ -141,16 +141,20 @@ export class HubSpotService {
 
       const savedAction = await this.actionRepository.save(action);
 
-      // Start the background fetch process, pass filters
-      this.fetchAllContacts(savedAction.id, apiKey, userId, filters).catch(
-        (error) => {
-          this.logger.error(
-            `Failed to fetch contacts for action ${savedAction.id}:`,
-            error,
-          );
-          void this.updateActionStatus(savedAction.id, ActionStatus.ERROR, 0);
-        },
-      );
+      // Start the background fetch process, pass filters and properties
+      this.fetchAllContacts(
+        savedAction.id,
+        apiKey,
+        userId,
+        filters,
+        properties,
+      ).catch((error) => {
+        this.logger.error(
+          `Failed to fetch contacts for action ${savedAction.id}:`,
+          error,
+        );
+        void this.updateActionStatus(savedAction.id, ActionStatus.ERROR, 0);
+      });
 
       return {
         message:
@@ -172,6 +176,7 @@ export class HubSpotService {
     apiKey: string,
     userId: number,
     filters?: string[],
+    properties?: string[],
   ): Promise<void> {
     let after: string | undefined;
     let totalFetched = 0;
@@ -202,6 +207,7 @@ export class HubSpotService {
             after,
             limit,
             filters,
+            properties,
           );
         } catch (error) {
           this.logger.error(
@@ -1024,19 +1030,19 @@ export class HubSpotService {
     );
 
     // Restart the fetch process
-    this.fetchAllContacts(actionId, action.api_key, action.user_id).catch(
-      (error) => {
-        this.logger.error(
-          `Failed to retry fetch contacts for action ${actionId}:`,
-          error,
-        );
-        void this.updateActionStatus(
-          actionId,
-          ActionStatus.ERROR,
-          action.count,
-        );
-      },
-    );
+    this.fetchAllContacts(
+      actionId,
+      action.api_key,
+      action.user_id,
+      undefined, // filters
+      undefined, // properties
+    ).catch((error) => {
+      this.logger.error(
+        `Failed to retry fetch contacts for action ${actionId}:`,
+        error,
+      );
+      void this.updateActionStatus(actionId, ActionStatus.ERROR, action.count);
+    });
 
     const updatedAction = await this.actionRepository.findOne({
       where: { id: actionId },

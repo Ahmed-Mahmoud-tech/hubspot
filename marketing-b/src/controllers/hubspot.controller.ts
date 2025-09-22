@@ -76,6 +76,7 @@ export class HubSpotController {
         name: startHubSpotOAuthFetchDto.name,
         apiKey: accessToken,
         filters: startHubSpotOAuthFetchDto.filters,
+        properties: startHubSpotOAuthFetchDto.properties,
       };
 
       const result = await this.hubspotService.startFetch(userId, fetchDto);

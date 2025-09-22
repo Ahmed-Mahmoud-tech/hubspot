@@ -210,6 +210,7 @@ const useRequest = () => {
     name: string;
     apiKey: string;
     filters: string[];
+    properties?: string[];
   }): Promise<{ message: string; actionId: number; status: string }> => {
     const response = await Request.post("/hubspot/start-fetch", data);
     return response.data as {
@@ -454,6 +455,7 @@ const useRequest = () => {
   const startHubSpotOAuthFetch = async (data: {
     name: string;
     filters: string[];
+    properties?: string[];
   }): Promise<{ message: string; actionId: number; status: string }> => {
     const response = await Request.post("/hubspot/start-fetch-oauth", data);
     return response.data as {

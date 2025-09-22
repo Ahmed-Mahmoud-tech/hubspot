@@ -105,29 +105,49 @@ export class HubSpotApiService {
     after?: string,
     limit: number = 100,
     filters?: string[],
+    properties?: string[],
   ): Promise<HubSpotListResponse> {
-    // Default properties that are always fetched
+    // Default properties that are always fetched for functionality
     const defaultProperties = [
-      'firstname',
-      'lastname',
       'email',
-      'phone',
-      'company',
-      'hs_additional_emails',
+      'hs_object_id',
       'createdate',
       'lastmodifieddate',
-      'hs_object_id',
     ];
 
-    // Extract additional properties from filters
+    // Extract additional properties from filters for duplicate detection
     const additionalProperties = this.extractPropertiesFromFilters(
       filters || [],
     );
 
-    // Combine default and additional properties, removing duplicates
-    const allProperties = [
-      ...new Set([...defaultProperties, ...additionalProperties]),
-    ];
+    // Use provided properties or combine default and additional properties
+    let allProperties: string[];
+    if (properties && properties.length > 0) {
+      // Use provided properties, but ensure critical defaults are included
+      allProperties = [
+        ...new Set([
+          ...defaultProperties,
+          ...properties,
+          ...additionalProperties,
+        ]),
+      ];
+    } else {
+      // Fallback to the previous behavior with more default properties
+      const fallbackDefaultProperties = [
+        'firstname',
+        'lastname',
+        'email',
+        'phone',
+        'company',
+        'hs_additional_emails',
+        'createdate',
+        'lastmodifieddate',
+        'hs_object_id',
+      ];
+      allProperties = [
+        ...new Set([...fallbackDefaultProperties, ...additionalProperties]),
+      ];
+    }
 
     // Add allProperties to the URL for debugging and clarity
     const url = `https://api.hubapi.com/crm/v3/objects/contacts?properties=${encodeURIComponent(allProperties.join(','))}`;

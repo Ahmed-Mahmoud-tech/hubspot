@@ -8,6 +8,7 @@ import { toast } from 'react-toastify';
 import useRequest, { type User } from '@/app/axios/useRequest';
 import { Plus, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 import DuplicateFilters from './components/DuplicateFilters';
+import PropertySelector from './components/PropertySelector';
 import HubSpotOAuth from './components/HubSpotOAuth';
 interface Action {
     id: number;
@@ -84,6 +85,11 @@ export default function DashboardPage() {
     // Custom properties state
     const [customProperties, setCustomProperties] = useState<string[]>([]); // all available properties
     const [customPropsSearch, setCustomPropsSearch] = useState('');
+
+    // Selected properties to fetch from HubSpot
+    const [selectedProperties, setSelectedProperties] = useState<string[]>([
+        'email', 'firstname', 'lastname', 'phone', 'company' // default properties
+    ]);
 
     // Condition builder state
     interface Condition {
@@ -298,11 +304,13 @@ export default function DashboardPage() {
                 result = await startHubSpotOAuthFetch({
                     name: formData.name,
                     filters: filtersToSend,
+                    properties: selectedProperties, // Include selected properties
                 });
             } else {
                 result = await startHubSpotFetch({
                     ...formData,
                     filters: filtersToSend,
+                    properties: selectedProperties, // Include selected properties
                 });
             }
 
@@ -320,6 +328,7 @@ export default function DashboardPage() {
             setSelectAll(true);
             setConditions([]);
             setCustomProperties([]);
+            setSelectedProperties(['email', 'firstname', 'lastname', 'phone', 'company']); // Reset to default
             // Refresh actions list
             fetchActions(currentPage);
 
@@ -638,6 +647,15 @@ export default function DashboardPage() {
                                         setCustomPropsSearch={setCustomPropsSearch}
                                     />
 
+                                    {/* Property Selector Component */}
+                                    <PropertySelector
+                                        selectedProperties={selectedProperties}
+                                        setSelectedProperties={setSelectedProperties}
+                                        availableProperties={customProperties}
+                                        customPropsSearch={customPropsSearch}
+                                        setCustomPropsSearch={setCustomPropsSearch}
+                                    />
+
                                     <div className="flex justify-end space-x-3">
                                         <button
                                             type="button"
@@ -650,6 +668,7 @@ export default function DashboardPage() {
                                             type="submit"
                                             disabled={isSubmitting ||
                                                 (selectedFilters.length === 0 && conditions.every(c => c.properties.length === 0)) ||
+                                                selectedProperties.length === 0 ||
                                                 (!hubspotConnected && !formData.apiKey)
                                             }
                                             className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
