@@ -120,6 +120,7 @@ export class ContactService {
         'phone',
         'company',
         'hubspotId',
+        // 'createDate',
         'lastModifiedDate',
         'hs_additional_emails',
         'otherProperties',

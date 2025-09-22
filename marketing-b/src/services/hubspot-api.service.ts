@@ -100,12 +100,66 @@ export class HubSpotApiService {
     }
   }
 
+  async makeHubSpotAPISearchRequest(
+    url: string,
+    apiKey: string,
+    body: any,
+    maxRetries: number = 3,
+    retryDelay: number = 5000,
+  ): Promise<any> {
+    let lastError: any;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        this.logger.log(
+          `API search request attempt ${attempt}/${maxRetries} to ${url}`,
+        );
+
+        const response = await axios.post(url, body, {
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        return response;
+      } catch (error) {
+        lastError = error;
+        const errorMessage = error.response?.data?.message || error.message;
+        const statusCode = error.response?.status;
+
+        this.logger.warn(
+          `API search request attempt ${attempt}/${maxRetries} failed with status ${statusCode}: ${errorMessage}`,
+        );
+
+        if (attempt < maxRetries) {
+          this.logger.log(`Retrying in ${retryDelay}ms...`);
+          await new Promise((resolve) => setTimeout(resolve, retryDelay));
+          // Exponential backoff: increase delay for next retry
+          retryDelay *= 2;
+        }
+      }
+    }
+
+    this.logger.error(
+      `All ${maxRetries} API search request attempts failed. Last error:`,
+      lastError.response?.data || lastError.message,
+    );
+    throw new Error(
+      `HubSpot API search request failed after ${maxRetries} attempts: ${
+        lastError.response?.data?.message || lastError.message
+      }`,
+    );
+  }
+
   async fetchContactsPage(
     apiKey: string,
     after?: string,
     limit: number = 100,
     filters?: string[],
     properties?: string[],
+    fromDate?: string,
+    toDate?: string,
   ): Promise<HubSpotListResponse> {
     // Default properties that are always fetched for functionality
     const defaultProperties = [
@@ -150,13 +204,92 @@ export class HubSpotApiService {
     }
 
     // Add allProperties to the URL for debugging and clarity
-    const url = `https://api.hubapi.com/crm/v3/objects/contacts?properties=${encodeURIComponent(allProperties.join(','))}`;
+    let url = `https://api.hubapi.com/crm/v3/objects/contacts?properties=${encodeURIComponent(allProperties.join(','))}`;
 
     const params: any = {
       limit,
     };
     if (after) {
       params.after = after;
+    }
+
+    // If date filters are provided, use the search API instead of the basic list API
+    if (fromDate || toDate) {
+      url = 'https://api.hubapi.com/crm/v3/objects/contacts/search';
+
+      const searchBody: any = {
+        properties: allProperties,
+        limit,
+      };
+
+      if (after) {
+        searchBody.after = after;
+      }
+
+      // Add date filtering
+      const filterGroups: any[] = [];
+
+      if (fromDate || toDate) {
+        const dateFilters: any[] = [];
+
+        if (fromDate) {
+          dateFilters.push({
+            propertyName: 'createdate',
+            operator: 'GTE',
+            value: new Date(fromDate).getTime().toString(),
+          });
+        }
+
+        if (toDate) {
+          dateFilters.push({
+            propertyName: 'createdate',
+            operator: 'LTE',
+            value: new Date(toDate).getTime().toString(),
+          });
+        }
+
+        if (dateFilters.length > 0) {
+          filterGroups.push({
+            filters: dateFilters,
+          });
+        }
+      }
+
+      if (filterGroups.length > 0) {
+        searchBody.filterGroups = filterGroups;
+      }
+
+      const response = await this.makeHubSpotAPISearchRequest(
+        url,
+        apiKey,
+        searchBody,
+      );
+      const data = response.data as HubSpotListResponse;
+
+      // Debug: log file path and handle errors
+      const outputFile = path.join(__dirname, 'hubspot-contacts.json');
+      const contactsData = JSON.stringify(data, null, 2);
+      try {
+        this.logger.log(
+          `Appending contacts data to: ${outputFile} xxxxxxx ${JSON.stringify(allProperties)}`,
+        );
+        fs.appendFileSync(outputFile, contactsData + '\n');
+        this.logger.log('Append successful');
+      } catch (err) {
+        this.logger.error('Append failed:', err);
+      }
+
+      // Set hs_additional_emails property for each contact if present
+      if (data.results) {
+        data.results = data.results.map((contact) => {
+          if (contact.properties && contact.properties.hs_additional_emails) {
+            contact.hs_additional_emails =
+              contact.properties.hs_additional_emails;
+          }
+          return contact;
+        });
+      }
+      return data;
     }
 
     const response = await this.makeHubSpotAPIRequest(url, apiKey, params);

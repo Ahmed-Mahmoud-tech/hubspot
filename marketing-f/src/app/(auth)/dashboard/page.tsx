@@ -10,6 +10,8 @@ import { Plus, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 import DuplicateFilters from './components/DuplicateFilters';
 import PropertySelector from './components/PropertySelector';
 import HubSpotOAuth from './components/HubSpotOAuth';
+import { Calendar } from 'primereact/calendar';
+import './calendar-custom.css';
 interface Action {
     id: number;
     name: string;
@@ -85,6 +87,10 @@ export default function DashboardPage() {
     // Custom properties state
     const [customProperties, setCustomProperties] = useState<string[]>([]); // all available properties
     const [customPropsSearch, setCustomPropsSearch] = useState('');
+
+    // Date filter state
+    const [fromDate, setFromDate] = useState<Date | null>(null);
+    const [toDate, setToDate] = useState<Date | null>(null);
 
     // Selected properties to fetch from HubSpot
     const [selectedProperties, setSelectedProperties] = useState<string[]>([
@@ -305,12 +311,16 @@ export default function DashboardPage() {
                     name: formData.name,
                     filters: filtersToSend,
                     properties: selectedProperties, // Include selected properties
+                    fromDate: fromDate ? fromDate.toISOString().split('T')[0] : undefined,
+                    toDate: toDate ? toDate.toISOString().split('T')[0] : undefined,
                 });
             } else {
                 result = await startHubSpotFetch({
                     ...formData,
                     filters: filtersToSend,
                     properties: selectedProperties, // Include selected properties
+                    fromDate: fromDate ? fromDate.toISOString().split('T')[0] : undefined,
+                    toDate: toDate ? toDate.toISOString().split('T')[0] : undefined,
                 });
             }
 
@@ -329,6 +339,8 @@ export default function DashboardPage() {
             setConditions([]);
             setCustomProperties([]);
             setSelectedProperties(['email', 'firstname', 'lastname', 'phone', 'company']); // Reset to default
+            setFromDate(null);
+            setToDate(null);
             // Refresh actions list
             fetchActions(currentPage);
 
@@ -617,7 +629,6 @@ export default function DashboardPage() {
                                         </div>
                                     )} */}
                                     </div>
-
                                     {hubspotConnected && (
                                         <div className="bg-green-50 border border-green-200 rounded-md p-3">
                                             <p className="text-sm text-green-700">
@@ -625,6 +636,99 @@ export default function DashboardPage() {
                                             </p>
                                         </div>
                                     )}
+                                    {/* Date Filter Section */}
+                                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-5 shadow-sm">
+                                        <div className="flex items-center mb-4">
+                                            <div className="flex-shrink-0">
+                                                <svg className="h-5 w-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                </svg>
+                                            </div>
+                                            <div className="ml-3">
+                                                <h4 className="text-base font-semibold text-gray-800">Contact Creation Date Filter</h4>
+                                                <p className="text-sm text-gray-600">Optional - Filter contacts by their creation date in HubSpot</p>
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                            <div className="space-y-2">
+                                                <label className="flex items-center text-sm font-medium text-gray-700">
+                                                    <svg className="h-4 w-4 text-green-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                    </svg>
+                                                    From Date
+                                                </label>
+                                                <div className="relative">
+                                                    <Calendar
+                                                        value={fromDate}
+                                                        onChange={(e) => setFromDate(e.value || null)}
+                                                        placeholder="Select start date"
+                                                        className="w-full"
+                                                        inputClassName="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors duration-200 bg-white hover:border-gray-400"
+                                                        showIcon
+                                                        dateFormat="yy-mm-dd"
+                                                        maxDate={toDate || undefined}
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <label className="flex items-center text-sm font-medium text-gray-700">
+                                                    <svg className="h-4 w-4 text-red-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                    </svg>
+                                                    To Date
+                                                </label>
+                                                <div className="relative">
+                                                    <Calendar
+                                                        value={toDate}
+                                                        onChange={(e) => setToDate(e.value || null)}
+                                                        placeholder="Select end date"
+                                                        className="w-full"
+                                                        inputClassName="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors duration-200 bg-white hover:border-gray-400"
+                                                        showIcon
+                                                        dateFormat="yy-mm-dd"
+                                                        minDate={fromDate || undefined}
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {(fromDate || toDate) && (
+                                            <div className="mt-4 p-3 bg-blue-100 border border-blue-200 rounded-md">
+                                                <div className="flex items-start">
+                                                    <svg className="h-5 w-5 text-blue-500 mt-0.5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                    </svg>
+                                                    <div>
+                                                        <p className="text-sm font-medium text-blue-800">Date Filter Active</p>
+                                                        <p className="text-xs text-blue-600 mt-1">
+                                                            {fromDate && toDate
+                                                                ? `Contacts created between ${fromDate.toLocaleDateString()} and ${toDate.toLocaleDateString()}`
+                                                                : fromDate
+                                                                    ? `Contacts created from ${fromDate.toLocaleDateString()} onwards`
+                                                                    : toDate
+                                                                        ? `Contacts created until ${toDate.toLocaleDateString()}`
+                                                                        : ''
+                                                            }
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        <div className="mt-4 flex items-start space-x-2">
+                                            <svg className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                            </svg>
+                                            <p className="text-xs text-gray-500 leading-relaxed">
+                                                Leave both fields empty to include all contacts regardless of creation date.
+                                                You can specify just one date to create an open-ended range.
+                                            </p>
+                                        </div>
+                                    </div>
+
+
 
                                     {!hubspotConnected && (
                                         <div className="bg-blue-50 border border-blue-200 rounded-md p-3">

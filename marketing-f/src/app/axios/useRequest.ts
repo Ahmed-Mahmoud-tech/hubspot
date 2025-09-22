@@ -211,6 +211,8 @@ const useRequest = () => {
     apiKey: string;
     filters: string[];
     properties?: string[];
+    fromDate?: string;
+    toDate?: string;
   }): Promise<{ message: string; actionId: number; status: string }> => {
     const response = await Request.post("/hubspot/start-fetch", data);
     return response.data as {
@@ -456,6 +458,8 @@ const useRequest = () => {
     name: string;
     filters: string[];
     properties?: string[];
+    fromDate?: string;
+    toDate?: string;
   }): Promise<{ message: string; actionId: number; status: string }> => {
     const response = await Request.post("/hubspot/start-fetch-oauth", data);
     return response.data as {

@@ -148,6 +148,8 @@ export class HubSpotService {
         userId,
         filters,
         properties,
+        startHubSpotFetchDto.fromDate,
+        startHubSpotFetchDto.toDate,
       ).catch((error) => {
         this.logger.error(
           `Failed to fetch contacts for action ${savedAction.id}:`,
@@ -177,6 +179,8 @@ export class HubSpotService {
     userId: number,
     filters?: string[],
     properties?: string[],
+    fromDate?: string,
+    toDate?: string,
   ): Promise<void> {
     let after: string | undefined;
     let totalFetched = 0;
@@ -208,6 +212,8 @@ export class HubSpotService {
             limit,
             filters,
             properties,
+            fromDate,
+            toDate,
           );
         } catch (error) {
           this.logger.error(

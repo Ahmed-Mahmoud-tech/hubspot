@@ -137,18 +137,26 @@ export class MatchingService {
         const groupWithDetails = contactIds
           .map((contactId) => contactMap.get(contactId))
           .filter((contact) => contact !== undefined)
-          .map((contact) => ({
-            id: contact.id,
-            hubspotId: contact.hubspotId,
-            lastModifiedDate: contact.lastModifiedDate,
-            email: contact.email,
-            hs_additional_emails: contact.hs_additional_emails,
-            firstName: contact.firstName,
-            lastName: contact.lastName,
-            phone: contact.phone,
-            company: contact.company,
-            otherProperties: contact.otherProperties,
-          }));
+          .map((contact) => {
+            // Merge createDate into otherProperties as hs_createdate
+            const otherProperties = { ...contact.otherProperties };
+            // if (contact.createDate) {
+            //   otherProperties.hs_createdate = contact.createDate;
+            // }
+
+            return {
+              id: contact.id,
+              hubspotId: contact.hubspotId,
+              lastModifiedDate: contact.lastModifiedDate,
+              email: contact.email,
+              hs_additional_emails: contact.hs_additional_emails,
+              firstName: contact.firstName,
+              lastName: contact.lastName,
+              phone: contact.phone,
+              company: contact.company,
+              otherProperties,
+            };
+          });
 
         return {
           id: matchingRecord.id, // Use the actual matching record ID
