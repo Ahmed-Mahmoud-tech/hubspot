@@ -6,6 +6,7 @@ import { PlanModal } from '@/app/plan';
 import { useRouter } from 'next/navigation';
 import { getCookie, deleteCookie } from 'cookies-next';
 import { toast } from 'react-toastify';
+import { freeMergeGroupLimit } from '@/constant/main';
 
 export default function ProfilePage() {
     const router = useRouter();
@@ -156,12 +157,12 @@ export default function ProfilePage() {
                 contactCount={plan?.contactCount || 0}
             />
 
-            {plan.planType !== 'free' && <div className="bg-white shadow-lg rounded-xl mb-8">
+            {plan && plan.planType !== 'free' && <div className="bg-white shadow-lg rounded-xl mb-8">
                 <div className="px-8 py-6 border-b border-blue-100 flex items-center justify-between">
                     <h3 className="text-lg font-semibold text-gray-900">Plan Details</h3>
                 </div>
                 <div className="px-8 py-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
                             <p className="text-sm text-gray-500">Type</p>
                             <p className="font-medium text-gray-900">{plan?.planType === 'paid' ? 'Paid' : 'Free'}</p>
@@ -171,6 +172,10 @@ export default function ProfilePage() {
                             <p className="font-medium text-gray-900">{plan?.paymentStatus || '-'}</p>
                         </div>
                         <div>
+                            <p className="text-sm text-gray-500">Contact Count</p>
+                            <p className="font-medium text-gray-900">{plan?.contactCount || 0}</p>
+                        </div>
+                        <div>
                             <p className="text-sm text-gray-500">Activation Date</p>
                             <p className="font-medium text-gray-900">{plan?.activationDate ? new Date(plan.activationDate).toLocaleDateString() : '-'}</p>
                         </div>
@@ -178,6 +183,58 @@ export default function ProfilePage() {
                             <p className="text-sm text-gray-500">Billing End Date</p>
                             <p className="font-medium text-gray-900">{plan?.billingEndDate ? new Date(plan.billingEndDate).toLocaleDateString() : '-'}</p>
                         </div>
+                        <div>
+                            <p className="text-sm text-gray-500">Merge Groups Used</p>
+                            <p className="font-medium text-gray-900">{plan?.mergeGroupsUsed || 0}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>}
+
+            {/* Free Plan Card */}
+            {(!plan || plan.planType === 'free') && <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 shadow-lg rounded-xl mb-8">
+                <div className="px-8 py-6 border-b border-blue-100 flex items-center justify-between">
+                    <h3 className="text-lg font-semibold text-blue-900 flex items-center">
+                        <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                        </svg>
+                        Free Plan
+                    </h3>
+                    <button
+                        onClick={() => setShowPlanModal(true)}
+                        className="inline-flex items-center px-4 py-2 bg-blue-600 text-white font-medium rounded-lg shadow hover:bg-blue-700 transition-colors"
+                    >
+                        Upgrade Plan
+                    </button>
+                </div>
+                <div className="px-8 py-6">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <p className="text-sm text-blue-600">Plan Type</p>
+                            <p className="font-medium text-blue-900">Free Plan</p>
+                        </div>
+                        <div>
+                            <p className="text-sm text-blue-600">Contact Count</p>
+                            <p className="font-medium text-blue-900">{plan?.contactCount || 0} contacts</p>
+                        </div>
+                        <div>
+                            <p className="text-sm text-blue-600">Free Merges Available</p>
+                            <p className="font-medium text-blue-900">{Math.max(0, freeMergeGroupLimit - (plan?.mergeGroupsUsed || 0))} remaining</p>
+                        </div>
+                        <div>
+                            <p className="text-sm text-blue-600">Merge Groups Used</p>
+                            <p className="font-medium text-blue-900">{plan?.mergeGroupsUsed || 0} / {freeMergeGroupLimit}</p>
+                        </div>
+                        <div>
+                            <p className="text-sm text-blue-600">Member Since</p>
+                            <p className="font-medium text-blue-900">{new Date(user.created_at).toLocaleDateString()}</p>
+                        </div>
+                    </div>
+                    <div className="mt-6 p-4 bg-blue-100 rounded-lg">
+                        <p className="text-sm text-blue-800">
+                            <span className="font-medium">Free Plan Benefits:</span> You can merge up to {freeMergeGroupLimit} contact groups for free.
+                            {plan?.mergeGroupsUsed >= freeMergeGroupLimit ? ' You have reached your free limit. Upgrade to continue merging contacts!' : ''}
+                        </p>
                     </div>
                 </div>
             </div>}

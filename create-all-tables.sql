@@ -18,7 +18,7 @@ DROP INDEX IF EXISTS idx_matching_api_key;
 DROP INDEX IF EXISTS idx_merging_user_id_group_id;
 DROP INDEX IF EXISTS idx_modified_user_id_api_key;
 DROP INDEX IF EXISTS idx_remove_user_id_api_key;
-DROP INDEX IF EXISTS idx_payments_user_id;
+DROP INDEX IF EXISTS idx_payment_user_id;
 DROP INDEX IF EXISTS idx_user_plan_user_id;
 
 -- Drop tables (if exist)
@@ -29,7 +29,7 @@ DROP TABLE IF EXISTS matching CASCADE;
 DROP TABLE IF EXISTS contacts CASCADE;
 DROP TABLE IF EXISTS actions CASCADE;
 DROP TABLE IF EXISTS user_plan CASCADE;
-DROP TABLE IF EXISTS payments CASCADE;
+DROP TABLE IF EXISTS payment CASCADE;
 DROP TABLE IF EXISTS users CASCADE;
 DROP TABLE IF EXISTS hubspot_connections CASCADE;
 
@@ -75,18 +75,18 @@ CREATE TABLE users (
 );
 
 -- Create payment table
-CREATE TABLE payments (
+CREATE TABLE payment (
 	id SERIAL PRIMARY KEY,
-	api_key VARCHAR(500),
-	user_id INTEGER NOT NULL REFERENCES users(id),
+	"apiKey" VARCHAR(500),
+	"userId" INTEGER NOT NULL REFERENCES users(id),
 	amount INTEGER NOT NULL,
-	contact_count INTEGER,
-	billing_type VARCHAR(50),
+	"contactCount" INTEGER,
+	"billingType" VARCHAR(50),
 	currency VARCHAR(10) DEFAULT 'usd',
 	status payment_status DEFAULT 'pending',
-	created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-	stripe_payment_intent_id VARCHAR(500) NOT NULL,
-	original_price INTEGER
+	"createdAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+	"stripePaymentIntentId" VARCHAR(500) NOT NULL,
+	"originalPrice" INTEGER
 );
 
 -- Create user_plans table
@@ -99,7 +99,7 @@ CREATE TABLE user_plan (
 	"contactCount" INTEGER DEFAULT 0,
 	"billingEndDate" TIMESTAMP WITH TIME ZONE,
 	"paymentStatus" VARCHAR(50) DEFAULT 'active',
-	"paymentId" INTEGER REFERENCES payments(id)
+	"paymentId" INTEGER REFERENCES payment(id)
 );
 
 -- Create actions table
@@ -214,7 +214,7 @@ CREATE INDEX idx_matching_api_key ON matching(api_key);
 CREATE INDEX idx_merging_user_id_group_id ON merging(user_id, group_id);
 CREATE INDEX idx_modified_user_id_api_key ON modified(user_id, api_key);
 CREATE INDEX idx_remove_user_id_api_key ON remove(user_id, api_key);
-CREATE INDEX idx_payments_user_id ON payments(user_id);
+CREATE INDEX idx_payment_user_id ON payment("userId");
 CREATE INDEX idx_user_plan_user_id ON user_plan("userId");
 
 
