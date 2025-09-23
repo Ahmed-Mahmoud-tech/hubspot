@@ -160,6 +160,12 @@ export default function ProfilePage() {
             {plan && plan.planType !== 'free' && <div className="bg-white shadow-lg rounded-xl mb-8">
                 <div className="px-8 py-6 border-b border-blue-100 flex items-center justify-between">
                     <h3 className="text-lg font-semibold text-gray-900">Plan Details</h3>
+                    <button 
+                        onClick={() => setShowPlanModal(true)} 
+                        className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white font-medium rounded-lg shadow hover:bg-indigo-700 transition-colors"
+                    >
+                        Upgrade Plan
+                    </button>
                 </div>
                 <div className="px-8 py-6">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
