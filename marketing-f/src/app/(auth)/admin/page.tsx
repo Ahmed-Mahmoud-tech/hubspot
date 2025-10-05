@@ -418,7 +418,6 @@ export default function AdminDashboard() {
                 Previous
               </button>
 
-              {/* Page numbers */}
               {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
                 // Show first page, current page and its neighbors, and last page
                 const showPage =
