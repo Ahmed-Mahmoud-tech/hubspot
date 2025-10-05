@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import 'react-toastify/dist/ReactToastify.css';
 import "./globals.css";
 import Providers from "./providers";
+import { GoogleTagManager } from "@/components/GoogleTagManager";
 
 // const geistSans = Geist({
 //   variable: "--font-geist-sans",
@@ -13,6 +14,8 @@ import Providers from "./providers";
 //   variable: "--font-geist-mono",
 //   subsets: ["latin"],
 // });
+
+const GTM_ID = process.env.NEXT_PUBLIC_GTM_ID || 'GTM-5NN5RQXN';
 
 export const metadata: Metadata = {
   title: "HubSpot Duplicate Management System",
@@ -29,6 +32,7 @@ export default function RootLayout({
       <body
       // className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+        <GoogleTagManager gtmId={GTM_ID} />
         <Providers>{children}</Providers>
       </body>
     </html>

@@ -14,6 +14,7 @@ export interface User {
   email: string;
   phone?: string;
   verified: boolean;
+  role?: string;
   created_at: string;
   updated_at: string;
 }

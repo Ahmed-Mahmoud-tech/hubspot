@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Image from 'next/image';
 import { getCookie, deleteCookie } from 'cookies-next';
-import { LogOut, User as UserIcon, BarChart3, Menu, X } from 'lucide-react';
+import { LogOut, User as UserIcon, BarChart3 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import useRequest, { type User } from '@/app/axios/useRequest';
 import logo from '../../../../public/assets/images/logo.png';
@@ -19,7 +19,6 @@ export default function Header({ user: propUser, onUserUpdate }: HeaderProps) {
     const router = useRouter();
     const pathname = usePathname();
     const [user, setUser] = useState<User | null>(propUser || null);
-    const [isMenuOpen, setIsMenuOpen] = useState(false);
     const { getProfile } = useRequest();
 
     useEffect(() => {
@@ -73,6 +72,19 @@ export default function Header({ user: propUser, onUserUpdate }: HeaderProps) {
                     </Link>
 
                     <div className="flex items-center space-x-4">
+                        {user?.role === 'admin' && (
+                            <Link
+                                href="/admin"
+                                className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${pathname === '/admin'
+                                        ? 'bg-blue-100 text-blue-700'
+                                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                                    }`}
+                            >
+                                <BarChart3 className="h-4 w-4" />
+                                <span className="hidden sm:inline">Admin</span>
+                            </Link>
+                        )}
+
                         <Link href="/profile" className="flex items-center space-x-2">
                             <UserIcon className="h-5 w-5 text-gray-500" />
                             <span className="text-sm text-gray-700">

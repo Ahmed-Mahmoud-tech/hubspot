@@ -5,11 +5,13 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { AppController } from './app.controller';
 import { PlanController } from './controllers/plan.controller';
 import { StripeController } from './controllers/stripe.controller';
+import { AdminController } from './controllers/admin.controller';
 import { AppService } from './app.service';
 // import { PlanService } from './services/plan.service';
 import { PlanModule } from './modules/plan.module';
 import { EmailService } from './services/email.service';
 import { UserService } from './services/user.service';
+import { AdminService } from './services/admin.service';
 import { Payment } from './entities/payment.entity';
 import { AuthModule } from './modules/auth.module';
 import { HubSpotModule } from './modules/hubspot.module';
@@ -70,8 +72,13 @@ import { CorsMiddleware } from './middleware/cors.middleware';
     TypeOrmModule.forFeature([UserPlan, Payment, User]),
     PlanModule,
   ],
-  controllers: [AppController, PlanController, StripeController],
-  providers: [AppService, EmailService, UserService],
+  controllers: [
+    AppController,
+    PlanController,
+    StripeController,
+    AdminController,
+  ],
+  providers: [AppService, EmailService, UserService, AdminService],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {

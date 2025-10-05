@@ -20,6 +20,7 @@ DROP INDEX IF EXISTS idx_modified_user_id_api_key;
 DROP INDEX IF EXISTS idx_remove_user_id_api_key;
 DROP INDEX IF EXISTS idx_payment_user_id;
 DROP INDEX IF EXISTS idx_user_plan_user_id;
+DROP INDEX IF EXISTS idx_users_role;
 
 -- Drop tables (if exist)
 DROP TABLE IF EXISTS remove CASCADE;
@@ -67,11 +68,13 @@ CREATE TABLE users (
 	phone VARCHAR(50),
 	password VARCHAR(500) NOT NULL,
 	verified BOOLEAN DEFAULT FALSE,
+	role VARCHAR(10) DEFAULT 'user',
 	verification_token VARCHAR(500),
 	reset_password_token VARCHAR(500),
 	reset_password_expires TIMESTAMP WITH TIME ZONE,
 	created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-	updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+	updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+	CONSTRAINT users_role_check CHECK (role IN ('user', 'admin'))
 );
 
 -- Create payment table
@@ -216,6 +219,7 @@ CREATE INDEX idx_modified_user_id_api_key ON modified(user_id, api_key);
 CREATE INDEX idx_remove_user_id_api_key ON remove(user_id, api_key);
 CREATE INDEX idx_payment_user_id ON payment("userId");
 CREATE INDEX idx_user_plan_user_id ON user_plan("userId");
+CREATE INDEX idx_users_role ON users(role);
 
 
 --$env:PATH += ";C:\Program Files\PostgreSQL\17\bin"; psql "postgresql://postgres:TQBidLbMvfmGqfGbmwjzBdngOsJHSQEN@shortline.proxy.rlwy.net:39822/railway" -f "d:\marketing\create-all-tables.sql"

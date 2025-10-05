@@ -6,6 +6,11 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
+export enum UserRole {
+  USER = 'user',
+  ADMIN = 'admin',
+}
+
 @Entity('users')
 export class User {
   @PrimaryGeneratedColumn()
@@ -28,6 +33,13 @@ export class User {
 
   @Column({ type: 'boolean', default: false })
   verified: boolean;
+
+  @Column({
+    type: 'enum',
+    enum: UserRole,
+    default: UserRole.USER,
+  })
+  role: UserRole;
 
   @Column({ type: 'varchar', length: 500, nullable: true })
   verification_token?: string;
