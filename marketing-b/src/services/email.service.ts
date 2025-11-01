@@ -14,12 +14,7 @@ export class EmailService {
     const user = this.configService.get<string>('EMAIL_USER');
     const pass = this.configService.get<string>('EMAIL_PASSWORD');
 
-    console.log('📧 Initializing email service:', {
-      host,
-      port,
-      secure,
-      user,
-    });
+    console.log('📧 Email configuration:', { host, port, secure, user });
 
     this.transporter = nodemailer.createTransport({
       host,
@@ -32,9 +27,6 @@ export class EmailService {
       tls: {
         rejectUnauthorized: false,
       },
-      connectionTimeout: 15000,
-      greetingTimeout: 15000,
-      socketTimeout: 45000,
     });
   }
 
