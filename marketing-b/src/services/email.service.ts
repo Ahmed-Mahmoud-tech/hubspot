@@ -8,14 +8,33 @@ export class EmailService {
   private transporter: Transporter;
 
   constructor(private configService: ConfigService) {
+    const host = this.configService.get<string>('EMAIL_HOST');
+    const port = this.configService.get<number>('EMAIL_PORT');
+    const secure = this.configService.get<string>('EMAIL_SECURE') === 'true';
+    const user = this.configService.get<string>('EMAIL_USER');
+    const pass = this.configService.get<string>('EMAIL_PASSWORD');
+
+    console.log('📧 Initializing email service:', {
+      host,
+      port,
+      secure,
+      user,
+    });
+
     this.transporter = nodemailer.createTransport({
-      host: this.configService.get<string>('EMAIL_HOST'),
-      port: this.configService.get<number>('EMAIL_PORT'),
-      secure: this.configService.get<string>('EMAIL_SECURE') === 'true',
+      host,
+      port,
+      secure,
       auth: {
-        user: this.configService.get<string>('EMAIL_USER'),
-        pass: this.configService.get<string>('EMAIL_PASSWORD'),
+        user,
+        pass,
       },
+      tls: {
+        rejectUnauthorized: false,
+      },
+      connectionTimeout: 15000,
+      greetingTimeout: 15000,
+      socketTimeout: 45000,
     });
   }
 
