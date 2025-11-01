@@ -27,6 +27,23 @@ export class EmailService {
       tls: {
         rejectUnauthorized: false,
       },
+      connectionTimeout: 30000,
+      greetingTimeout: 30000,
+      socketTimeout: 60000,
+      pool: true,
+      maxConnections: 5,
+      logger: process.env.NODE_ENV !== 'production',
+      debug: process.env.NODE_ENV !== 'production',
+    });
+
+    // Test connection on startup
+    this.transporter.verify((error, success) => {
+      if (error) {
+        console.error('❌ SMTP connection failed on startup:', error.message);
+        console.error('Please check your email configuration or use a Railway-compatible service.');
+      } else {
+        console.log('✅ SMTP server is ready to send emails');
+      }
     });
   }
 
