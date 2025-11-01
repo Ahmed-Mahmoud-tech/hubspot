@@ -1,15 +1,22 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import * as sgMail from '@sendgrid/mail';
+import * as nodemailer from 'nodemailer';
+import { Transporter } from 'nodemailer';
 
 @Injectable()
 export class EmailService {
+  private transporter: Transporter;
+
   constructor(private configService: ConfigService) {
-    const apiKey = this.configService.get<string>('SENDGRID_API_KEY');
-    if (!apiKey) {
-      throw new Error('SENDGRID_API_KEY is required but not provided');
-    }
-    sgMail.setApiKey(apiKey);
+    this.transporter = nodemailer.createTransport({
+      host: this.configService.get<string>('EMAIL_HOST'),
+      port: this.configService.get<number>('EMAIL_PORT'),
+      secure: this.configService.get<string>('EMAIL_SECURE') === 'true',
+      auth: {
+        user: this.configService.get<string>('EMAIL_USER'),
+        pass: this.configService.get<string>('EMAIL_PASSWORD'),
+      },
+    });
   }
 
   async sendVerificationEmail(email: string, token: string): Promise<void> {
@@ -21,7 +28,7 @@ export class EmailService {
       throw new Error('EMAIL_FROM is required but not provided');
     }
 
-    const mailOptions: sgMail.MailDataRequired = {
+    const mailOptions = {
       from: fromEmail,
       to: email,
       subject: 'Email Verification - HubSpot Duplicate Management',
@@ -53,7 +60,7 @@ export class EmailService {
       throw new Error('EMAIL_FROM is required but not provided');
     }
 
-    const mailOptions: sgMail.MailDataRequired = {
+    const mailOptions = {
       from: fromEmail,
       to: email,
       subject: 'Password Reset - HubSpot Duplicate Management',
@@ -86,7 +93,7 @@ export class EmailService {
       throw new Error('EMAIL_FROM is required but not provided');
     }
 
-    const mailOptions: sgMail.MailDataRequired = {
+    const mailOptions = {
       from: fromEmail,
       to: email,
       subject: 'Your Plan Will Expire Soon',
@@ -108,15 +115,14 @@ export class EmailService {
     await this.sendEmailWithRetry(mailOptions);
   }
 
-  // Test method to verify SendGrid connection
+  // Test method to verify SMTP connection
   async testConnection(): Promise<boolean> {
     try {
-      // SendGrid doesn't have a verify method like nodemailer
-      // We can send a test email to verify the connection instead
-      console.log('SendGrid API Key is configured');
+      await this.transporter.verify();
+      console.log('✅ SMTP connection verified successfully');
       return true;
     } catch (error) {
-      console.error('SendGrid connection failed:', error);
+      console.error('❌ SMTP connection failed:', error);
       return false;
     }
   }
@@ -133,7 +139,7 @@ export class EmailService {
       throw new Error('EMAIL_FROM is required but not provided');
     }
 
-    const mailOptions: sgMail.MailDataRequired = {
+    const mailOptions = {
       from: fromEmail,
       to,
       subject,
@@ -143,9 +149,9 @@ export class EmailService {
     await this.sendEmailWithRetry(mailOptions);
   }
 
-  // Retry logic for sending emails with SendGrid
+  // Retry logic for sending emails with Nodemailer
   private async sendEmailWithRetry(
-    mailOptions: sgMail.MailDataRequired,
+    mailOptions: nodemailer.SendMailOptions,
     maxRetries: number = 3,
   ): Promise<void> {
     let lastError: Error | null = null;
@@ -153,14 +159,14 @@ export class EmailService {
       ? mailOptions.to[0]
       : typeof mailOptions.to === 'string'
         ? mailOptions.to
-        : (mailOptions.to as any)?.email || 'unknown';
+        : (mailOptions.to as any)?.address || 'unknown';
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         console.log(
           `📧 Email attempt ${attempt}/${maxRetries} to ${recipientEmail}`,
         );
-        await sgMail.send(mailOptions);
+        await this.transporter.sendMail(mailOptions);
         console.log(`✅ Email sent successfully on attempt ${attempt}`);
         return;
       } catch (error) {
