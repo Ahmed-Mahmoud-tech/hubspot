@@ -1,4 +1,4 @@
-import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
@@ -26,7 +26,6 @@ import { Modified } from './entities/modified.entity';
 import { Remove } from './entities/remove.entity';
 import { Merging } from './entities/merging.entity';
 import { HubSpotConnection } from './entities/hubspot-connection.entity';
-import { CorsMiddleware } from './middleware/cors.middleware';
 
 @Module({
   imports: [
@@ -80,8 +79,6 @@ import { CorsMiddleware } from './middleware/cors.middleware';
   ],
   providers: [AppService, EmailService, UserService, AdminService],
 })
-export class AppModule implements NestModule {
-  configure(consumer: MiddlewareConsumer) {
-    consumer.apply(CorsMiddleware).forRoutes('*');
-  }
+export class AppModule {
+  // Removed CORS middleware - using app.enableCors() in main.ts instead
 }

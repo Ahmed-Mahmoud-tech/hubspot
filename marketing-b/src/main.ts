@@ -8,22 +8,50 @@ import { ConfigService } from '@nestjs/config';
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
+  // Get config service
+  const configService = app.get(ConfigService);
+  const frontendUrl = configService.get('FRONTEND_URL') || 'http://localhost:3000';
+
   // Serve static files
   app.useStaticAssets(join(__dirname, '..', 'uploads'), {
     prefix: '/uploads/',
   });
-  // Enable CORS for frontend requests from localhost:3000 and env FRONTEND_URL
-  const configService = app.get(ConfigService);
-  const frontendUrl = configService.get('FRONTEND_URL') || 'http://localhost:3000';
+
+  // Enable CORS with dynamic origin check
+  const allowedOrigins = [
+    'http://localhost:3000',
+    'https://clearroot.cloud',
+    'http://clearroot.cloud',
+    frontendUrl,
+  ];
 
   app.enableCors({
-    origin: [frontendUrl, 'http://localhost:3000', 'https://clearroot.cloud'],
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps or Postman)
+      if (!origin) {
+        callback(null, true);
+        return;
+      }
+      
+      if (allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        console.log(`CORS blocked origin: ${origin}`);
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH', 'HEAD'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'X-Requested-With',
+      'Accept',
+      'Origin',
+    ],
     exposedHeaders: ['Authorization', 'Set-Cookie'],
     preflightContinue: false,
-    optionsSuccessStatus: 200,
+    optionsSuccessStatus: 204,
   });
 
   // Enable validation pipes
