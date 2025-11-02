@@ -6,12 +6,7 @@ import { join } from 'path';
 import { ConfigService } from '@nestjs/config';
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
-    cors: {
-      origin: '*',
-      credentials: true,
-    },
-  });
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   // Serve static files
   app.useStaticAssets(join(__dirname, '..', 'uploads'), {
@@ -19,13 +14,13 @@ async function bootstrap() {
   });
   // Enable CORS for frontend requests from localhost:3000 and env FRONTEND_URL
   const configService = app.get(ConfigService);
-  const frontendUrl = configService.get('FRONTEND_URL');
+  const frontendUrl = configService.get('FRONTEND_URL') || 'http://localhost:3000';
 
   app.enableCors({
-    origin: '*',
+    origin: [frontendUrl, 'http://localhost:3000', 'https://clearroot.cloud'],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH', 'HEAD'],
-    allowedHeaders: '*',
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
     exposedHeaders: ['Authorization', 'Set-Cookie'],
     preflightContinue: false,
     optionsSuccessStatus: 200,
