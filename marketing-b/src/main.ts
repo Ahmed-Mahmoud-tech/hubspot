@@ -17,37 +17,9 @@ async function bootstrap() {
     prefix: '/uploads/',
   });
 
-  // Enable CORS with dynamic origin check
-  const allowedOrigins = [
-    'http://localhost:3000',
-    'https://clearroot.cloud',
-    'http://clearroot.cloud',
-    'https://app.clearroot.cloud',
-    'http://app.clearroot.cloud',
-    frontendUrl,
-  ];
-
+  // Enable CORS - Allow all origins for now
   app.enableCors({
-    origin: (origin, callback) => {
-      console.log(`CORS request from origin: ${origin}`);
-      console.log(`Allowed origins:`, allowedOrigins);
-      
-      // Allow requests with no origin (like mobile apps or Postman)
-      if (!origin) {
-        console.log('Allowing request with no origin');
-        callback(null, true);
-        return;
-      }
-      
-      if (allowedOrigins.includes(origin)) {
-        console.log(`✅ Allowing origin: ${origin}`);
-        callback(null, true);
-      } else {
-        console.log(`❌ CORS BLOCKED origin: ${origin}`);
-        console.log(`This origin is not in allowedOrigins list`);
-        callback(new Error('Not allowed by CORS'));
-      }
-    },
+    origin: true, // Allow all origins
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH', 'HEAD'],
     allowedHeaders: [
