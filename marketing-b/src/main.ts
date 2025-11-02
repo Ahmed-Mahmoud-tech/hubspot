@@ -22,6 +22,8 @@ async function bootstrap() {
     'http://localhost:3000',
     'https://clearroot.cloud',
     'http://clearroot.cloud',
+    'https://app.clearroot.cloud',
+    'http://app.clearroot.cloud',
     frontendUrl,
   ];
 
