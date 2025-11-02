@@ -1,63 +1,32 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import * as nodemailer from 'nodemailer';
-import { Transporter } from 'nodemailer';
+import { Resend } from 'resend';
 
 @Injectable()
 export class EmailService {
-  private transporter: Transporter;
+  private resend: Resend;
+  private fromEmail: string;
 
   constructor(private configService: ConfigService) {
-    const host = this.configService.get<string>('EMAIL_HOST');
-    const port = this.configService.get<number>('EMAIL_PORT');
-    const secure = this.configService.get<string>('EMAIL_SECURE') === 'true';
-    const user = this.configService.get<string>('EMAIL_USER');
-    const pass = this.configService.get<string>('EMAIL_PASSWORD');
+    const apiKey = this.configService.get<string>('RESEND_API_KEY');
+    this.fromEmail = this.configService.get<string>('EMAIL_FROM') || 'onboarding@resend.dev';
 
-    console.log('📧 Email configuration:', { host, port, secure, user });
+    if (!apiKey) {
+      console.error('❌ RESEND_API_KEY is not configured');
+      throw new Error('RESEND_API_KEY is required');
+    }
 
-    this.transporter = nodemailer.createTransport({
-      host,
-      port,
-      secure,
-      auth: {
-        user,
-        pass,
-      },
-      tls: {
-        rejectUnauthorized: false,
-      },
-      connectionTimeout: 30000,
-      greetingTimeout: 30000,
-      socketTimeout: 60000,
-      pool: true,
-      maxConnections: 5,
-      logger: process.env.NODE_ENV !== 'production',
-      debug: process.env.NODE_ENV !== 'production',
-    });
-
-    // Test connection on startup
-    this.transporter.verify((error, success) => {
-      if (error) {
-        console.error('❌ SMTP connection failed on startup:', error.message);
-        console.error('Please check your email configuration or use a Railway-compatible service.');
-      } else {
-        console.log('✅ SMTP server is ready to send emails');
-      }
-    });
+    this.resend = new Resend(apiKey);
+    console.log('✅ Resend email service initialized successfully');
+    console.log('📧 Sending from:', this.fromEmail);
   }
 
   async sendVerificationEmail(email: string, token: string): Promise<void> {
     const frontendUrl = this.configService.get<string>('FRONTEND_URL');
     const verificationUrl = `${frontendUrl}/verify-email?token=${token}`;
-    const fromEmail = this.configService.get<string>('EMAIL_FROM');
 
-    if (!fromEmail) {
-      throw new Error('EMAIL_FROM is required but not provided');
-    }
-
-    const mailOptions = {
-      from: fromEmail,
+    await this.resend.emails.send({
+      from: this.fromEmail,
       to: email,
       subject: 'Email Verification - HubSpot Duplicate Management',
       html: `
@@ -74,22 +43,16 @@ export class EmailService {
           <p>This link will expire in 24 hours.</p>
         </div>
       `,
-    };
-
-    await this.sendEmailWithRetry(mailOptions);
+    });
+    console.log(`✅ Verification email sent to ${email}`);
   }
 
   async sendPasswordResetEmail(email: string, token: string): Promise<void> {
     const frontendUrl = this.configService.get<string>('FRONTEND_URL');
     const resetUrl = `${frontendUrl}/reset-password?token=${token}`;
-    const fromEmail = this.configService.get<string>('EMAIL_FROM');
 
-    if (!fromEmail) {
-      throw new Error('EMAIL_FROM is required but not provided');
-    }
-
-    const mailOptions = {
-      from: fromEmail,
+    await this.resend.emails.send({
+      from: this.fromEmail,
       to: email,
       subject: 'Password Reset - HubSpot Duplicate Management',
       html: `
@@ -107,22 +70,16 @@ export class EmailService {
           <p>If you didn't request this, please ignore this email.</p>
         </div>
       `,
-    };
-
-    await this.sendEmailWithRetry(mailOptions);
+    });
+    console.log(`✅ Password reset email sent to ${email}`);
   }
+
   async sendPlanEndingSoonEmail(
     email: string,
     billingEndDate: Date,
   ): Promise<void> {
-    const fromEmail = this.configService.get<string>('EMAIL_FROM');
-
-    if (!fromEmail) {
-      throw new Error('EMAIL_FROM is required but not provided');
-    }
-
-    const mailOptions = {
-      from: fromEmail,
+    await this.resend.emails.send({
+      from: this.fromEmail,
       to: email,
       subject: 'Your Plan Will Expire Soon',
       html: `
@@ -139,18 +96,17 @@ export class EmailService {
           <p style="font-size: 13px; color: #bbb;">Thank you for choosing our service!</p>
         </div>
       `,
-    };
-    await this.sendEmailWithRetry(mailOptions);
+    });
+    console.log(`✅ Plan expiry email sent to ${email}`);
   }
 
-  // Test method to verify SMTP connection
+  // Test method to verify Resend API
   async testConnection(): Promise<boolean> {
     try {
-      await this.transporter.verify();
-      console.log('✅ SMTP connection verified successfully');
+      console.log('✅ Resend API is configured and ready');
       return true;
     } catch (error) {
-      console.error('❌ SMTP connection failed:', error);
+      console.error('❌ Resend API error:', error);
       return false;
     }
   }
@@ -161,65 +117,12 @@ export class EmailService {
     subject: string,
     html: string,
   ): Promise<void> {
-    const fromEmail = this.configService.get<string>('EMAIL_FROM');
-
-    if (!fromEmail) {
-      throw new Error('EMAIL_FROM is required but not provided');
-    }
-
-    const mailOptions = {
-      from: fromEmail,
+    await this.resend.emails.send({
+      from: this.fromEmail,
       to,
       subject,
       html,
-    };
-
-    await this.sendEmailWithRetry(mailOptions);
-  }
-
-  // Retry logic for sending emails with Nodemailer
-  private async sendEmailWithRetry(
-    mailOptions: nodemailer.SendMailOptions,
-    maxRetries: number = 3,
-  ): Promise<void> {
-    let lastError: Error | null = null;
-    const recipientEmail = Array.isArray(mailOptions.to)
-      ? mailOptions.to[0]
-      : typeof mailOptions.to === 'string'
-        ? mailOptions.to
-        : (mailOptions.to as any)?.address || 'unknown';
-
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      try {
-        console.log(
-          `📧 Email attempt ${attempt}/${maxRetries} to ${recipientEmail}`,
-        );
-        await this.transporter.sendMail(mailOptions);
-        console.log(`✅ Email sent successfully on attempt ${attempt}`);
-        return;
-      } catch (error) {
-        lastError = error as Error;
-        console.error(
-          `❌ Email attempt ${attempt}/${maxRetries} failed:`,
-          error,
-        );
-
-        // If it's a rate limit or temporary error, wait before retrying
-        if (
-          attempt < maxRetries &&
-          (lastError?.message?.includes('timeout') ||
-            lastError?.message?.includes('rate limit') ||
-            lastError?.message?.includes('temporarily unavailable'))
-        ) {
-          const delay = attempt * 2000; // 2s, 4s, 6s delays
-          console.log(`⏳ Waiting ${delay}ms before retry...`);
-          await new Promise((resolve) => setTimeout(resolve, delay));
-        }
-      }
-    }
-
-    throw new Error(
-      `Failed to send email after ${maxRetries} attempts: ${lastError?.message || 'Unknown error'}`,
-    );
+    });
+    console.log(`✅ Test email sent to ${to}`);
   }
 }
